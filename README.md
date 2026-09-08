@@ -55,7 +55,7 @@ macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
 
 The locally packed artifact is unsigned, so Macro Deck asks for an explicit confirmation on install. (Store releases are signed server-side by the Creator Portal.)
 
-Adding the configuration page means the integration starts disabled until its one-time setup is completed: open the plugin in Macro Deck, walk through the five short steps (every field is prefilled with its default) and it enables itself. Later edits apply live without restarting.
+Adding the configuration page means the integration starts disabled until its one-time setup is completed: open the plugin in Macro Deck, walk through the five short steps and it enables itself. Every number field shows its default as a hint; leaving one empty keeps that default. Later edits apply live without restarting.
 
 For development, press F5 with the **Macro Deck - Real Host** launch profile instead: approve the pairing prompt once (Developer Mode must be on) and later runs reuse the stored credential. See `src/WindowsMediaControl/Properties/launchSettings.json`.
 

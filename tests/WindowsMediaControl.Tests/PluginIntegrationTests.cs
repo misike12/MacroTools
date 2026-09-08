@@ -618,6 +618,36 @@ public sealed class ConfigFlowTests
 	}
 
 	[Test]
+	public async Task Empty_values_fall_back_to_defaults()
+	{
+		var flow = CreateFlow();
+		var ct = TestContext.CurrentContext.CancellationToken;
+		var context = new FakeConfigFlowContext();
+
+		var first = await flow.SubmitAsync("playback", new Dictionary<string, object?>
+		{
+			["preferred-app"] = "",
+			["seek-seconds"] = "",
+			["ff-seconds"] = "",
+		}, context, ct);
+		var second = await flow.SubmitAsync("volume", VolumeInput(), context, ct);
+		var third = await flow.SubmitAsync("updates", UpdatesInput(), context, ct);
+		var fourth = await flow.SubmitAsync("events", EventsInput(), context, ct);
+		var done = await flow.SubmitAsync("advanced", new Dictionary<string, object?>
+		{
+			["button-artwork"] = true,
+			["snapshot-timeout"] = "",
+			["control-timeout"] = "",
+			["artwork-cache"] = "",
+			["reset-defaults"] = false,
+		}, context, ct);
+
+		Assert.That(first.NextStep!.StepId, Is.EqualTo("volume"));
+		Assert.That(done.Values!["seek-seconds"].Value, Is.EqualTo("10"));
+		Assert.That(done.Values!["snapshot-timeout"].Value, Is.EqualTo("3"));
+	}
+
+	[Test]
 	public async Task Reset_restores_defaults()
 	{
 		var flow = CreateFlow();

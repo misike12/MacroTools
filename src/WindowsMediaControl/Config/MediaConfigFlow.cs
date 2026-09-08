@@ -98,6 +98,11 @@ public sealed class MediaConfigFlow : IConfigFlow
 		var errors = new Dictionary<string, LocalizedText>(StringComparer.Ordinal);
 		foreach (var (key, min, max) in rules)
 		{
+			if (!IsProvided(key))
+			{
+				continue;
+			}
+
 			var value = ReadNumber(key);
 			if (value is null || value < min || value > max)
 			{
@@ -107,6 +112,11 @@ public sealed class MediaConfigFlow : IConfigFlow
 
 		return errors;
 	}
+
+	private bool IsProvided(string key) =>
+		_input.TryGetValue(key, out var raw)
+			&& raw is not null
+			&& !(raw is string text && string.IsNullOrWhiteSpace(text));
 
 	private MediaSettings Collect()
 	{
@@ -231,7 +241,7 @@ public sealed class MediaConfigFlow : IConfigFlow
 		new() { Name = name, Type = ActionParameterType.String, Label = label, Description = description, DefaultValue = defaultValue };
 
 	private static ActionParameter Number(string name, LocalizedText label, LocalizedText description, double min, double max, double step, double defaultValue) =>
-		new() { Name = name, Type = ActionParameterType.Number, Label = label, Description = description, Min = min, Max = max, Step = step, DefaultValue = defaultValue };
+		new() { Name = name, Type = ActionParameterType.Number, Label = label, Description = description, Min = min, Max = max, Step = step, DefaultValue = defaultValue, Placeholder = Strings.Config.DefaultValueHint(defaultValue.ToString(CultureInfo.InvariantCulture)) };
 
 	private static ActionParameter Toggle(string name, LocalizedText label, LocalizedText description, bool defaultValue) =>
 		new() { Name = name, Type = ActionParameterType.Boolean, Label = label, Description = description, DefaultValue = defaultValue };

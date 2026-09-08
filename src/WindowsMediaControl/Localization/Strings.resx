@@ -174,6 +174,9 @@
   <data name="Errors.FieldInvalid" xml:space="preserve">
     <value>Check this value.</value>
   </data>
+  <data name="Config.DefaultValueHint" xml:space="preserve">
+    <value>Default: {value}</value>
+  </data>
   <data name="Config.Playback.Title" xml:space="preserve">
     <value>Playback</value>
   </data>
