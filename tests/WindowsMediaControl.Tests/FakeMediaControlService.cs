@@ -4,6 +4,10 @@ namespace WindowsMediaControl.Tests;
 
 internal sealed class FakeMediaControlService : IMediaControlService
 {
+	public event EventHandler? MediaChanged;
+
+	public void RaiseMediaChanged() => MediaChanged?.Invoke(this, EventArgs.Empty);
+
 	public MediaSnapshot Snapshot { get; set; } = new MediaSnapshot
 	{
 		HasSession = true,

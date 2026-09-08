@@ -14,3 +14,11 @@ public enum MediaRepeatMode
 	All = 1,
 	One = 2,
 }
+
+public enum MediaPlaybackType
+{
+	Unknown = 0,
+	Music = 1,
+	Video = 2,
+	Image = 3,
+}

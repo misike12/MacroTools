@@ -2,6 +2,8 @@ namespace WindowsMediaControl.Media;
 
 public interface IMediaControlService
 {
+	event EventHandler? MediaChanged;
+
 	Task<MediaSnapshot> GetSnapshotAsync(CancellationToken cancellationToken);
 	Task<bool> PlayAsync(CancellationToken cancellationToken, string? appId = null);
 	Task<bool> PauseAsync(CancellationToken cancellationToken, string? appId = null);

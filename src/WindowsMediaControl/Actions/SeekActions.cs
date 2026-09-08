@@ -52,9 +52,7 @@ public sealed class SeekForwardAction(IMediaControlService media, MediaSettingsP
 
 			try
 			{
-				return await media.SeekByAsync(TimeSpan.FromSeconds(seconds.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.SeekByAsync(TimeSpan.FromSeconds(seconds.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings)), context.CancellationToken);
 			}
 			catch (Exception)
 			{
@@ -110,9 +108,7 @@ public sealed class SeekBackwardAction(IMediaControlService media, MediaSettings
 
 			try
 			{
-				return await media.SeekByAsync(TimeSpan.FromSeconds(-seconds.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.SeekByAsync(TimeSpan.FromSeconds(-seconds.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings)), context.CancellationToken);
 			}
 			catch (Exception)
 			{
@@ -161,9 +157,7 @@ public sealed class SeekToAction(IMediaControlService media, MediaSettingsProvid
 
 			try
 			{
-				return await media.SeekToAsync(TimeSpan.FromSeconds(position.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.SeekToAsync(TimeSpan.FromSeconds(position.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings)), context.CancellationToken);
 			}
 			catch (Exception)
 			{

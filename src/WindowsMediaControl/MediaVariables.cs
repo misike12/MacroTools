@@ -38,6 +38,20 @@ internal static class MediaVariables
 		},
 		Eager("shuffle-enabled", VariableType.Boolean, Strings.Variables.ShuffleEnabled.DisplayName(), Strings.Variables.ShuffleEnabled.Description()),
 		Eager("repeat-mode", VariableType.Text, Strings.Variables.RepeatMode.DisplayName(), Strings.Variables.RepeatMode.Description()),
+		Eager("album-artist", VariableType.Text, Strings.Variables.AlbumArtist.DisplayName(), Strings.Variables.AlbumArtist.Description()),
+		Eager("genres", VariableType.Text, Strings.Variables.Genres.DisplayName(), Strings.Variables.Genres.Description()),
+		Eager("track-number", VariableType.Numeric, Strings.Variables.TrackNumber.DisplayName(), Strings.Variables.TrackNumber.Description()),
+		Eager("track-count", VariableType.Numeric, Strings.Variables.TrackCount.DisplayName(), Strings.Variables.TrackCount.Description()),
+		Eager("subtitle", VariableType.Text, Strings.Variables.Subtitle.DisplayName(), Strings.Variables.Subtitle.Description()),
+		Eager("playback-type", VariableType.Text, Strings.Variables.PlaybackType.DisplayName(), Strings.Variables.PlaybackType.Description()),
+		Eager("playback-rate", VariableType.Numeric, Strings.Variables.PlaybackRate.DisplayName(), Strings.Variables.PlaybackRate.Description()),
+		Eager("is-live", VariableType.Boolean, Strings.Variables.IsLive.DisplayName(), Strings.Variables.IsLive.Description()),
+		Eager("can-play", VariableType.Boolean, Strings.Variables.CanPlay.DisplayName(), Strings.Variables.CanPlay.Description()),
+		Eager("can-pause", VariableType.Boolean, Strings.Variables.CanPause.DisplayName(), Strings.Variables.CanPause.Description()),
+		Eager("can-stop", VariableType.Boolean, Strings.Variables.CanStop.DisplayName(), Strings.Variables.CanStop.Description()),
+		Eager("can-next", VariableType.Boolean, Strings.Variables.CanNext.DisplayName(), Strings.Variables.CanNext.Description()),
+		Eager("can-previous", VariableType.Boolean, Strings.Variables.CanPrevious.DisplayName(), Strings.Variables.CanPrevious.Description()),
+		Eager("can-seek", VariableType.Boolean, Strings.Variables.CanSeek.DisplayName(), Strings.Variables.CanSeek.Description()),
 	];
 
 	private static VariableDefinition Eager(

@@ -516,6 +516,88 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Play_reports_not_supported_when_the_session_rejects_it()
+	{
+		var fake = new FakeMediaControlService { TransportResult = false };
+		fake.Snapshot = fake.Snapshot with { Status = PlaybackStatus.Paused };
+		var action = new PlayAction(fake, new MediaSettingsProvider());
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Failed));
+		Assert.That(result.ErrorCode, Is.EqualTo(ActionErrorCodes.ProviderRejected));
+	}
+
+	[Test]
+	public async Task Metadata_variables_expose_extended_properties()
+	{
+		var fake = new FakeMediaControlService();
+		fake.Snapshot = fake.Snapshot with
+		{
+			AlbumArtist = "Various Artists",
+			Genres = ["Hardstyle", "EDM"],
+			TrackNumber = 3,
+			AlbumTrackCount = 12,
+			Subtitle = "Extended mix",
+			PlaybackType = MediaPlaybackType.Video,
+			PlaybackRate = 1.5,
+			CanPlay = true,
+			CanSeek = true,
+		};
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That((await integration.ReadAsync("album-artist")).Value, Is.EqualTo("Various Artists"));
+		Assert.That((await integration.ReadAsync("genres")).Value, Is.EqualTo("Hardstyle, EDM"));
+		Assert.That((await integration.ReadAsync("track-number")).Value, Is.EqualTo(3.0));
+		Assert.That((await integration.ReadAsync("track-count")).Value, Is.EqualTo(12.0));
+		Assert.That((await integration.ReadAsync("subtitle")).Value, Is.EqualTo("Extended mix"));
+		Assert.That((await integration.ReadAsync("playback-type")).Value, Is.EqualTo("video"));
+		Assert.That((await integration.ReadAsync("playback-rate")).Value, Is.EqualTo(1.5));
+		Assert.That((await integration.ReadAsync("is-live")).Value, Is.EqualTo(false));
+		Assert.That((await integration.ReadAsync("can-play")).Value, Is.EqualTo(true));
+		Assert.That((await integration.ReadAsync("can-seek")).Value, Is.EqualTo(true));
+		Assert.That((await integration.ReadAsync("can-stop")).Value, Is.EqualTo(false));
+	}
+
+	[Test]
+	public async Task Live_stream_reports_is_live()
+	{
+		var fake = new FakeMediaControlService();
+		fake.Snapshot = fake.Snapshot with { Status = PlaybackStatus.Playing, Duration = TimeSpan.Zero };
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That((await integration.ReadAsync("is-live")).Value, Is.EqualTo(true));
+	}
+
+	[Test]
+	public async Task Media_changed_event_triggers_a_refresh()
+	{
+		var fake = new FakeMediaControlService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(context);
+
+		fake.Snapshot = fake.Snapshot with { Title = "Changed over event" };
+		fake.RaiseMediaChanged();
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Events.Published.Any(e => e.EventId == "track-changed"))
+		{
+			await Task.Delay(100);
+		}
+
+		Assert.That(context.Events.Published.Any(e => e.EventId == "track-changed"), Is.True);
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
 	public void Action_ids_are_unique_across_the_plugin()
 	{
 		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());

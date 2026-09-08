@@ -15,6 +15,12 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 	private readonly ConcurrentDictionary<string, ArtworkData> _artworkCache = new(StringComparer.Ordinal);
 	private readonly MediaSettingsProvider _settings;
+	private readonly object _subscriptionGate = new();
+	private GlobalSystemMediaTransportControlsSessionManager? _manager;
+	private GlobalSystemMediaTransportControlsSession? _watchedSession;
+	private bool _managerSubscribed;
+
+	public event EventHandler? MediaChanged;
 
 	public WindowsMediaControlService(MediaSettingsProvider? settings = null)
 	{
@@ -41,7 +47,13 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 		try
 		{
-			var manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(cancellationToken);
+			var manager = await GetManagerAsync(cancellationToken);
+			if (manager is null)
+			{
+				return MediaSnapshot.Empty;
+			}
+
+			EnsureWatchedSession(manager);
 			var session = manager.GetCurrentSession();
 			if (session is null)
 			{
@@ -83,6 +95,13 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				Title = props?.Title ?? string.Empty,
 				Artist = props?.Artist ?? string.Empty,
 				Album = props?.AlbumTitle ?? string.Empty,
+				AlbumArtist = props?.AlbumArtist ?? string.Empty,
+				Genres = props?.Genres?.ToList() ?? [],
+				TrackNumber = props is null ? 0 : props.TrackNumber,
+				AlbumTrackCount = props is null ? 0 : props.AlbumTrackCount,
+				Subtitle = props?.Subtitle ?? string.Empty,
+				PlaybackType = MapContentType(props?.PlaybackType ?? info?.PlaybackType),
+				PlaybackRate = info?.PlaybackRate,
 				AppId = session.SourceAppUserModelId ?? string.Empty,
 				ArtworkId = hasSession
 					? ArtworkIdFor(session.SourceAppUserModelId, props?.Title, props?.Artist, props?.AlbumTitle)
@@ -94,6 +113,12 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				IsMuted = audio?.IsMuted ?? false,
 				ShuffleActive = info?.IsShuffleActive,
 				RepeatMode = MapRepeat(info?.AutoRepeatMode),
+				CanPlay = info?.Controls.IsPlayEnabled ?? false,
+				CanPause = info?.Controls.IsPauseEnabled ?? false,
+				CanStop = info?.Controls.IsStopEnabled ?? false,
+				CanNext = info?.Controls.IsNextEnabled ?? false,
+				CanPrevious = info?.Controls.IsPreviousEnabled ?? false,
+				CanSeek = info?.Controls.IsPlaybackPositionEnabled ?? false,
 				UpdatedAt = DateTimeOffset.UtcNow,
 			};
 		}
@@ -143,7 +168,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	public async Task<bool> SeekByAsync(TimeSpan offset, CancellationToken cancellationToken, string? appId = null) =>
 		await WithTimeoutAsync(ct => SeekByCoreAsync(offset, appId, ct), ControlTimeout, false, cancellationToken);
 
-	private static async Task<bool> SeekByCoreAsync(TimeSpan offset, string? appId, CancellationToken cancellationToken)
+	private async Task<bool> SeekByCoreAsync(TimeSpan offset, string? appId, CancellationToken cancellationToken)
 	{
 		if (!IsSupported)
 		{
@@ -185,7 +210,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	public async Task<bool> SeekToAsync(TimeSpan position, CancellationToken cancellationToken, string? appId = null) =>
 		await WithTimeoutAsync(ct => SeekToCoreAsync(position, appId, ct), ControlTimeout, false, cancellationToken);
 
-	private static async Task<bool> SeekToCoreAsync(TimeSpan position, string? appId, CancellationToken cancellationToken)
+	private async Task<bool> SeekToCoreAsync(TimeSpan position, string? appId, CancellationToken cancellationToken)
 	{
 		if (!IsSupported)
 		{
@@ -288,7 +313,12 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 		try
 		{
-			var manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(cancellationToken);
+			var manager = await GetManagerAsync(cancellationToken);
+			if (manager is null)
+			{
+				return null;
+			}
+
 			var session = manager.GetCurrentSession();
 			if (session is null)
 			{
@@ -385,7 +415,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		CancellationToken cancellationToken) =>
 		WithTimeoutAsync(ct => TryControlCoreAsync(invoke, appId, ct), ControlTimeout, false, cancellationToken);
 
-	private static async Task<bool> TryControlCoreAsync(
+	private async Task<bool> TryControlCoreAsync(
 		Func<GlobalSystemMediaTransportControlsSession, Windows.Foundation.IAsyncOperation<bool>> invoke,
 		string? appId,
 		CancellationToken cancellationToken)
@@ -415,11 +445,16 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		}
 	}
 
-	private static async Task<GlobalSystemMediaTransportControlsSession?> GetTargetSessionAsync(
+	private async Task<GlobalSystemMediaTransportControlsSession?> GetTargetSessionAsync(
 		string? appId,
 		CancellationToken cancellationToken)
 	{
-		var manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(cancellationToken);
+		var manager = await GetManagerAsync(cancellationToken);
+		if (manager is null)
+		{
+			return null;
+		}
+
 		if (string.IsNullOrWhiteSpace(appId))
 		{
 			return manager.GetCurrentSession();
@@ -435,6 +470,161 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		}
 
 		return null;
+	}
+
+	private async Task<GlobalSystemMediaTransportControlsSessionManager?> GetManagerAsync(
+		CancellationToken cancellationToken)
+	{
+		if (!IsSupported)
+		{
+			return null;
+		}
+
+		lock (_subscriptionGate)
+		{
+			if (_manager is not null)
+			{
+				return _manager;
+			}
+		}
+
+		try
+		{
+			var manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(cancellationToken);
+			lock (_subscriptionGate)
+			{
+				_manager ??= manager;
+				SubscribeManagerLocked(_manager);
+				EnsureWatchedSessionLocked(_manager);
+				return _manager;
+			}
+		}
+		catch (COMException)
+		{
+			return null;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return null;
+		}
+	}
+
+	private void EnsureWatchedSession(GlobalSystemMediaTransportControlsSessionManager manager)
+	{
+		lock (_subscriptionGate)
+		{
+			SubscribeManagerLocked(manager);
+			EnsureWatchedSessionLocked(manager);
+		}
+	}
+
+	private void SubscribeManagerLocked(GlobalSystemMediaTransportControlsSessionManager manager)
+	{
+		if (_managerSubscribed)
+		{
+			return;
+		}
+
+		Subscribe(() => manager.SessionsChanged += OnSessionsChanged);
+		Subscribe(() => manager.CurrentSessionChanged += OnCurrentSessionChanged);
+		_managerSubscribed = true;
+	}
+
+	private void EnsureWatchedSessionLocked(GlobalSystemMediaTransportControlsSessionManager manager)
+	{
+		GlobalSystemMediaTransportControlsSession? current = null;
+		try
+		{
+			current = manager.GetCurrentSession();
+		}
+		catch (COMException)
+		{
+		}
+		catch (UnauthorizedAccessException)
+		{
+		}
+
+		if (ReferenceEquals(current, _watchedSession))
+		{
+			return;
+		}
+
+		var previous = _watchedSession;
+		_watchedSession = current;
+		if (previous is not null)
+		{
+			Unsubscribe(() => previous.MediaPropertiesChanged -= OnSessionInvalidated);
+			Unsubscribe(() => previous.PlaybackInfoChanged -= OnSessionInvalidated);
+			Unsubscribe(() => previous.TimelinePropertiesChanged -= OnSessionInvalidated);
+		}
+
+		if (current is not null)
+		{
+			Subscribe(() => current.MediaPropertiesChanged += OnSessionInvalidated);
+			Subscribe(() => current.PlaybackInfoChanged += OnSessionInvalidated);
+			Subscribe(() => current.TimelinePropertiesChanged += OnSessionInvalidated);
+		}
+	}
+
+	private void OnSessionsChanged(
+		GlobalSystemMediaTransportControlsSessionManager sender,
+		SessionsChangedEventArgs args)
+	{
+		lock (_subscriptionGate)
+		{
+			EnsureWatchedSessionLocked(sender);
+		}
+
+		NotifyChanged();
+	}
+
+	private void OnCurrentSessionChanged(
+		GlobalSystemMediaTransportControlsSessionManager sender,
+		CurrentSessionChangedEventArgs args) =>
+		NotifyChanged();
+
+	private void OnSessionInvalidated(object? sender, object? args) => NotifyChanged();
+
+	private void NotifyChanged()
+	{
+		try
+		{
+			MediaChanged?.Invoke(this, EventArgs.Empty);
+		}
+		catch (Exception)
+		{
+		}
+	}
+
+	private static void Subscribe(Action subscribe)
+	{
+		try
+		{
+			subscribe();
+		}
+		catch (COMException)
+		{
+		}
+		catch (UnauthorizedAccessException)
+		{
+		}
+	}
+
+	private static void Unsubscribe(Action unsubscribe)
+	{
+		try
+		{
+			unsubscribe();
+		}
+		catch (COMException)
+		{
+		}
+		catch (UnauthorizedAccessException)
+		{
+		}
+		catch (ArgumentException)
+		{
+		}
 	}
 
 	private static async Task<T> WithTimeoutAsync<T>(
@@ -462,6 +652,15 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			return fallback;
 		}
 	}
+
+	private static MediaPlaybackType MapContentType(Windows.Media.MediaPlaybackType? type) =>
+		type switch
+		{
+			Windows.Media.MediaPlaybackType.Music => MediaPlaybackType.Music,
+			Windows.Media.MediaPlaybackType.Video => MediaPlaybackType.Video,
+			Windows.Media.MediaPlaybackType.Image => MediaPlaybackType.Image,
+			_ => MediaPlaybackType.Unknown,
+		};
 
 	private static PlaybackStatus MapStatus(GlobalSystemMediaTransportControlsSessionPlaybackStatus? status) =>
 		status switch

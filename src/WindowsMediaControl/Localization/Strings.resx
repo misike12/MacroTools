@@ -168,6 +168,9 @@
   <data name="Errors.ReadOnlyVariable" xml:space="preserve">
     <value>This variable is read-only.</value>
   </data>
+  <data name="Errors.ActionNotSupported" xml:space="preserve">
+    <value>This app does not support that action.</value>
+  </data>
   <data name="Errors.InvalidSettings" xml:space="preserve">
     <value>Some settings are invalid.</value>
   </data>
@@ -467,5 +470,89 @@
   </data>
   <data name="Variables.RepeatMode.Description" xml:space="preserve">
     <value>Off, all or one.</value>
+  </data>
+  <data name="Variables.AlbumArtist.DisplayName" xml:space="preserve">
+    <value>Album artist</value>
+  </data>
+  <data name="Variables.AlbumArtist.Description" xml:space="preserve">
+    <value>The album artist, when it differs from the track artist.</value>
+  </data>
+  <data name="Variables.Genres.DisplayName" xml:space="preserve">
+    <value>Genres</value>
+  </data>
+  <data name="Variables.Genres.Description" xml:space="preserve">
+    <value>The track genres, comma separated.</value>
+  </data>
+  <data name="Variables.TrackNumber.DisplayName" xml:space="preserve">
+    <value>Track number</value>
+  </data>
+  <data name="Variables.TrackNumber.Description" xml:space="preserve">
+    <value>The track number within its album.</value>
+  </data>
+  <data name="Variables.TrackCount.DisplayName" xml:space="preserve">
+    <value>Track count</value>
+  </data>
+  <data name="Variables.TrackCount.Description" xml:space="preserve">
+    <value>How many tracks the album holds.</value>
+  </data>
+  <data name="Variables.Subtitle.DisplayName" xml:space="preserve">
+    <value>Subtitle</value>
+  </data>
+  <data name="Variables.Subtitle.Description" xml:space="preserve">
+    <value>The subtitle or episode name, when the app provides one.</value>
+  </data>
+  <data name="Variables.PlaybackType.DisplayName" xml:space="preserve">
+    <value>Playback type</value>
+  </data>
+  <data name="Variables.PlaybackType.Description" xml:space="preserve">
+    <value>Music, video, image or unknown.</value>
+  </data>
+  <data name="Variables.PlaybackRate.DisplayName" xml:space="preserve">
+    <value>Playback rate</value>
+  </data>
+  <data name="Variables.PlaybackRate.Description" xml:space="preserve">
+    <value>The playback speed multiplier, e.g. 1.5 for fast podcasts.</value>
+  </data>
+  <data name="Variables.IsLive.DisplayName" xml:space="preserve">
+    <value>Is live</value>
+  </data>
+  <data name="Variables.IsLive.Description" xml:space="preserve">
+    <value>Whether a live stream with no duration is playing.</value>
+  </data>
+  <data name="Variables.CanPlay.DisplayName" xml:space="preserve">
+    <value>Can play</value>
+  </data>
+  <data name="Variables.CanPlay.Description" xml:space="preserve">
+    <value>Whether the current app supports play right now.</value>
+  </data>
+  <data name="Variables.CanPause.DisplayName" xml:space="preserve">
+    <value>Can pause</value>
+  </data>
+  <data name="Variables.CanPause.Description" xml:space="preserve">
+    <value>Whether the current app supports pause right now.</value>
+  </data>
+  <data name="Variables.CanStop.DisplayName" xml:space="preserve">
+    <value>Can stop</value>
+  </data>
+  <data name="Variables.CanStop.Description" xml:space="preserve">
+    <value>Whether the current app supports stop right now.</value>
+  </data>
+  <data name="Variables.CanNext.DisplayName" xml:space="preserve">
+    <value>Can go next</value>
+  </data>
+  <data name="Variables.CanNext.Description" xml:space="preserve">
+    <value>Whether the current app supports skipping forward right now.</value>
+  </data>
+  <data name="Variables.CanPrevious.DisplayName" xml:space="preserve">
+    <value>Can go previous</value>
+  </data>
+  <data name="Variables.CanPrevious.Description" xml:space="preserve">
+    <value>Whether the current app supports skipping backward right now.</value>
+  </data>
+  <data name="Variables.CanSeek.DisplayName" xml:space="preserve">
+    <value>Can seek</value>
+  </data>
+  <data name="Variables.CanSeek.Description" xml:space="preserve">
+    <value>Whether the current app supports seeking right now.</value>
   </data>
 </root>

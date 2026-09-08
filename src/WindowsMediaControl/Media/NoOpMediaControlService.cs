@@ -2,6 +2,10 @@ namespace WindowsMediaControl.Media;
 
 public sealed class NoOpMediaControlService : IMediaControlService
 {
+#pragma warning disable CS0067 // Required by IMediaControlService; the no-op service never raises it.
+	public event EventHandler? MediaChanged;
+#pragma warning restore CS0067
+
 	public Task<MediaSnapshot> GetSnapshotAsync(CancellationToken cancellationToken) =>
 		Task.FromResult(MediaSnapshot.Empty);
 

@@ -13,6 +13,31 @@ internal static class MediaActionResults
 
 	public static ActionResult ProviderError() =>
 		ActionResult.Failed(ActionErrorCodes.ProviderError, Strings.Errors.MediaCommandFailed());
+
+	public static async Task<ActionResult> FromControlResult(
+		IMediaControlService media,
+		bool succeeded,
+		CancellationToken cancellationToken)
+	{
+		if (succeeded)
+		{
+			return ActionResult.Success();
+		}
+
+		MediaSnapshot snapshot;
+		try
+		{
+			snapshot = await media.GetSnapshotAsync(cancellationToken);
+		}
+		catch (Exception)
+		{
+			return ProviderError();
+		}
+
+		return snapshot.HasSession
+			? ActionResult.Failed(ActionErrorCodes.ProviderRejected, Strings.Errors.ActionNotSupported())
+			: NoSession();
+	}
 }
 
 public sealed class PlayAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
@@ -40,9 +65,7 @@ public sealed class PlayAction(IMediaControlService media, MediaSettingsProvider
 					}
 				}
 
-				return await media.PlayAsync(context.CancellationToken, app)
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.PlayAsync(context.CancellationToken, app), context.CancellationToken);
 			}
 			catch (Exception)
 			{
@@ -77,9 +100,7 @@ public sealed class PauseAction(IMediaControlService media, MediaSettingsProvide
 					}
 				}
 
-				return await media.PauseAsync(context.CancellationToken, app)
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.PauseAsync(context.CancellationToken, app), context.CancellationToken);
 			}
 			catch (Exception)
 			{
@@ -188,7 +209,7 @@ public sealed class TogglePlayPauseAction(IMediaControlService media, MediaSetti
 					: null;
 				if (!await media.TogglePlayPauseAsync(context.CancellationToken, app))
 				{
-					return MediaActionResults.NoSession();
+					return await MediaActionResults.FromControlResult(media, false, context.CancellationToken);
 				}
 
 				var expected = before?.Status switch
@@ -235,9 +256,7 @@ public sealed class StopAction(IMediaControlService media, MediaSettingsProvider
 					}
 				}
 
-				return await media.StopAsync(context.CancellationToken, app)
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.StopAsync(context.CancellationToken, app), context.CancellationToken);
 			}
 			catch (Exception)
 			{
@@ -262,9 +281,7 @@ public sealed class NextAction(IMediaControlService media, MediaSettingsProvider
 		{
 			try
 			{
-				return await media.NextAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.NextAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings)), context.CancellationToken);
 			}
 			catch (Exception)
 			{
@@ -289,9 +306,7 @@ public sealed class PreviousAction(IMediaControlService media, MediaSettingsProv
 		{
 			try
 			{
-				return await media.PreviousAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.PreviousAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings)), context.CancellationToken);
 			}
 			catch (Exception)
 			{
@@ -316,9 +331,7 @@ public sealed class FastForwardAction(IMediaControlService media, MediaSettingsP
 		{
 			try
 			{
-				return await media.FastForwardAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.FastForwardAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings)), context.CancellationToken);
 			}
 			catch (Exception)
 			{
@@ -343,9 +356,7 @@ public sealed class RewindAction(IMediaControlService media, MediaSettingsProvid
 		{
 			try
 			{
-				return await media.RewindAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
-					? ActionResult.Success()
-					: MediaActionResults.NoSession();
+				return await MediaActionResults.FromControlResult(media, await media.RewindAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings)), context.CancellationToken);
 			}
 			catch (Exception)
 			{

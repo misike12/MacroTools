@@ -22,10 +22,12 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private readonly ILogger _logger;
 	private readonly NowPlayingWidget _widget;
 	private readonly object _loopGate = new();
+	private readonly object _snapshotGate = new();
 	private IIntegrationContext? _context;
 	private CancellationTokenSource? _loopCts;
 	private Task? _loopTask;
 	private MediaSnapshot _last = MediaSnapshot.Empty;
+	private long _lastEventRefreshTicks;
 	private bool _disposed;
 
 	public PluginIntegration(IMediaControlService media, MediaSettingsProvider settings, ILogger logger)
@@ -131,6 +133,8 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public async Task InitializeAsync(IIntegrationContext context)
 	{
 		_context = context;
+		_media.MediaChanged -= OnMediaChanged;
+		_media.MediaChanged += OnMediaChanged;
 		try
 		{
 			_settings.Update(await MediaSettingsReader.ReadAsync(context.Config));
@@ -157,12 +161,47 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 	public Task ShutdownAsync()
 	{
+		_media.MediaChanged -= OnMediaChanged;
 		lock (_loopGate)
 		{
 			_loopCts?.Cancel();
 		}
 
 		return Task.CompletedTask;
+	}
+
+	private void OnMediaChanged(object? sender, EventArgs e)
+	{
+		var now = DateTimeOffset.UtcNow.Ticks;
+		var last = Interlocked.Read(ref _lastEventRefreshTicks);
+		if (now - last < TimeSpan.FromMilliseconds(750).Ticks)
+		{
+			return;
+		}
+
+		Interlocked.Exchange(ref _lastEventRefreshTicks, now);
+		_ = RefreshFromEventAsync();
+	}
+
+	private async Task RefreshFromEventAsync()
+	{
+		MediaSnapshot snapshot;
+		try
+		{
+			snapshot = await _media.GetSnapshotAsync(CancellationToken.None);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Event-driven media refresh failed.");
+			return;
+		}
+
+		lock (_snapshotGate)
+		{
+			var previous = _last;
+			_last = snapshot;
+			PublishChanges(previous, snapshot);
+		}
 	}
 
 	public ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)
@@ -188,6 +227,26 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				? VariableReading.Unavailable
 				: VariableReading.Of(snapshot.ShuffleActive.Value),
 			"repeat-mode" => TextOrUnavailable(snapshot.HasSession, RepeatToken(snapshot.RepeatMode)),
+			"album-artist" => TextOrUnavailable(snapshot.HasSession, snapshot.AlbumArtist),
+			"genres" => TextOrUnavailable(snapshot.HasSession, string.Join(", ", snapshot.Genres)),
+			"track-number" => snapshot is { HasSession: true } && snapshot.TrackNumber > 0
+				? VariableReading.Of((double)snapshot.TrackNumber)
+				: VariableReading.Unavailable,
+			"track-count" => snapshot is { HasSession: true } && snapshot.AlbumTrackCount > 0
+				? VariableReading.Of((double)snapshot.AlbumTrackCount)
+				: VariableReading.Unavailable,
+			"subtitle" => TextOrUnavailable(snapshot.HasSession, snapshot.Subtitle),
+			"playback-type" => TextOrUnavailable(snapshot.HasSession, PlaybackTypeToken(snapshot.PlaybackType)),
+			"playback-rate" => snapshot is { HasSession: true } && snapshot.PlaybackRate is double rate
+				? VariableReading.Of(rate)
+				: VariableReading.Unavailable,
+			"is-live" => VariableReading.Of(snapshot is { HasSession: true, Status: PlaybackStatus.Playing } && snapshot.Duration <= TimeSpan.Zero),
+			"can-play" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPlay),
+			"can-pause" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPause),
+			"can-stop" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanStop),
+			"can-next" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanNext),
+			"can-previous" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPrevious),
+			"can-seek" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanSeek),
 			_ => VariableReading.Unavailable,
 		};
 		return ValueTask.FromResult(reading);
@@ -328,6 +387,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			}
 
 			_disposed = true;
+			_media.MediaChanged -= OnMediaChanged;
 			_loopCts?.Cancel();
 			_loopCts?.Dispose();
 		}
@@ -363,9 +423,12 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				continue;
 			}
 
-			var previous = _last;
-			_last = snapshot;
-			PublishChanges(previous, snapshot);
+			lock (_snapshotGate)
+			{
+				var previous = _last;
+				_last = snapshot;
+				PublishChanges(previous, snapshot);
+			}
 		}
 	}
 
@@ -459,6 +522,15 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			MediaRepeatMode.All => "all",
 			MediaRepeatMode.One => "one",
 			_ => "off",
+		};
+
+	private static string PlaybackTypeToken(MediaPlaybackType type) =>
+		type switch
+		{
+			MediaPlaybackType.Music => "music",
+			MediaPlaybackType.Video => "video",
+			MediaPlaybackType.Image => "image",
+			_ => "unknown",
 		};
 
 	private static VariableReading TextOrUnavailable(bool available, string value) =>
