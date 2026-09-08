@@ -27,11 +27,9 @@ All actions are Windows-only and accept an optional `App` filter (substring matc
 
 Shuffle and repeat go through real SMTC control calls and report honestly when an app refuses them. Every transport, seek, shuffle and repeat action accepts an optional `App` filter (substring match on the app id).
 
-Shuffle and repeat cannot be controlled through SMTC (Windows exposes them as read-only state), but both are exposed as variables below.
+### Variables (34)
 
-### Variables (33)
-
-`title`, `artist`, `album`, `album_artist`, `genres`, `track_number`, `track_count`, `subtitle`, `source_app`, `playback_status` (`playing`/`paused`/`stopped`/`no-media`), `playback_type` (`music`/`video`/`image`/`unknown`), `playback_rate`, `is_playing`, `is_live`, `has_media`, `position_seconds`, `duration_seconds`, `position_text` / `duration_text` (`m:ss`), `progress_percent`, `volume_percent`, `is_muted`, `shuffle_enabled`, `repeat_mode`, plus per-action support flags `can_play`, `can_pause`, `can_stop`, `can_next`, `can_previous`, `can_seek`, `can_shuffle`, `can_repeat`, and the current `output_device` name.
+`title`, `artist`, `album`, `album_artist`, `genres`, `track_number`, `track_count`, `subtitle`, `source_app`, `playback_status` (`playing`/`paused`/`stopped`/`no-media`), `playback_type` (`music`/`video`/`image`/`unknown`), `playback_rate`, `is_playing`, `is_live`, `has_media`, `position_seconds`, `duration_seconds`, `position_text` / `duration_text` (`m:ss`), `progress_percent`, `volume_percent`, `is_muted`, `shuffle_enabled`, `repeat_mode`, plus per-action support flags `can_play`, `can_pause`, `can_stop`, `can_next`, `can_previous`, `can_seek`, `can_shuffle`, `can_repeat`, the current `output_device` name and the cover-derived `cover_accent` hex color.
 
 Writable: `volume_percent`, `is_muted`, `position_seconds` and `progress_percent` (writing seeks; progress commits on release so slider drags don't stutter playback).
 

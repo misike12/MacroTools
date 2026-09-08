@@ -27,6 +27,7 @@
         <PackageReference Include="MacroDeck.Plugin.Serilog" />
         <PackageReference Include="MacroDeck.Sdk" />
         <PackageReference Include="MacroDeck.Ui" />
+        <PackageReference Include="System.Drawing.Common" />
     </ItemGroup>
 
     <!-- The SDK reads the manifest from the content root at startup and resolves the icon path against

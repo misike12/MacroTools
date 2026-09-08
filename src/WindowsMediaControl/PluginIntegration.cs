@@ -262,6 +262,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"can-shuffle" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanShuffle),
 			"can-repeat" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanRepeat),
 			"default-device" => TextOrUnavailable(!string.IsNullOrEmpty(_defaultDeviceName), _defaultDeviceName),
+			"cover-accent" => TextOrUnavailable(snapshot.HasSession, snapshot.ArtworkAccent),
 			_ => VariableReading.Unavailable,
 		};
 		return ValueTask.FromResult(reading);

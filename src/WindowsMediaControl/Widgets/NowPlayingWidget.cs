@@ -47,14 +47,16 @@ public sealed record WidgetContent(
 	UiProgressReference Progress,
 	bool IsPlaying,
 	bool HasMedia,
-	WidgetOptions Options)
+	WidgetOptions Options,
+	string Accent,
+	string AccentDark)
 {
 	public static WidgetContent Empty { get; } = new(
 		string.Empty, string.Empty, string.Empty, string.Empty,
 		new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow },
-		false, false, WidgetOptions.Default);
+		false, false, WidgetOptions.Default, string.Empty, string.Empty);
 
-	public static WidgetContent FromSnapshot(MediaSnapshot snapshot, WidgetOptions options)
+	public static WidgetContent FromSnapshot(MediaSnapshot snapshot, WidgetOptions options, string accent, string accentDark)
 	{
 		var durationMs = snapshot.Duration > TimeSpan.Zero ? (long?)snapshot.Duration.TotalMilliseconds : null;
 		return new WidgetContent(
@@ -71,7 +73,9 @@ public sealed record WidgetContent(
 			},
 			snapshot.Status == PlaybackStatus.Playing,
 			snapshot.HasSession,
-			options);
+			options,
+			accent,
+			accentDark);
 	}
 }
 
@@ -119,6 +123,12 @@ internal static class NowPlayingView
 			{
 				Key = "progress",
 				Value = UiValue.From(() => content.Value.Progress),
+				StartColor = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.Accent)
+					? UiValue.None<string>()
+					: UiValue.Of(content.Value.Accent)),
+				EndColor = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.Accent)
+					? UiValue.None<string>()
+					: UiValue.Of(content.Value.Accent)),
 				Thickness = 0.05,
 			});
 			if (!options.Compact)
@@ -177,6 +187,9 @@ internal static class NowPlayingView
 			Key = "now-playing",
 			Padding = 0.06,
 			Gap = 0.04,
+			Background = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.AccentDark)
+				? UiValue.None<string>()
+				: UiValue.Of(content.Value.AccentDark)),
 			Children = children,
 		};
 	}
@@ -231,7 +244,7 @@ internal static class NowPlayingPreviews
 		new UiState<WidgetContent>(new WidgetContent(
 			"Nightcall", "Kavinsky", "OutRun", "0:42 / 3:35",
 			new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 1 },
-			true, true, WidgetOptions.Default)),
+			true, true, WidgetOptions.Default, "#1DB954", "#07451B")),
 		null);
 
 	[UiPreview("Nothing playing", View = "NowPlaying", Profile = UiPreviewProfiles.Widget)]
@@ -329,16 +342,17 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 					new UiState<WidgetContent>(new WidgetContent(
 						"Nightcall", "Kavinsky", "OutRun", "0:42 / 3:35",
 						new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 0 },
-						true, true, options)),
+						true, true, options, "#1DB954", "#07451B")),
 					_media,
 					_logger,
 					live: false);
 			}
 
 			var snapshot = await _media.GetSnapshotAsync(cancellationToken);
+			var cached = _media.TryGetCachedArtwork(snapshot.ArtworkId);
 			return new NowPlayingSession(
 				surface,
-				new UiState<WidgetContent>(WidgetContent.FromSnapshot(snapshot, options)),
+				new UiState<WidgetContent>(WidgetContent.FromSnapshot(snapshot, options, cached?.Accent ?? string.Empty, cached?.AccentDark ?? string.Empty)),
 				_media,
 				_logger,
 				live: true);
@@ -541,7 +555,21 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 			}
 
 			var snapshot = await _media.GetSnapshotAsync(cancellationToken);
-			_content.Set(WidgetContent.FromSnapshot(snapshot, _content.Value.Options));
+			if (!string.IsNullOrEmpty(snapshot.ArtworkId))
+			{
+				try
+				{
+					await _media.GetArtworkAsync(snapshot.ArtworkId, cancellationToken);
+				}
+				catch (Exception ex)
+				{
+					_logger?.Debug(ex, "Widget artwork warmup failed.");
+				}
+			}
+
+			var cached = _media.TryGetCachedArtwork(snapshot.ArtworkId);
+			_content.Set(WidgetContent.FromSnapshot(
+				snapshot, _content.Value.Options, cached?.Accent ?? string.Empty, cached?.AccentDark ?? string.Empty));
 		}
 
 		private void OnChanged(object? sender, EventArgs e) => Changed?.Invoke(this, e);

@@ -696,4 +696,10 @@
   <data name="Variables.DefaultDevice.Description" xml:space="preserve">
     <value>The current default audio output device.</value>
   </data>
+  <data name="Variables.CoverAccent.DisplayName" xml:space="preserve">
+    <value>Cover accent</value>
+  </data>
+  <data name="Variables.CoverAccent.Description" xml:space="preserve">
+    <value>The dominant cover color as a hex code, for tinting your own widgets.</value>
+  </data>
 </root>

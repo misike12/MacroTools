@@ -15,6 +15,8 @@ public sealed record MediaSnapshot
 	public double? PlaybackRate { get; init; }
 	public string AppId { get; init; } = string.Empty;
 	public string ArtworkId { get; init; } = string.Empty;
+	public string ArtworkAccent { get; init; } = string.Empty;
+	public string ArtworkAccentDark { get; init; } = string.Empty;
 	public bool CanPlay { get; init; }
 	public bool CanPause { get; init; }
 	public bool CanStop { get; init; }

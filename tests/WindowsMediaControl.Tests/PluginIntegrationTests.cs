@@ -659,6 +659,62 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public void Artwork_colors_extract_dominant_color()
+	{
+		using var bitmap = new System.Drawing.Bitmap(4, 4);
+		using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
+		{
+			graphics.Clear(System.Drawing.Color.Red);
+		}
+
+		using var stream = new MemoryStream();
+		bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+
+		var (accent, dark) = ArtworkColors.FromImage(stream.ToArray());
+
+		Assert.That(accent, Is.EqualTo("#FF0000"));
+		Assert.That(dark, Is.EqualTo("#3F0000"));
+	}
+
+	[Test]
+	public void Artwork_colors_fall_back_to_average_for_grey()
+	{
+		using var bitmap = new System.Drawing.Bitmap(4, 4);
+		using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
+		{
+			graphics.Clear(System.Drawing.Color.FromArgb(128, 128, 128));
+		}
+
+		using var stream = new MemoryStream();
+		bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+
+		var (accent, dark) = ArtworkColors.FromImage(stream.ToArray());
+
+		Assert.That(accent, Is.EqualTo("#808080"));
+		Assert.That(dark, Is.EqualTo("#202020"));
+	}
+
+	[Test]
+	public void Artwork_colors_reject_garbage()
+	{
+		var (accent, dark) = ArtworkColors.FromImage([0x00, 0x01, 0x02]);
+
+		Assert.That(accent, Is.Empty);
+		Assert.That(dark, Is.Empty);
+	}
+
+	[Test]
+	public async Task Cover_accent_variable_reads_snapshot()
+	{
+		var fake = new FakeMediaControlService();
+		fake.Snapshot = fake.Snapshot with { ArtworkAccent = "#FF0000" };
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That((await integration.ReadAsync("cover-accent")).Value, Is.EqualTo("#FF0000"));
+	}
+
+	[Test]
 	public async Task Play_reports_not_supported_when_the_session_rejects_it()
 	{
 		var fake = new FakeMediaControlService { TransportResult = false };

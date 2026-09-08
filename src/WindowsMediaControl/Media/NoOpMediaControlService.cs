@@ -27,6 +27,7 @@ public sealed class NoOpMediaControlService : IMediaControlService
 	public Task ToggleMuteAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 	public Task<ArtworkData?> GetArtworkAsync(string artworkId, CancellationToken cancellationToken) =>
 		Task.FromResult<ArtworkData?>(null);
+	public ArtworkData? TryGetCachedArtwork(string artworkId) => null;
 	public Task<bool> ToggleShuffleAsync(CancellationToken cancellationToken, string? appId = null) => Task.FromResult(false);
 	public Task<bool> SetShuffleAsync(bool enabled, CancellationToken cancellationToken, string? appId = null) => Task.FromResult(false);
 	public Task<bool> CycleRepeatAsync(CancellationToken cancellationToken, string? appId = null) => Task.FromResult(false);

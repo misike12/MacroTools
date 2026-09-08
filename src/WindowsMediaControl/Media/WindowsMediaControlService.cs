@@ -89,6 +89,11 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				position = TimeSpan.Zero;
 			}
 
+			var artworkId = hasSession
+				? ArtworkIdFor(session.SourceAppUserModelId, props?.Title, props?.Artist, props?.AlbumTitle)
+				: string.Empty;
+			var (accent, accentDark) = ArtworkAccentFor(artworkId);
+
 			return new MediaSnapshot
 			{
 				HasSession = hasSession,
@@ -103,11 +108,10 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				PlaybackType = MapContentType(props?.PlaybackType ?? info?.PlaybackType),
 				PlaybackRate = info?.PlaybackRate,
 				AppId = session.SourceAppUserModelId ?? string.Empty,
-				ArtworkId = hasSession
-					? ArtworkIdFor(session.SourceAppUserModelId, props?.Title, props?.Artist, props?.AlbumTitle)
-					: string.Empty,
+				ArtworkId = artworkId,
+				ArtworkAccent = accent,
+				ArtworkAccentDark = accentDark,
 				Status = hasSession ? status : PlaybackStatus.NoMedia,
-				Position = position,
 				Duration = duration,
 				VolumePercent = audio?.VolumePercent ?? 50,
 				IsMuted = audio?.IsMuted ?? false,
@@ -620,7 +624,8 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			await reader.LoadAsync((uint)stream.Size).AsTask(cancellationToken);
 			var bytes = new byte[stream.Size];
 			reader.ReadBytes(bytes);
-			return new ArtworkData(bytes, SniffMimeType(bytes, stream.ContentType));
+			var (accent, dark) = ArtworkColors.FromImage(bytes);
+			return new ArtworkData(bytes, SniffMimeType(bytes, stream.ContentType), accent, dark);
 		}
 		catch (COMException)
 		{
@@ -645,6 +650,19 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		}
 
 		return string.IsNullOrWhiteSpace(contentType) ? "image/png" : contentType;
+	}
+
+	public ArtworkData? TryGetCachedArtwork(string artworkId) =>
+		string.IsNullOrEmpty(artworkId) || !_artworkCache.TryGetValue(artworkId, out var art) ? null : art;
+
+	private (string Accent, string Dark) ArtworkAccentFor(string artworkId)
+	{
+		if (string.IsNullOrEmpty(artworkId) || !_artworkCache.TryGetValue(artworkId, out var art))
+		{
+			return (string.Empty, string.Empty);
+		}
+
+		return (art.Accent, art.AccentDark);
 	}
 
 	public static string ArtworkIdFor(string? appId, string? title, string? artist, string? album)

@@ -116,9 +116,12 @@ internal sealed class FakeMediaControlService : IMediaControlService
 	}
 
 	public Task<ArtworkData?> GetArtworkAsync(string artworkId, CancellationToken cancellationToken) =>
-		Task.FromResult(ArtworkBytes is not null && artworkId == Snapshot.ArtworkId
+		Task.FromResult(TryGetCachedArtwork(artworkId));
+
+	public ArtworkData? TryGetCachedArtwork(string artworkId) =>
+		ArtworkBytes is not null && artworkId == Snapshot.ArtworkId
 			? new ArtworkData(ArtworkBytes, "image/png")
-			: null);
+			: null;
 
 	public Task<bool> ToggleShuffleAsync(CancellationToken cancellationToken, string? appId = null) =>
 	RecordBool(nameof(ToggleShuffleAsync), appId, () => Snapshot = Snapshot with { ShuffleActive = !(Snapshot.ShuffleActive ?? false) });

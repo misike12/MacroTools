@@ -26,6 +26,7 @@ public interface IMediaControlService
 	Task<bool> CycleRepeatAsync(CancellationToken cancellationToken, string? appId = null);
 	Task<bool> SetRepeatAsync(MediaRepeatMode mode, CancellationToken cancellationToken, string? appId = null);
 	Task<ArtworkData?> GetArtworkAsync(string artworkId, CancellationToken cancellationToken);
+	ArtworkData? TryGetCachedArtwork(string artworkId);
 	Task<IReadOnlyList<AudioAppSession>> GetAudioAppsAsync(CancellationToken cancellationToken);
 	Task<bool> SetAppVolumeAsync(string app, int percent, CancellationToken cancellationToken);
 	Task<bool> AdjustAppVolumeAsync(string app, int delta, CancellationToken cancellationToken);
