@@ -5,24 +5,34 @@ using System.Text;
 using Windows.Media;
 using Windows.Media.Control;
 using Windows.Storage.Streams;
+using WindowsMediaControl.Config;
 
 namespace WindowsMediaControl.Media;
 
 public sealed class WindowsMediaControlService : IMediaControlService
 {
-	private static readonly TimeSpan FallbackSkip = TimeSpan.FromSeconds(10);
-	private static readonly TimeSpan SnapshotTimeout = TimeSpan.FromSeconds(3);
-	private static readonly TimeSpan ControlTimeout = TimeSpan.FromSeconds(6);
 	private static readonly ulong MaxArtworkBytes = 4 * 1024 * 1024;
 
 	private readonly ConcurrentDictionary<string, ArtworkData> _artworkCache = new(StringComparer.Ordinal);
+	private readonly MediaSettingsProvider _settings;
+
+	public WindowsMediaControlService(MediaSettingsProvider? settings = null)
+	{
+		_settings = settings ?? new MediaSettingsProvider();
+	}
+
+	private TimeSpan SnapshotTimeout =>
+		TimeSpan.FromSeconds(Math.Clamp(_settings.Current.SnapshotTimeoutSeconds, 1, 30));
+
+	private TimeSpan ControlTimeout =>
+		TimeSpan.FromSeconds(Math.Clamp(_settings.Current.ControlTimeoutSeconds, 1, 60));
 
 	public static bool IsSupported => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763);
 
 	public Task<MediaSnapshot> GetSnapshotAsync(CancellationToken cancellationToken) =>
 		WithTimeoutAsync(ct => GetSnapshotCoreAsync(ct), SnapshotTimeout, MediaSnapshot.Empty, cancellationToken, offload: true);
 
-	private static async Task<MediaSnapshot> GetSnapshotCoreAsync(CancellationToken cancellationToken)
+	private async Task<MediaSnapshot> GetSnapshotCoreAsync(CancellationToken cancellationToken)
 	{
 		if (!IsSupported)
 		{
@@ -48,7 +58,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 			var position = timeline?.Position ?? TimeSpan.Zero;
 			var duration = timeline?.EndTime ?? TimeSpan.Zero;
-			if (status == PlaybackStatus.Playing && timeline is not null)
+			if (_settings.Current.ExtrapolatePosition && status == PlaybackStatus.Playing && timeline is not null)
 			{
 				try
 				{
@@ -124,14 +134,17 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	public async Task<bool> FastForwardAsync(CancellationToken cancellationToken, string? appId = null)
 	{
 		var ok = await TryControlAsync(s => s.TryFastForwardAsync(), appId, cancellationToken);
-		return ok || await SeekByAsync(FallbackSkip, cancellationToken, appId);
+		return ok || await SeekByAsync(FallbackSpan(), cancellationToken, appId);
 	}
 
 	public async Task<bool> RewindAsync(CancellationToken cancellationToken, string? appId = null)
 	{
 		var ok = await TryControlAsync(s => s.TryRewindAsync(), appId, cancellationToken);
-		return ok || await SeekByAsync(-FallbackSkip, cancellationToken, appId);
+		return ok || await SeekByAsync(-FallbackSpan(), cancellationToken, appId);
 	}
+
+	private TimeSpan FallbackSpan() =>
+		TimeSpan.FromSeconds(Math.Clamp(_settings.Current.FastForwardSeconds, 1, 300));
 
 	public async Task<bool> SeekByAsync(TimeSpan offset, CancellationToken cancellationToken, string? appId = null) =>
 		await WithTimeoutAsync(ct => SeekByCoreAsync(offset, appId, ct), ControlTimeout, false, cancellationToken);
@@ -212,20 +225,38 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 	public Task VolumeUpAsync(int stepPercent, CancellationToken cancellationToken)
 	{
-		SystemAudio.AdjustVolume(stepPercent);
+		AdjustVolume(stepPercent);
 		return Task.CompletedTask;
 	}
 
 	public Task VolumeDownAsync(int stepPercent, CancellationToken cancellationToken)
 	{
-		SystemAudio.AdjustVolume(-stepPercent);
+		AdjustVolume(-stepPercent);
 		return Task.CompletedTask;
 	}
 
 	public Task SetVolumeAsync(int percent, CancellationToken cancellationToken)
 	{
-		SystemAudio.SetVolume(Math.Clamp(percent, 0, 100));
+		var settings = _settings.Current;
+		if (settings.UnmuteOnVolumeChange)
+		{
+			SystemAudio.SetMute(false);
+		}
+
+		SystemAudio.SetVolume(settings.ClampVolume(percent));
 		return Task.CompletedTask;
+	}
+
+	private void AdjustVolume(int delta)
+	{
+		var settings = _settings.Current;
+		if (settings.UnmuteOnVolumeChange)
+		{
+			SystemAudio.SetMute(false);
+		}
+
+		var current = SystemAudio.TryRead();
+		SystemAudio.SetVolume(settings.ClampVolume((current?.VolumePercent ?? 50) + delta));
 	}
 
 	public Task MuteAsync(CancellationToken cancellationToken)
@@ -282,7 +313,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				return null;
 			}
 
-			if (_artworkCache.Count > 8)
+			if (_artworkCache.Count >= Math.Max(1, _settings.Current.ArtworkCacheSize))
 			{
 				_artworkCache.Clear();
 			}
@@ -354,7 +385,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input)))[..32];
 	}
 
-	private static Task<bool> TryControlAsync(
+	private Task<bool> TryControlAsync(
 		Func<GlobalSystemMediaTransportControlsSession, Windows.Foundation.IAsyncOperation<bool>> invoke,
 		string? appId,
 		CancellationToken cancellationToken) =>

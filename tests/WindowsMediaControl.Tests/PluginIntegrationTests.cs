@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Serilog;
 using WindowsMediaControl.Actions;
+using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
 using WindowsMediaControl.Widgets;
 
@@ -22,6 +23,7 @@ public sealed class PluginIntegrationTests
 		PluginTestHarness.Create(builder =>
 		{
 			builder.Services.AddSingleton<IMediaControlService>(fake);
+			builder.Services.AddSingleton(new MediaSettingsProvider());
 			builder.UseLocalization(Strings.LocalizationCatalog);
 			builder.RegisterIntegration<PluginIntegration>();
 		});
@@ -68,7 +70,7 @@ public sealed class PluginIntegrationTests
 	public async Task Play_fails_when_no_session_exists()
 	{
 		var fake = new FakeMediaControlService { Snapshot = MediaSnapshot.Empty, TransportResult = false };
-		var action = new PlayAction(fake);
+		var action = new PlayAction(fake, new MediaSettingsProvider());
 
 		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
 		{
@@ -86,7 +88,7 @@ public sealed class PluginIntegrationTests
 		{
 			Snapshot = new MediaSnapshot { HasSession = true, Status = PlaybackStatus.Paused },
 		};
-		var action = new PauseAction(fake);
+		var action = new PauseAction(fake, new MediaSettingsProvider());
 
 		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
 		{
@@ -101,7 +103,7 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public async Task Seek_forward_rejects_an_unreadable_value()
 	{
-		var action = new SeekForwardAction(new FakeMediaControlService());
+		var action = new SeekForwardAction(new FakeMediaControlService(), new MediaSettingsProvider());
 
 		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
 		{
@@ -129,7 +131,7 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public async Task Seek_to_rejects_negative_positions()
 	{
-		var action = new SeekToAction(new FakeMediaControlService());
+		var action = new SeekToAction(new FakeMediaControlService(), new MediaSettingsProvider());
 
 		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
 		{
@@ -144,7 +146,7 @@ public sealed class PluginIntegrationTests
 	public async Task Toggle_state_reports_playing_for_a_playing_session()
 	{
 		var fake = new FakeMediaControlService();
-		var action = new TogglePlayPauseAction(fake);
+		var action = new TogglePlayPauseAction(fake, new MediaSettingsProvider());
 
 		var snapshot = await action.GetActionStateAsync(
 			new Dictionary<string, object?>(),
@@ -158,7 +160,7 @@ public sealed class PluginIntegrationTests
 	public async Task Variables_expose_the_current_track()
 	{
 		var fake = new FakeMediaControlService();
-		var integration = new PluginIntegration(fake, TestLogger());
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		var title = await integration.ReadAsync("title");
@@ -182,7 +184,7 @@ public sealed class PluginIntegrationTests
 	public async Task Variables_report_unavailable_without_a_session()
 	{
 		var fake = new FakeMediaControlService { Snapshot = MediaSnapshot.Empty };
-		var integration = new PluginIntegration(fake, TestLogger());
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		var title = await integration.ReadAsync("title");
@@ -194,7 +196,7 @@ public sealed class PluginIntegrationTests
 	public async Task Volume_variable_write_changes_the_volume()
 	{
 		var fake = new FakeMediaControlService();
-		var integration = new PluginIntegration(fake, TestLogger());
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		var result = await integration.SetValueAsync("volume-percent", 80.0);
@@ -206,7 +208,7 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public async Task Volume_variable_write_rejects_out_of_range_values()
 	{
-		var integration = new PluginIntegration(new FakeMediaControlService(), TestLogger());
+		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		var result = await integration.SetValueAsync("volume-percent", 150.0);
@@ -218,7 +220,7 @@ public sealed class PluginIntegrationTests
 	public async Task Position_variable_write_seeks_the_track()
 	{
 		var fake = new FakeMediaControlService();
-		var integration = new PluginIntegration(fake, TestLogger());
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		var result = await integration.SetValueAsync("position-seconds", 60.0);
@@ -230,7 +232,7 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public async Task Position_variable_write_rejects_negative_values()
 	{
-		var integration = new PluginIntegration(new FakeMediaControlService(), TestLogger());
+		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		var result = await integration.SetValueAsync("position-seconds", -5.0);
@@ -242,7 +244,7 @@ public sealed class PluginIntegrationTests
 	public async Task Progress_variable_write_seeks_to_a_fraction_of_the_track()
 	{
 		var fake = new FakeMediaControlService();
-		var integration = new PluginIntegration(fake, TestLogger());
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		var result = await integration.SetValueAsync("progress-percent", 50.0);
@@ -255,7 +257,7 @@ public sealed class PluginIntegrationTests
 	public async Task Progress_variable_write_is_unavailable_without_a_duration()
 	{
 		var fake = new FakeMediaControlService { Snapshot = MediaSnapshot.Empty };
-		var integration = new PluginIntegration(fake, TestLogger());
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		var result = await integration.SetValueAsync("progress-percent", 50.0);
@@ -268,7 +270,7 @@ public sealed class PluginIntegrationTests
 	{
 		var fake = new FakeMediaControlService();
 		var context = new FakeIntegrationContext();
-		var integration = new PluginIntegration(fake, TestLogger());
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
 		await integration.InitializeAsync(context);
 
 		fake.Snapshot = fake.Snapshot with { Title = "Something else" };
@@ -320,7 +322,7 @@ public sealed class PluginIntegrationTests
 			Snapshot = new FakeMediaControlService().Snapshot with { ArtworkId = "art-1" },
 			ArtworkBytes = [0x89, 0x50, 0x4E, 0x47],
 		};
-		var action = new TogglePlayPauseAction(fake);
+		var action = new TogglePlayPauseAction(fake, new MediaSettingsProvider());
 
 		var icon = await action.GetActionIconAsync(
 			new Dictionary<string, object?>(),
@@ -345,7 +347,7 @@ public sealed class PluginIntegrationTests
 	public async Task Toggle_icon_falls_back_without_a_session()
 	{
 		var fake = new FakeMediaControlService { Snapshot = MediaSnapshot.Empty };
-		var action = new TogglePlayPauseAction(fake);
+		var action = new TogglePlayPauseAction(fake, new MediaSettingsProvider());
 
 		var icon = await action.GetActionIconAsync(
 			new Dictionary<string, object?>(),
@@ -370,7 +372,7 @@ public sealed class PluginIntegrationTests
 	public async Task Double_initialization_is_safe()
 	{
 		var fake = new FakeMediaControlService();
-		var integration = new PluginIntegration(fake, TestLogger());
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
 
 		await integration.InitializeAsync(new FakeIntegrationContext());
 		await integration.InitializeAsync(new FakeIntegrationContext());
@@ -488,7 +490,7 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public async Task Play_with_matching_app_succeeds()
 	{
-		var action = new PlayAction(new FakeMediaControlService());
+		var action = new PlayAction(new FakeMediaControlService(), new MediaSettingsProvider());
 
 		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
 		{
@@ -502,7 +504,7 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public async Task Play_with_unknown_app_fails()
 	{
-		var action = new PlayAction(new FakeMediaControlService());
+		var action = new PlayAction(new FakeMediaControlService(), new MediaSettingsProvider());
 
 		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
 		{
@@ -516,7 +518,7 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public void Action_ids_are_unique_across_the_plugin()
 	{
-		var integration = new PluginIntegration(new FakeMediaControlService(), TestLogger());
+		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());
 
 		var duplicates = integration.Actions
 			.GroupBy(a => a.Id)
@@ -526,6 +528,165 @@ public sealed class PluginIntegrationTests
 
 		Assert.That(duplicates, Is.Empty);
 		Assert.That(integration.Actions.Count, Is.GreaterThanOrEqualTo(15));
+	}
+}
+
+[TestFixture]
+public sealed class ConfigFlowTests
+{
+	private static MediaConfigFlow CreateFlow() => new();
+
+	private static Dictionary<string, object?> PlaybackInput(double seekSeconds = 15) => new()
+	{
+		["preferred-app"] = "Spotify",
+		["seek-seconds"] = seekSeconds,
+		["ff-seconds"] = 10.0,
+	};
+
+	private static Dictionary<string, object?> VolumeInput() => new()
+	{
+		["volume-step"] = 5.0,
+		["max-volume"] = 90.0,
+		["unmute-on-volume"] = true,
+	};
+
+	private static Dictionary<string, object?> UpdatesInput() => new()
+	{
+		["poll-seconds"] = 2.0,
+		["state-poll-seconds"] = 2.0,
+		["icon-poll-seconds"] = 30.0,
+		["extrapolate"] = true,
+	};
+
+	private static Dictionary<string, object?> EventsInput() => new()
+	{
+		["events-track"] = true,
+		["events-playback"] = true,
+		["events-volume"] = true,
+		["events-mute"] = true,
+	};
+
+	private static Dictionary<string, object?> AdvancedInput(bool reset = false) => new()
+	{
+		["button-artwork"] = true,
+		["snapshot-timeout"] = 3.0,
+		["control-timeout"] = 6.0,
+		["artwork-cache"] = 8.0,
+		["reset-defaults"] = reset,
+	};
+
+	[Test]
+	public async Task Start_returns_the_playback_step()
+	{
+		var result = await CreateFlow().StartAsync(
+			new FakeConfigFlowContext(), TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(result.NextStep, Is.Not.Null);
+		Assert.That(result.NextStep!.StepId, Is.EqualTo("playback"));
+	}
+
+	[Test]
+	public async Task Full_flow_completes_with_valid_inputs()
+	{
+		var flow = CreateFlow();
+		var ct = TestContext.CurrentContext.CancellationToken;
+		var context = new FakeConfigFlowContext();
+
+		var first = await flow.SubmitAsync("playback", PlaybackInput(), context, ct);
+		var second = await flow.SubmitAsync("volume", VolumeInput(), context, ct);
+		var third = await flow.SubmitAsync("updates", UpdatesInput(), context, ct);
+		var fourth = await flow.SubmitAsync("events", EventsInput(), context, ct);
+		var done = await flow.SubmitAsync("advanced", AdvancedInput(), context, ct);
+
+		Assert.That(first.NextStep!.StepId, Is.EqualTo("volume"));
+		Assert.That(second.NextStep!.StepId, Is.EqualTo("updates"));
+		Assert.That(third.NextStep!.StepId, Is.EqualTo("events"));
+		Assert.That(fourth.NextStep!.StepId, Is.EqualTo("advanced"));
+		Assert.That(done.Values, Is.Not.Null);
+		Assert.That(done.Values!["seek-seconds"].Value, Is.EqualTo("15"));
+		Assert.That(done.Values!["preferred-app"].Value, Is.EqualTo("Spotify"));
+		Assert.That(done.Values!["max-volume"].Value, Is.EqualTo("90"));
+	}
+
+	[Test]
+	public async Task Out_of_range_values_return_field_errors()
+	{
+		var result = await CreateFlow().SubmitAsync(
+			"playback", PlaybackInput(seekSeconds: 500), new FakeConfigFlowContext(), TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(result.FieldErrors!.ContainsKey("seek-seconds"), Is.True);
+	}
+
+	[Test]
+	public async Task Reset_restores_defaults()
+	{
+		var flow = CreateFlow();
+		var ct = TestContext.CurrentContext.CancellationToken;
+		var context = new FakeConfigFlowContext();
+
+		await flow.SubmitAsync("playback", PlaybackInput(), context, ct);
+		await flow.SubmitAsync("volume", VolumeInput(), context, ct);
+		await flow.SubmitAsync("updates", UpdatesInput(), context, ct);
+		await flow.SubmitAsync("events", EventsInput(), context, ct);
+		var done = await flow.SubmitAsync("advanced", AdvancedInput(reset: true), context, ct);
+
+		Assert.That(done.Values!["seek-seconds"].Value, Is.EqualTo("10"));
+		Assert.That(done.Values!["preferred-app"].Value, Is.Empty);
+	}
+
+	[Test]
+	public async Task Reader_uses_defaults_without_entries()
+	{
+		var settings = await MediaSettingsReader.ReadAsync(new FakeIntegrationConfig());
+
+		Assert.That(settings, Is.EqualTo(MediaSettings.Default));
+	}
+
+	[Test]
+	public async Task Reader_reads_seeded_values()
+	{
+		var config = new FakeIntegrationConfig();
+		var entry = config.AddEntry("test");
+		config.SeedString(entry, "preferred-app", "Spotify");
+		config.SeedString(entry, "max-volume", "80");
+
+		var settings = await MediaSettingsReader.ReadAsync(config);
+
+		Assert.That(settings.PreferredApp, Is.EqualTo("Spotify"));
+		Assert.That(settings.MaxVolumeLimit, Is.EqualTo(80));
+		Assert.That(settings.DefaultSeekSeconds, Is.EqualTo(MediaSettings.Default.DefaultSeekSeconds));
+	}
+
+	[Test]
+	public void ClampVolume_respects_the_configured_limit()
+	{
+		var settings = MediaSettings.Default with { MaxVolumeLimit = 80 };
+
+		Assert.That(settings.ClampVolume(90), Is.EqualTo(80));
+		Assert.That(settings.ClampVolume(50), Is.EqualTo(50));
+	}
+
+	[Test]
+	public async Task Preferred_app_default_flows_into_actions()
+	{
+		var holder = new MediaSettingsProvider();
+		holder.Update(MediaSettings.Default with { PreferredApp = "Spotify" });
+		var fake = new FakeMediaControlService();
+		var action = new PlayAction(fake, holder);
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Calls, Does.Contain("PlayAsync"));
+	}
+
+	private sealed class FakeConfigFlowContext : MacroDeck.Sdk.ConfigFlow.IConfigFlowContext
+	{
+		public MacroDeck.Sdk.ConfigFlow.IOAuthSession OAuth => throw new NotSupportedException();
 	}
 }
 

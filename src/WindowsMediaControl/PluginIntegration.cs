@@ -3,19 +3,22 @@ using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.Events;
 using MacroDeck.Sdk.MusicPlayer;
+using MacroDeck.Sdk.ConfigFlow;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
 using Serilog;
 using WindowsMediaControl.Actions;
+using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
 using WindowsMediaControl.Widgets;
 
 namespace WindowsMediaControl;
 
-public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IEventProvider, IMusicPlayerProvider, IWidgetTypeProvider, IUiProvider, IDisposable
+public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IEventProvider, IMusicPlayerProvider, IWidgetTypeProvider, IUiProvider, IConfigFlowProvider, IDisposable
 {
 	private readonly IMediaControlService _media;
+	private readonly MediaSettingsProvider _settings;
 	private readonly ILogger _logger;
 	private readonly NowPlayingWidget _widget;
 	private readonly object _loopGate = new();
@@ -25,26 +28,27 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private MediaSnapshot _last = MediaSnapshot.Empty;
 	private bool _disposed;
 
-	public PluginIntegration(IMediaControlService media, ILogger logger)
+	public PluginIntegration(IMediaControlService media, MediaSettingsProvider settings, ILogger logger)
 	{
 		_media = media;
+		_settings = settings;
 		_logger = logger.ForContext<PluginIntegration>();
 		_widget = new NowPlayingWidget(media, logger);
 		Actions =
 		[
-			new PlayAction(media),
-			new PauseAction(media),
-			new TogglePlayPauseAction(media),
-			new StopAction(media),
-			new NextAction(media),
-			new PreviousAction(media),
-			new FastForwardAction(media),
-			new RewindAction(media),
-			new SeekForwardAction(media),
-			new SeekBackwardAction(media),
-			new SeekToAction(media),
-			new VolumeUpAction(media),
-			new VolumeDownAction(media),
+			new PlayAction(media, settings),
+			new PauseAction(media, settings),
+			new TogglePlayPauseAction(media, settings),
+			new StopAction(media, settings),
+			new NextAction(media, settings),
+			new PreviousAction(media, settings),
+			new FastForwardAction(media, settings),
+			new RewindAction(media, settings),
+			new SeekForwardAction(media, settings),
+			new SeekBackwardAction(media, settings),
+			new SeekToAction(media, settings),
+			new VolumeUpAction(media, settings),
+			new VolumeDownAction(media, settings),
 			new SetVolumeAction(media),
 			new MuteAction(media),
 			new UnmuteAction(media),
@@ -129,6 +133,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_context = context;
 		try
 		{
+			_settings.Update(await MediaSettingsReader.ReadAsync(context.Config));
 			_last = await _media.GetSnapshotAsync(CancellationToken.None);
 		}
 		catch (Exception ex)
@@ -297,6 +302,10 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public IMusicPlayer GetPlayer(string instanceId) =>
 		new SystemMusicPlayer(_media);
 
+	public bool AllowsMultipleConfigurations => false;
+
+	public IConfigFlow CreateConfigFlow() => new MediaConfigFlow();
+
 	public Task InitializeAsync(IWidgetTypeProviderContext context, CancellationToken cancellationToken) =>
 		_widget.InitializeAsync(context, cancellationToken);
 
@@ -324,7 +333,8 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 	private async Task RunPollLoopAsync(CancellationToken cancellationToken)
 	{
-		using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+		var interval = TimeSpan.FromSeconds(Math.Clamp(_settings.Current.PollIntervalSeconds, 1, 30));
+		using var timer = new PeriodicTimer(interval);
 		while (!cancellationToken.IsCancellationRequested)
 		{
 			try
@@ -367,13 +377,16 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 		if (TrackKey(previous) != TrackKey(current))
 		{
-			context.Events.Publish("track-changed", new Dictionary<string, object?>
+			if (_settings.Current.TrackEvents)
 			{
-				["title"] = current.Title,
-				["artist"] = current.Artist,
-				["album"] = current.Album,
-				["app"] = current.AppId,
-			});
+				context.Events.Publish("track-changed", new Dictionary<string, object?>
+				{
+					["title"] = current.Title,
+					["artist"] = current.Artist,
+					["album"] = current.Album,
+					["app"] = current.AppId,
+				});
+			}
 
 			// No InvalidateIconAsync here on purpose. The toggle action also provides the
 			// widget icon, but the invalidate-icon host operation is not understood by the
@@ -383,28 +396,37 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 		if (previous.Status != current.Status || previous.HasSession != current.HasSession)
 		{
-			context.Events.Publish("playback-changed", new Dictionary<string, object?>
+			if (_settings.Current.PlaybackEvents)
 			{
-				["status"] = StatusToken(current),
-				["isPlaying"] = current is { HasSession: true, Status: PlaybackStatus.Playing },
-			});
+				context.Events.Publish("playback-changed", new Dictionary<string, object?>
+				{
+					["status"] = StatusToken(current),
+					["isPlaying"] = current is { HasSession: true, Status: PlaybackStatus.Playing },
+				});
+			}
 		}
 
 		if (previous.VolumePercent != current.VolumePercent)
 		{
-			context.Events.Publish("volume-changed", new Dictionary<string, object?>
+			if (_settings.Current.VolumeEvents)
 			{
-				["volume"] = (double)current.VolumePercent,
-				["muted"] = current.IsMuted,
-			});
+				context.Events.Publish("volume-changed", new Dictionary<string, object?>
+				{
+					["volume"] = (double)current.VolumePercent,
+					["muted"] = current.IsMuted,
+				});
+			}
 		}
 
 		if (previous.IsMuted != current.IsMuted)
 		{
-			context.Events.Publish("mute-changed", new Dictionary<string, object?>
+			if (_settings.Current.MuteEvents)
 			{
-				["muted"] = current.IsMuted,
-			});
+				context.Events.Publish("mute-changed", new Dictionary<string, object?>
+				{
+					["muted"] = current.IsMuted,
+				});
+			}
 		}
 	}
 

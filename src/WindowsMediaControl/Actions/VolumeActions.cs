@@ -1,11 +1,12 @@
 using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
+using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
 
 namespace WindowsMediaControl.Actions;
 
-public sealed class VolumeUpAction(IMediaControlService media) : IActionDefinition
+public sealed class VolumeUpAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	private const string StepParameter = "step";
 
@@ -27,15 +28,15 @@ public sealed class VolumeUpAction(IMediaControlService media) : IActionDefiniti
 		},
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			var step = context.Parameters.ContainsKey(StepParameter)
 				? MediaParameters.ReadNumber(context.Parameters, StepParameter)
-				: 5;
+				: settings.Current.DefaultVolumeStep;
 			if (step is null)
 			{
 				return ActionResult.Failed(
@@ -61,7 +62,7 @@ public sealed class VolumeUpAction(IMediaControlService media) : IActionDefiniti
 	}
 }
 
-public sealed class VolumeDownAction(IMediaControlService media) : IActionDefinition
+public sealed class VolumeDownAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	private const string StepParameter = "step";
 
@@ -83,15 +84,15 @@ public sealed class VolumeDownAction(IMediaControlService media) : IActionDefini
 		},
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			var step = context.Parameters.ContainsKey(StepParameter)
 				? MediaParameters.ReadNumber(context.Parameters, StepParameter)
-				: 5;
+				: settings.Current.DefaultVolumeStep;
 			if (step is null)
 			{
 				return ActionResult.Failed(

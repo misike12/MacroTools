@@ -1,6 +1,7 @@
 using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
+using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
 
 namespace WindowsMediaControl.Actions;
@@ -14,22 +15,22 @@ internal static class MediaActionResults
 		ActionResult.Failed(ActionErrorCodes.ProviderError, Strings.Errors.MediaCommandFailed());
 }
 
-public sealed class PlayAction(IMediaControlService media) : IActionDefinition
+public sealed class PlayAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	public string Id => "play";
 	public LocalizedText Name => Strings.Actions.Play.Name();
 	public LocalizedText Description => Strings.Actions.Play.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [MediaParameters.AppOption()];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			try
 			{
-				var app = MediaParameters.ReadApp(context.Parameters);
+				var app = MediaParameters.ReadApp(context.Parameters, settings);
 				if (app is null)
 				{
 					var snapshot = await media.GetSnapshotAsync(context.CancellationToken);
@@ -51,22 +52,22 @@ public sealed class PlayAction(IMediaControlService media) : IActionDefinition
 	}
 }
 
-public sealed class PauseAction(IMediaControlService media) : IActionDefinition
+public sealed class PauseAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	public string Id => "pause";
 	public LocalizedText Name => Strings.Actions.Pause.Name();
 	public LocalizedText Description => Strings.Actions.Pause.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [MediaParameters.AppOption()];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			try
 			{
-				var app = MediaParameters.ReadApp(context.Parameters);
+				var app = MediaParameters.ReadApp(context.Parameters, settings);
 				if (app is null)
 				{
 					var snapshot = await media.GetSnapshotAsync(context.CancellationToken);
@@ -88,16 +89,16 @@ public sealed class PauseAction(IMediaControlService media) : IActionDefinition
 	}
 }
 
-public sealed class TogglePlayPauseAction(IMediaControlService media) : IActionDefinition, IStateProviderActionDefinition, IIconProviderActionDefinition
+public sealed class TogglePlayPauseAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition, IStateProviderActionDefinition, IIconProviderActionDefinition
 {
 	public string Id => "toggle-play-pause";
 	public LocalizedText Name => Strings.Actions.TogglePlayPause.Name();
 	public LocalizedText Description => Strings.Actions.TogglePlayPause.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [MediaParameters.AppOption()];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(2);
-	public TimeSpan IconPollInterval => TimeSpan.FromSeconds(30);
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(Math.Clamp(settings.Current.StatePollSeconds, 1, 120));
+	public TimeSpan IconPollInterval => TimeSpan.FromSeconds(Math.Clamp(settings.Current.IconPollSeconds, 10, 600));
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
 	public async Task<ActionStateSnapshot?> GetActionStateAsync(
 		IReadOnlyDictionary<string, object?> parameters,
@@ -138,6 +139,11 @@ public sealed class TogglePlayPauseAction(IMediaControlService media) : IActionD
 	{
 		try
 		{
+			if (!settings.Current.ButtonArtwork)
+			{
+				return null;
+			}
+
 			var snapshot = await media.GetSnapshotAsync(cancellationToken);
 			if (!snapshot.HasSession || string.IsNullOrEmpty(snapshot.ArtworkId))
 			{
@@ -170,13 +176,13 @@ public sealed class TogglePlayPauseAction(IMediaControlService media) : IActionD
 		}
 	}
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			try
 			{
-				var app = MediaParameters.ReadApp(context.Parameters);
+				var app = MediaParameters.ReadApp(context.Parameters, settings);
 				MediaSnapshot? before = app is null
 					? await media.GetSnapshotAsync(context.CancellationToken)
 					: null;
@@ -204,22 +210,22 @@ public sealed class TogglePlayPauseAction(IMediaControlService media) : IActionD
 	}
 }
 
-public sealed class StopAction(IMediaControlService media) : IActionDefinition
+public sealed class StopAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	public string Id => "stop";
 	public LocalizedText Name => Strings.Actions.Stop.Name();
 	public LocalizedText Description => Strings.Actions.Stop.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [MediaParameters.AppOption()];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			try
 			{
-				var app = MediaParameters.ReadApp(context.Parameters);
+				var app = MediaParameters.ReadApp(context.Parameters, settings);
 				if (app is null)
 				{
 					var snapshot = await media.GetSnapshotAsync(context.CancellationToken);
@@ -241,22 +247,22 @@ public sealed class StopAction(IMediaControlService media) : IActionDefinition
 	}
 }
 
-public sealed class NextAction(IMediaControlService media) : IActionDefinition
+public sealed class NextAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	public string Id => "next";
 	public LocalizedText Name => Strings.Actions.Next.Name();
 	public LocalizedText Description => Strings.Actions.Next.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [MediaParameters.AppOption()];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			try
 			{
-				return await media.NextAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters))
+				return await media.NextAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
 					? ActionResult.Success()
 					: MediaActionResults.NoSession();
 			}
@@ -268,22 +274,22 @@ public sealed class NextAction(IMediaControlService media) : IActionDefinition
 	}
 }
 
-public sealed class PreviousAction(IMediaControlService media) : IActionDefinition
+public sealed class PreviousAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	public string Id => "previous";
 	public LocalizedText Name => Strings.Actions.Previous.Name();
 	public LocalizedText Description => Strings.Actions.Previous.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [MediaParameters.AppOption()];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			try
 			{
-				return await media.PreviousAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters))
+				return await media.PreviousAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
 					? ActionResult.Success()
 					: MediaActionResults.NoSession();
 			}
@@ -295,22 +301,22 @@ public sealed class PreviousAction(IMediaControlService media) : IActionDefiniti
 	}
 }
 
-public sealed class FastForwardAction(IMediaControlService media) : IActionDefinition
+public sealed class FastForwardAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	public string Id => "fast-forward";
 	public LocalizedText Name => Strings.Actions.FastForward.Name();
 	public LocalizedText Description => Strings.Actions.FastForward.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [MediaParameters.AppOption()];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			try
 			{
-				return await media.FastForwardAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters))
+				return await media.FastForwardAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
 					? ActionResult.Success()
 					: MediaActionResults.NoSession();
 			}
@@ -322,22 +328,22 @@ public sealed class FastForwardAction(IMediaControlService media) : IActionDefin
 	}
 }
 
-public sealed class RewindAction(IMediaControlService media) : IActionDefinition
+public sealed class RewindAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	public string Id => "rewind";
 	public LocalizedText Name => Strings.Actions.Rewind.Name();
 	public LocalizedText Description => Strings.Actions.Rewind.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [MediaParameters.AppOption()];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			try
 			{
-				return await media.RewindAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters))
+				return await media.RewindAsync(context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
 					? ActionResult.Success()
 					: MediaActionResults.NoSession();
 			}

@@ -1,5 +1,6 @@
 using MacroDeck.Localization;
 using MacroDeck.Sdk.Actions;
+using WindowsMediaControl.Config;
 
 namespace WindowsMediaControl.Actions;
 
@@ -25,6 +26,18 @@ internal static class MediaParameters
 
 		var text = raw?.ToString();
 		return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+	}
+
+	public static string? ReadApp(IReadOnlyDictionary<string, object> parameters, MediaSettingsProvider settings)
+	{
+		var direct = ReadApp(parameters);
+		if (!string.IsNullOrWhiteSpace(direct))
+		{
+			return direct;
+		}
+
+		var preferred = settings.Current.PreferredApp;
+		return string.IsNullOrWhiteSpace(preferred) ? null : preferred.Trim();
 	}
 
 	public static double? ReadNumber(IReadOnlyDictionary<string, object> parameters, string name)

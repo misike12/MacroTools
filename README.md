@@ -34,6 +34,7 @@ Writable: `volume_percent`, `is_muted`, `position_seconds` and `progress_percent
 
 ### Extras
 
+- **Configuration page** — open the integration to find Playback, Volume, Live updates, Events and Advanced sections: preferred app, default seek/volume steps, a maximum-volume safety clamp, poll intervals, per-event toggles, SMTC timeouts, artwork cache size and button cover art. Advanced fields live under their own section, including a reset-to-defaults switch.
 - **Now Playing widget** — title/artist/album, live animated progress bar and prev/play/next buttons, with a configuration view (toggle album, progress and controls).
 - **Music player provider** (`system` instance) with real album artwork for the native Music widget.
 - **Album art on buttons** — the Play/Pause action supplies the current cover as its button icon, falling back to the configured icon.
@@ -53,6 +54,8 @@ macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
 ```
 
 The locally packed artifact is unsigned, so Macro Deck asks for an explicit confirmation on install. (Store releases are signed server-side by the Creator Portal.)
+
+Adding the configuration page means the integration starts disabled until its one-time setup is completed: open the plugin in Macro Deck, walk through the five short steps (every field is prefilled with its default) and it enables itself. Later edits apply live without restarting.
 
 For development, press F5 with the **Macro Deck - Real Host** launch profile instead: approve the pairing prompt once (Developer Mode must be on) and later runs reuse the stored credential. See `src/WindowsMediaControl/Properties/launchSettings.json`.
 

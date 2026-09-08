@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.windows-media",
   "name": "Windows Media Control",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Control Windows media playback (SMTC): play, pause, next, previous, volume, seek, shuffle, repeat and live variables.",
   "icon": "Assets/icon.svg",
   "entrypoints": {

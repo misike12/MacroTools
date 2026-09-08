@@ -1,11 +1,12 @@
 using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
+using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
 
 namespace WindowsMediaControl.Actions;
 
-public sealed class SeekForwardAction(IMediaControlService media) : IActionDefinition
+public sealed class SeekForwardAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	private const string SecondsParameter = "seconds";
 
@@ -28,15 +29,15 @@ public sealed class SeekForwardAction(IMediaControlService media) : IActionDefin
 		MediaParameters.AppOption(),
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			var seconds = context.Parameters.ContainsKey(SecondsParameter)
 				? MediaParameters.ReadNumber(context.Parameters, SecondsParameter)
-				: 10;
+				: settings.Current.DefaultSeekSeconds;
 			if (seconds is null)
 			{
 				return ActionResult.Failed(
@@ -51,7 +52,7 @@ public sealed class SeekForwardAction(IMediaControlService media) : IActionDefin
 
 			try
 			{
-				return await media.SeekByAsync(TimeSpan.FromSeconds(seconds.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters))
+				return await media.SeekByAsync(TimeSpan.FromSeconds(seconds.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
 					? ActionResult.Success()
 					: MediaActionResults.NoSession();
 			}
@@ -63,7 +64,7 @@ public sealed class SeekForwardAction(IMediaControlService media) : IActionDefin
 	}
 }
 
-public sealed class SeekBackwardAction(IMediaControlService media) : IActionDefinition
+public sealed class SeekBackwardAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	private const string SecondsParameter = "seconds";
 
@@ -86,15 +87,15 @@ public sealed class SeekBackwardAction(IMediaControlService media) : IActionDefi
 		MediaParameters.AppOption(),
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			var seconds = context.Parameters.ContainsKey(SecondsParameter)
 				? MediaParameters.ReadNumber(context.Parameters, SecondsParameter)
-				: 10;
+				: settings.Current.DefaultSeekSeconds;
 			if (seconds is null)
 			{
 				return ActionResult.Failed(
@@ -109,7 +110,7 @@ public sealed class SeekBackwardAction(IMediaControlService media) : IActionDefi
 
 			try
 			{
-				return await media.SeekByAsync(TimeSpan.FromSeconds(-seconds.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters))
+				return await media.SeekByAsync(TimeSpan.FromSeconds(-seconds.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
 					? ActionResult.Success()
 					: MediaActionResults.NoSession();
 			}
@@ -121,7 +122,7 @@ public sealed class SeekBackwardAction(IMediaControlService media) : IActionDefi
 	}
 }
 
-public sealed class SeekToAction(IMediaControlService media) : IActionDefinition
+public sealed class SeekToAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
 {
 	private const string PositionParameter = "position";
 
@@ -144,9 +145,9 @@ public sealed class SeekToAction(IMediaControlService media) : IActionDefinition
 		MediaParameters.AppOption(),
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media, settings);
 
-	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
@@ -160,7 +161,7 @@ public sealed class SeekToAction(IMediaControlService media) : IActionDefinition
 
 			try
 			{
-				return await media.SeekToAsync(TimeSpan.FromSeconds(position.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters))
+				return await media.SeekToAsync(TimeSpan.FromSeconds(position.Value), context.CancellationToken, MediaParameters.ReadApp(context.Parameters, settings))
 					? ActionResult.Success()
 					: MediaActionResults.NoSession();
 			}

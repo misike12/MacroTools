@@ -66,12 +66,6 @@ internal static class SystemAudio
 		}
 	}
 
-	public static void AdjustVolume(int delta)
-	{
-		var current = TryRead();
-		SetVolume((current?.VolumePercent ?? 50) + delta);
-	}
-
 	public static void SetMute(bool muted)
 	{
 		try

@@ -168,6 +168,144 @@
   <data name="Errors.ReadOnlyVariable" xml:space="preserve">
     <value>This variable is read-only.</value>
   </data>
+  <data name="Errors.InvalidSettings" xml:space="preserve">
+    <value>Some settings are invalid.</value>
+  </data>
+  <data name="Errors.FieldInvalid" xml:space="preserve">
+    <value>Check this value.</value>
+  </data>
+  <data name="Config.Playback.Title" xml:space="preserve">
+    <value>Playback</value>
+  </data>
+  <data name="Config.Playback.Description" xml:space="preserve">
+    <value>Which app to control and the default seek behavior.</value>
+  </data>
+  <data name="Config.Playback.PreferredApp.Label" xml:space="preserve">
+    <value>Preferred app</value>
+  </data>
+  <data name="Config.Playback.PreferredApp.Description" xml:space="preserve">
+    <value>Only control the app whose id contains this text, e.g. Spotify. Leave empty for the active session. Actions can still override this per button.</value>
+  </data>
+  <data name="Config.Playback.SeekSeconds.Label" xml:space="preserve">
+    <value>Default seek step</value>
+  </data>
+  <data name="Config.Playback.SeekSeconds.Description" xml:space="preserve">
+    <value>Seconds used by seek forward and backward when no value is set on the action.</value>
+  </data>
+  <data name="Config.Playback.FastForwardSeconds.Label" xml:space="preserve">
+    <value>Fast forward fallback</value>
+  </data>
+  <data name="Config.Playback.FastForwardSeconds.Description" xml:space="preserve">
+    <value>Seconds to skip when an app does not support fast forward or rewind natively.</value>
+  </data>
+  <data name="Config.Volume.Title" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="Config.Volume.Description" xml:space="preserve">
+    <value>System volume behavior and safety limits.</value>
+  </data>
+  <data name="Config.Volume.Step.Label" xml:space="preserve">
+    <value>Default volume step</value>
+  </data>
+  <data name="Config.Volume.Step.Description" xml:space="preserve">
+    <value>Percent used by volume up and down when no step is set on the action.</value>
+  </data>
+  <data name="Config.Volume.MaxLimit.Label" xml:space="preserve">
+    <value>Maximum volume</value>
+  </data>
+  <data name="Config.Volume.MaxLimit.Description" xml:space="preserve">
+    <value>Volume changes are clamped to this percent. Protects ears and speakers.</value>
+  </data>
+  <data name="Config.Volume.UnmuteOnChange.Label" xml:space="preserve">
+    <value>Unmute on volume change</value>
+  </data>
+  <data name="Config.Volume.UnmuteOnChange.Description" xml:space="preserve">
+    <value>Automatically unmute when the volume is changed while muted.</value>
+  </data>
+  <data name="Config.Updates.Title" xml:space="preserve">
+    <value>Live updates</value>
+  </data>
+  <data name="Config.Updates.Description" xml:space="preserve">
+    <value>How often the plugin polls Windows for media state.</value>
+  </data>
+  <data name="Config.Updates.PollInterval.Label" xml:space="preserve">
+    <value>Poll interval</value>
+  </data>
+  <data name="Config.Updates.PollInterval.Description" xml:space="preserve">
+    <value>Seconds between media state reads. Lower is livelier but busier.</value>
+  </data>
+  <data name="Config.Updates.StatePoll.Label" xml:space="preserve">
+    <value>Button state poll</value>
+  </data>
+  <data name="Config.Updates.StatePoll.Description" xml:space="preserve">
+    <value>Seconds between Play-Pause button state reads.</value>
+  </data>
+  <data name="Config.Updates.IconPoll.Label" xml:space="preserve">
+    <value>Button icon poll</value>
+  </data>
+  <data name="Config.Updates.IconPoll.Description" xml:space="preserve">
+    <value>Seconds between Play-Pause button artwork checks.</value>
+  </data>
+  <data name="Config.Updates.Extrapolate.Label" xml:space="preserve">
+    <value>Smooth position</value>
+  </data>
+  <data name="Config.Updates.Extrapolate.Description" xml:space="preserve">
+    <value>Estimate the playback position between polls while playing.</value>
+  </data>
+  <data name="Config.Events.Title" xml:space="preserve">
+    <value>Events</value>
+  </data>
+  <data name="Config.Events.Description" xml:space="preserve">
+    <value>Which changes the plugin announces to automations.</value>
+  </data>
+  <data name="Config.Events.Track.Label" xml:space="preserve">
+    <value>Track changed</value>
+  </data>
+  <data name="Config.Events.Playback.Label" xml:space="preserve">
+    <value>Playback changed</value>
+  </data>
+  <data name="Config.Events.Volume.Label" xml:space="preserve">
+    <value>Volume changed</value>
+  </data>
+  <data name="Config.Events.Mute.Label" xml:space="preserve">
+    <value>Mute changed</value>
+  </data>
+  <data name="Config.Advanced.Title" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="Config.Advanced.Description" xml:space="preserve">
+    <value>Timeouts, artwork and artwork buttons. Change these only if media reads misbehave.</value>
+  </data>
+  <data name="Config.Advanced.ButtonArtwork.Label" xml:space="preserve">
+    <value>Cover art on buttons</value>
+  </data>
+  <data name="Config.Advanced.ButtonArtwork.Description" xml:space="preserve">
+    <value>Show the current cover as the Play-Pause button icon.</value>
+  </data>
+  <data name="Config.Advanced.SnapshotTimeout.Label" xml:space="preserve">
+    <value>Media read timeout</value>
+  </data>
+  <data name="Config.Advanced.SnapshotTimeout.Description" xml:space="preserve">
+    <value>Seconds before a stuck media read gives up and reports no media.</value>
+  </data>
+  <data name="Config.Advanced.ControlTimeout.Label" xml:space="preserve">
+    <value>Command timeout</value>
+  </data>
+  <data name="Config.Advanced.ControlTimeout.Description" xml:space="preserve">
+    <value>Seconds before a stuck play, pause or seek command gives up.</value>
+  </data>
+  <data name="Config.Advanced.ArtworkCache.Label" xml:space="preserve">
+    <value>Artwork cache size</value>
+  </data>
+  <data name="Config.Advanced.ArtworkCache.Description" xml:space="preserve">
+    <value>How many covers are kept in memory.</value>
+  </data>
+  <data name="Config.Advanced.Reset.Label" xml:space="preserve">
+    <value>Reset to defaults</value>
+  </data>
+  <data name="Config.Advanced.Reset.Description" xml:space="preserve">
+    <value>Turn on and complete to discard every setting on this page.</value>
+  </data>
   <data name="Params.App.Label" xml:space="preserve">
     <value>App</value>
   </data>
