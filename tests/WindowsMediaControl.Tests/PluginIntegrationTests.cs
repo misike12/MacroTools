@@ -474,6 +474,15 @@ public sealed class PluginIntegrationTests
 		Assert.That(options.ShowAlbum, Is.False);
 		Assert.That(options.ShowProgress, Is.True);
 		Assert.That(options.ShowControls, Is.True);
+		Assert.That(options.Compact, Is.False);
+	}
+
+	[Test]
+	public void Widget_options_read_compact_mode()
+	{
+		var options = WidgetOptions.FromData(JsonDocument.Parse("""{"compactMode":true}""").RootElement);
+
+		Assert.That(options.Compact, Is.True);
 	}
 
 	[Test]

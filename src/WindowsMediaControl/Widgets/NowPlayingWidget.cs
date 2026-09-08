@@ -15,9 +15,9 @@ using WindowsMediaControl.Media;
 
 namespace WindowsMediaControl.Widgets;
 
-public sealed record WidgetOptions(bool ShowAlbum, bool ShowProgress, bool ShowControls)
+public sealed record WidgetOptions(bool ShowAlbum, bool ShowProgress, bool ShowControls, bool Compact)
 {
-	public static WidgetOptions Default { get; } = new(true, true, true);
+	public static WidgetOptions Default { get; } = new(true, true, true, false);
 
 	public static WidgetOptions FromData(JsonElement data)
 	{
@@ -29,7 +29,8 @@ public sealed record WidgetOptions(bool ShowAlbum, bool ShowProgress, bool ShowC
 		return new WidgetOptions(
 			ShowAlbum: ReadFlag(data, "showAlbum", true),
 			ShowProgress: ReadFlag(data, "showProgress", true),
-			ShowControls: ReadFlag(data, "showControls", true));
+			ShowControls: ReadFlag(data, "showControls", true),
+			Compact: ReadFlag(data, "compactMode", false));
 	}
 
 	private static bool ReadFlag(JsonElement data, string name, bool fallback) =>
@@ -92,13 +93,15 @@ internal static class NowPlayingView
 		UiState<WidgetContent> content,
 		Func<string, CancellationToken, Task>? command)
 	{
+		var options = content.Peek().Options;
 		var media = new List<UiElement>
 		{
 			new UiTextRun
 			{
 				Key = "title",
 				Text = UiText.From(() => content.Value.Title),
-				Size = 0.13,
+				Size = options.Compact ? UiSize.Capped(0.1, 12) : UiSize.Capped(0.12, 14),
+				Align = UiComponentAlignments.Center,
 				Wrap = true,
 				MaxLines = 2,
 			},
@@ -106,21 +109,23 @@ internal static class NowPlayingView
 			{
 				Key = "artist",
 				Text = UiText.From(() => content.Value.Artist),
-				Size = 0.11,
+				Size = options.Compact ? UiSize.Capped(0.09, 10) : UiSize.Capped(0.1, 12),
+				Align = UiComponentAlignments.Center,
 			},
 		};
 
-		if (content.Peek().Options.ShowAlbum)
+		if (options.ShowAlbum && !options.Compact)
 		{
 			media.Add(new UiTextRun
 			{
 				Key = "album",
 				Text = UiText.From(() => content.Value.Album),
-				Size = 0.09,
+				Size = UiSize.Capped(0.09, 10),
+				Align = UiComponentAlignments.Center,
 			});
 		}
 
-		if (content.Peek().Options.ShowProgress)
+		if (options.ShowProgress)
 		{
 			media.Add(new UiProgressBar
 			{
@@ -128,20 +133,25 @@ internal static class NowPlayingView
 				Value = UiValue.From(() => content.Value.Progress),
 				Thickness = 0.05,
 			});
-			media.Add(new UiTextRun
+			if (!options.Compact)
 			{
-				Key = "progress-text",
-				Text = UiText.From(() => content.Value.ProgressText),
-				Size = 0.09,
-			});
+				media.Add(new UiTextRun
+				{
+					Key = "progress-text",
+					Text = UiText.From(() => content.Value.ProgressText),
+					Size = UiSize.Capped(0.09, 10),
+					Align = UiComponentAlignments.Center,
+				});
+			}
 		}
 
-		if (content.Peek().Options.ShowControls)
+		if (options.ShowControls)
 		{
 			media.Add(new UiStack
 			{
 				Key = "controls",
 				Direction = UiComponentDirections.Horizontal,
+				Justify = UiComponentJustify.Center,
 				Gap = 0.04,
 				Children =
 				[
@@ -163,6 +173,7 @@ internal static class NowPlayingView
 					Key = "empty-label",
 					Text = UiText.FromLocalized(() => Strings.Widget.NothingPlaying()),
 					Size = 0.13,
+					Align = UiComponentAlignments.Center,
 				},
 			},
 			new UiWhen
@@ -193,6 +204,9 @@ internal static class NowPlayingView
 		{
 			Key = key,
 			Justify = UiComponentJustify.Center,
+			Fill = true,
+			Corner = UiComponentButtonCorners.Tile,
+			BorderStyle = UiComponentBorderStyles.Static,
 			Children =
 			[
 				new UiTextRun
@@ -200,6 +214,7 @@ internal static class NowPlayingView
 					Key = key + "-label",
 					Text = UiText.FromLocalized(() => ResolveLabel(key, content.Value, label)),
 					Size = 0.14,
+					Align = UiComponentAlignments.Center,
 				},
 			],
 		};
@@ -246,8 +261,8 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 		"now-playing",
 		Strings.Widget.NowPlaying.Name(),
 		Strings.Widget.NowPlaying.Description(),
-		"""{"showAlbum":true,"showProgress":true,"showControls":true}""",
-		"""{"type":"object","properties":{"showAlbum":{"type":"boolean"},"showProgress":{"type":"boolean"},"showControls":{"type":"boolean"}}}""",
+		"""{"showAlbum":true,"showProgress":true,"showControls":true,"compactMode":false}""",
+		"""{"type":"object","properties":{"showAlbum":{"type":"boolean"},"showProgress":{"type":"boolean"},"showControls":{"type":"boolean"},"compactMode":{"type":"boolean"}}}""",
 		true,
 		new Dictionary<string, string>());
 	private static string? s_widgetTypeId;
@@ -349,6 +364,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 			var showAlbum = new UiState<bool>(options.ShowAlbum);
 			var showProgress = new UiState<bool>(options.ShowProgress);
 			var showControls = new UiState<bool>(options.ShowControls);
+			var compactMode = new UiState<bool>(options.Compact);
 			var view = new UiView(surface, new UiWidgetConfiguration
 			{
 				Key = "config",
@@ -374,6 +390,12 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 							Key = "showControls",
 							Label = Strings.Widget.Config.ShowControls(),
 							Binding = Bind.To(showControls),
+						},
+						new UiBooleanInput
+						{
+							Key = "compactMode",
+							Label = Strings.Widget.Config.CompactMode(),
+							Binding = Bind.To(compactMode),
 						},
 					],
 				},

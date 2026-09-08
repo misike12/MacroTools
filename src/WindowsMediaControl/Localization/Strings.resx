@@ -243,6 +243,9 @@
   <data name="Widget.Config.ShowControls" xml:space="preserve">
     <value>Show controls</value>
   </data>
+  <data name="Widget.Config.CompactMode" xml:space="preserve">
+    <value>Compact mode</value>
+  </data>
   <data name="Variables.Title.DisplayName" xml:space="preserve">
     <value>Title</value>
   </data>
