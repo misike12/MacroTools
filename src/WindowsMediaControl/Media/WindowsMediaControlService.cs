@@ -60,16 +60,10 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			var duration = timeline?.EndTime ?? TimeSpan.Zero;
 			if (_settings.Current.ExtrapolatePosition && status == PlaybackStatus.Playing && timeline is not null)
 			{
-				try
+				var elapsed = DateTimeOffset.Now - timeline.LastUpdatedTime;
+				if (elapsed is { TotalSeconds: >= 0 and < 3600 })
 				{
-					var elapsed = DateTimeOffset.Now - timeline.LastUpdatedTime;
-					if (elapsed is { TotalSeconds: >= 0 and < 3600 })
-					{
-						position += elapsed;
-					}
-				}
-				catch (ArgumentOutOfRangeException)
-				{
+					position += elapsed;
 				}
 			}
 

@@ -345,18 +345,6 @@
   <data name="Widget.NowPlaying.Description" xml:space="preserve">
     <value>Shows the current track with transport controls.</value>
   </data>
-  <data name="Widget.Play" xml:space="preserve">
-    <value>Play</value>
-  </data>
-  <data name="Widget.Pause" xml:space="preserve">
-    <value>Pause</value>
-  </data>
-  <data name="Widget.Previous" xml:space="preserve">
-    <value>Previous</value>
-  </data>
-  <data name="Widget.Next" xml:space="preserve">
-    <value>Next</value>
-  </data>
   <data name="Widget.NothingPlaying" xml:space="preserve">
     <value>Nothing playing</value>
   </data>
@@ -371,9 +359,6 @@
   </data>
   <data name="Widget.Symbols.Next" xml:space="preserve">
     <value>&#9654;|</value>
-  </data>
-  <data name="Widget.Status.Live" xml:space="preserve">
-    <value>Now playing</value>
   </data>
   <data name="Widget.Config.ShowAlbum" xml:space="preserve">
     <value>Show album</value>

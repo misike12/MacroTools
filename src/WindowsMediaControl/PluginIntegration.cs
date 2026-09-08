@@ -199,7 +199,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		{
 			if (localId == "volume-percent")
 			{
-				var percent = CoerceNumber(value);
+				var percent = MediaParameters.ReadNumberValue(value);
 				if (percent is null || percent < 0 || percent > 100)
 				{
 					return VariableWriteResult.InvalidValue(Strings.Variables.VolumePercent.DisplayName());
@@ -212,7 +212,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 			if (localId == "is-muted")
 			{
-				var muted = CoerceBool(value);
+				var muted = MediaParameters.ReadBooleanValue(value);
 				if (muted is null)
 				{
 					return VariableWriteResult.InvalidValue(Strings.Variables.IsMuted.DisplayName());
@@ -233,7 +233,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 			if (localId == "position-seconds")
 			{
-				var position = CoerceNumber(value);
+				var position = MediaParameters.ReadNumberValue(value);
 				if (position is null || position < 0)
 				{
 					return VariableWriteResult.InvalidValue(Strings.Variables.PositionSeconds.DisplayName());
@@ -250,7 +250,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 			if (localId == "progress-percent")
 			{
-				var progress = CoerceNumber(value);
+				var progress = MediaParameters.ReadNumberValue(value);
 				if (progress is null || progress < 0 || progress > 100)
 				{
 					return VariableWriteResult.InvalidValue(Strings.Variables.ProgressPercent.DisplayName());
@@ -300,7 +300,9 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		[new("system", "System media")];
 
 	public IMusicPlayer GetPlayer(string instanceId) =>
-		new SystemMusicPlayer(_media);
+		instanceId == "system"
+			? new SystemMusicPlayer(_media)
+			: throw new KeyNotFoundException($"Unknown music player instance '{instanceId}'.");
 
 	public bool AllowsMultipleConfigurations => false;
 
@@ -465,35 +467,5 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private static VariableReading NumberOrUnavailable(bool available, double value) =>
 		available ? VariableReading.Of(value) : VariableReading.Unavailable;
 
-	private static double? CoerceNumber(object? value) =>
-		value switch
-		{
-			double d => d,
-			float f => f,
-			int i => i,
-			long l => l,
-			string s when double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed) => parsed,
-			_ => null,
-		};
-
-	private static bool? CoerceBool(object? value) =>
-		value switch
-		{
-			bool b => b,
-			string s when bool.TryParse(s, out var parsed) => parsed,
-			double d when d is 0 or 1 => d == 1,
-			_ => null,
-		};
-
-	private static string FormatTime(TimeSpan value)
-	{
-		if (value < TimeSpan.Zero)
-		{
-			value = TimeSpan.Zero;
-		}
-
-		return value.TotalHours >= 1
-			? $"{(int)value.TotalHours}:{value.Minutes:D2}:{value.Seconds:D2}"
-			: $"{value.Minutes}:{value.Seconds:D2}";
-	}
+	private static string FormatTime(TimeSpan value) => MediaText.FormatDuration(value);
 }

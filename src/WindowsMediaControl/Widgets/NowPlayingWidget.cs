@@ -61,7 +61,7 @@ public sealed record WidgetContent(
 			snapshot.Title,
 			snapshot.Artist,
 			snapshot.Album,
-			snapshot.HasSession ? $"{FormatTime(snapshot.Position)} / {FormatTime(snapshot.Duration)}" : string.Empty,
+			snapshot.HasSession ? $"{MediaText.FormatDuration(snapshot.Position)} / {MediaText.FormatDuration(snapshot.Duration)}" : string.Empty,
 			new UiProgressReference
 			{
 				PositionMs = (long)Math.Clamp(snapshot.Position.TotalMilliseconds, 0, double.MaxValue),
@@ -72,18 +72,6 @@ public sealed record WidgetContent(
 			snapshot.Status == PlaybackStatus.Playing,
 			snapshot.HasSession,
 			options);
-	}
-
-	private static string FormatTime(TimeSpan value)
-	{
-		if (value < TimeSpan.Zero)
-		{
-			value = TimeSpan.Zero;
-		}
-
-		return value.TotalHours >= 1
-			? $"{(int)value.TotalHours}:{value.Minutes:D2}:{value.Seconds:D2}"
-			: $"{value.Minutes}:{value.Seconds:D2}";
 	}
 }
 

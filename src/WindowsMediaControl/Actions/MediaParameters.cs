@@ -40,15 +40,13 @@ internal static class MediaParameters
 		return string.IsNullOrWhiteSpace(preferred) ? null : preferred.Trim();
 	}
 
-	public static double? ReadNumber(IReadOnlyDictionary<string, object> parameters, string name)
-	{
-		if (!parameters.TryGetValue(name, out var raw) || raw is null)
-		{
-			return null;
-		}
+	public static double? ReadNumber(IReadOnlyDictionary<string, object> parameters, string name) =>
+		parameters.TryGetValue(name, out var raw) ? ReadNumberValue(raw) : null;
 
-		return raw switch
+	public static double? ReadNumberValue(object? raw) =>
+		raw switch
 		{
+			null => null,
 			double d => d,
 			float f => f,
 			int i => i,
@@ -56,5 +54,14 @@ internal static class MediaParameters
 			string s when double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed) => parsed,
 			_ => null,
 		};
-	}
+
+	public static bool? ReadBooleanValue(object? raw) =>
+		raw switch
+		{
+			null => null,
+			bool b => b,
+			string s when bool.TryParse(s, out var parsed) => parsed,
+			double d when d is 0 or 1 => d == 1,
+			_ => null,
+		};
 }

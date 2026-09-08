@@ -143,24 +143,10 @@ public sealed class MediaConfigFlow : IConfigFlow
 	}
 
 	private double? ReadNumber(string key) =>
-		_input.TryGetValue(key, out var raw) && raw is not null
-			? MediaParameters.ReadNumber(new Dictionary<string, object> { [key] = raw }, key)
-			: null;
+		_input.TryGetValue(key, out var raw) ? MediaParameters.ReadNumberValue(raw) : null;
 
-	private bool? ReadBool(string key)
-	{
-		if (!_input.TryGetValue(key, out var raw) || raw is null)
-		{
-			return null;
-		}
-
-		return raw switch
-		{
-			bool b => b,
-			string s when bool.TryParse(s, out var parsed) => parsed,
-			_ => null,
-		};
-	}
+	private bool? ReadBool(string key) =>
+		_input.TryGetValue(key, out var raw) ? MediaParameters.ReadBooleanValue(raw) : null;
 
 	private string ReadText(string key, string fallback) =>
 		_input.TryGetValue(key, out var raw) ? raw?.ToString() ?? fallback : fallback;

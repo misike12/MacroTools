@@ -20,8 +20,16 @@ internal static class SystemAudio
 
 			try
 			{
-				volume.GetMasterVolumeLevelScalar(out var level);
-				volume.GetMute(out var muted);
+				if (volume.GetMasterVolumeLevelScalar(out var level) != 0)
+				{
+					return null;
+				}
+
+				if (volume.GetMute(out var muted) != 0)
+				{
+					return null;
+				}
+
 				return new AudioState((int)Math.Round(level * 100), muted);
 			}
 			finally
