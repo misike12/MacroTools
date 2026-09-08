@@ -92,69 +92,86 @@ internal static class NowPlayingView
 		UiState<WidgetContent> content,
 		Func<string, CancellationToken, Task>? command)
 	{
-		var children = new List<UiElement>
+		var media = new List<UiElement>
 		{
 			new UiTextRun
 			{
 				Key = "title",
 				Text = UiText.From(() => content.Value.Title),
-				Size = 0.16,
-			},
-			new UiTextRun
-			{
-				Key = "status",
-				Text = UiText.FromLocalized(() => content.Value.HasMedia ? Strings.Widget.Status.Live() : Strings.Widget.NothingPlaying()),
-				Size = 0.1,
+				Size = 0.13,
+				Wrap = true,
+				MaxLines = 2,
 			},
 			new UiTextRun
 			{
 				Key = "artist",
 				Text = UiText.From(() => content.Value.Artist),
-				Size = 0.12,
+				Size = 0.11,
 			},
 		};
 
 		if (content.Peek().Options.ShowAlbum)
 		{
-			children.Add(new UiTextRun
+			media.Add(new UiTextRun
 			{
 				Key = "album",
 				Text = UiText.From(() => content.Value.Album),
-				Size = 0.1,
+				Size = 0.09,
 			});
 		}
 
 		if (content.Peek().Options.ShowProgress)
 		{
-			children.Add(new UiProgressBar
+			media.Add(new UiProgressBar
 			{
 				Key = "progress",
 				Value = UiValue.From(() => content.Value.Progress),
 				Thickness = 0.05,
 			});
-			children.Add(new UiTextRun
+			media.Add(new UiTextRun
 			{
 				Key = "progress-text",
 				Text = UiText.From(() => content.Value.ProgressText),
-				Size = 0.1,
+				Size = 0.09,
 			});
 		}
 
 		if (content.Peek().Options.ShowControls)
 		{
-			children.Add(new UiStack
+			media.Add(new UiStack
 			{
 				Key = "controls",
 				Direction = UiComponentDirections.Horizontal,
 				Gap = 0.04,
 				Children =
 				[
-					ControlButton("previous", Strings.Widget.Previous(), "previous", content, command),
-					ControlButton("play", Strings.Widget.Play(), "toggle", content, command),
-					ControlButton("next", Strings.Widget.Next(), "next", content, command),
+					ControlButton("previous", Strings.Widget.Symbols.Previous(), "previous", content, command),
+					ControlButton("play", Strings.Widget.Symbols.Play(), "toggle", content, command),
+					ControlButton("next", Strings.Widget.Symbols.Next(), "next", content, command),
 				],
 			});
 		}
+
+		var children = new List<UiElement>
+		{
+			new UiWhen
+			{
+				Key = "empty",
+				Condition = () => !content.Value.HasMedia,
+				Content = () => new UiTextRun
+				{
+					Key = "empty-label",
+					Text = UiText.FromLocalized(() => Strings.Widget.NothingPlaying()),
+					Size = 0.13,
+				},
+			},
+			new UiWhen
+			{
+				Key = "media",
+				Condition = () => content.Value.HasMedia,
+				Content = () => new UiFragment { Key = "media-rows", Children = media },
+			},
+		};
 
 		return new UiStack
 		{
@@ -182,7 +199,7 @@ internal static class NowPlayingView
 				{
 					Key = key + "-label",
 					Text = UiText.FromLocalized(() => ResolveLabel(key, content.Value, label)),
-					Size = 0.12,
+					Size = 0.14,
 				},
 			],
 		};
@@ -201,7 +218,7 @@ internal static class NowPlayingView
 		string key,
 		WidgetContent content,
 		MacroDeck.Localization.LocalizedString fallback) =>
-		key == "play" && content.IsPlaying ? Strings.Widget.Pause() : fallback;
+		key == "play" && content.IsPlaying ? Strings.Widget.Symbols.Pause() : fallback;
 }
 
 internal static class NowPlayingPreviews

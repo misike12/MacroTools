@@ -219,6 +219,18 @@
   <data name="Widget.NothingPlaying" xml:space="preserve">
     <value>Nothing playing</value>
   </data>
+  <data name="Widget.Symbols.Previous" xml:space="preserve">
+    <value>|&#9664;</value>
+  </data>
+  <data name="Widget.Symbols.Play" xml:space="preserve">
+    <value>&#9654;</value>
+  </data>
+  <data name="Widget.Symbols.Pause" xml:space="preserve">
+    <value>&#10074;&#10074;</value>
+  </data>
+  <data name="Widget.Symbols.Next" xml:space="preserve">
+    <value>&#9654;|</value>
+  </data>
   <data name="Widget.Status.Live" xml:space="preserve">
     <value>Now playing</value>
   </data>
