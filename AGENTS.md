@@ -3,12 +3,12 @@
 This file must be kept up to date. When a rule here stops matching reality, or a new rule emerges from
 work in this repository, update this file as part of that change rather than leaving it to drift.
 
-This repository is the **starting point for a Macro Deck 3 out-of-process plugin**, and it is
-simultaneously the content of the `dotnet new macrodeck-plugin` template package. The plugin under
-`src/WindowsMediaControl/` is deliberately minimal: one integration and one example action,
-`LogMessageAction`, which exists solely to show the localized shape of an action end to end. It is
-meant to be replaced by the plugin's real first action, not grown into a second sample. Nothing else
-is demonstrated here.
+This repository started from the **Macro Deck 3 out-of-process plugin template**, but it is
+now a real plugin, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
+Control integration (17 actions, 16 variables, 4 events, a music player, a Now Playing widget type
+and a 5-step configuration flow). The template's example action is long gone. The orientation and
+identity checklists below still apply to the mechanics (manifest, build recipe, analyzers), but do
+not "restore" the minimal shape.
 
 Worked examples of every capability live in the
 [sample plugins repository](https://github.com/Macro-Deck-App/Macro-Deck-Sample-Plugins), not here.
@@ -23,16 +23,20 @@ package itself is covered by
 
 ```
 src/WindowsMediaControl/
-  Program.cs             builder chain - a few lines and a RunAsync
-  manifest.json          identity, icon, per-platform entrypoints
-  macrodeck-build.json   one publish target per declared entrypoint
-  PluginIntegration.cs   the integration: lifecycle and capability opt-ins
-  LogMessageAction.cs    the example action, localized end to end
+  Program.cs             builder chain plus MediaSettingsProvider registration
+  manifest.json          identity, icon, win-x64 entrypoint
+  macrodeck-build.json   the win-x64 publish target
+  PluginIntegration.cs   actions, variables, events, music player, widget and config-flow wiring, poll loop
+  Media/                 SMTC service, CoreAudio volume, snapshot/artwork/text helpers
+  Actions/               transport, seek and volume actions plus shared parameter helpers
+  Widgets/               Now Playing widget type, sessions, configuration and previews
+  Config/                settings model, config flow, settings reader
   Localization/Strings.resx   default-culture strings; Strings.<tag>.resx per language
   Assets/icon.svg        the icon the manifest declares
   Properties/launchSettings.json   the single real-host debug profile
 tests/WindowsMediaControl.Tests/
-  PluginIntegrationTests.cs   the plugin builds, the action runs, the catalog is wired
+  PluginIntegrationTests.cs   behaviour tests against FakeMediaControlService
+  FakeMediaControlService.cs  controllable stand-in for SMTC/audio
 ```
 
 The template repository carries two more directories that a generated plugin does not:
@@ -68,7 +72,7 @@ dotnet new macrodeck-plugin -n <Name> --pluginId <id> --pluginName "<Display nam
 absolute URL. `macrodeck-plugin new` collects the same values and passes them through.
 
 A repository *cloned* from this template still carries the template's identity, so fix that first, in
-one change:
+one change (already done in this repository - the notes stay for the next clone):
 
 1. `manifest.json` - `id` (reverse-domain, lowercase, at least two dot-joined kebab segments, e.g.
    `com.example.my-plugin`), `name`, `version`, `description`, `publisher.name`, and `entrypoints` plus
