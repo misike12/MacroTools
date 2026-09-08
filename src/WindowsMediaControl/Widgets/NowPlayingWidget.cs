@@ -1,0 +1,525 @@
+using System.Text.Json;
+using MacroDeck.Sdk.Ui;
+using MacroDeck.Sdk.Widgets;
+using MacroDeck.Ui.Components;
+using MacroDeck.Ui.Config;
+using MacroDeck.Ui.Dsl;
+using MacroDeck.Ui.Model.Events;
+using MacroDeck.Ui.Model.Nodes;
+using MacroDeck.Ui.Model.Patches;
+using MacroDeck.Ui.Model.References;
+using MacroDeck.Ui.Model.Surfaces;
+using MacroDeck.Ui.Previews;
+using MacroDeck.Ui.Runtime;
+using WindowsMediaControl.Media;
+
+namespace WindowsMediaControl.Widgets;
+
+public sealed record WidgetOptions(bool ShowAlbum, bool ShowProgress, bool ShowControls)
+{
+	public static WidgetOptions Default { get; } = new(true, true, true);
+
+	public static WidgetOptions FromData(JsonElement data)
+	{
+		if (data.ValueKind != JsonValueKind.Object)
+		{
+			return Default;
+		}
+
+		return new WidgetOptions(
+			ShowAlbum: ReadFlag(data, "showAlbum", true),
+			ShowProgress: ReadFlag(data, "showProgress", true),
+			ShowControls: ReadFlag(data, "showControls", true));
+	}
+
+	private static bool ReadFlag(JsonElement data, string name, bool fallback) =>
+		data.TryGetProperty(name, out var element) && element.ValueKind is JsonValueKind.True or JsonValueKind.False
+			? element.GetBoolean()
+			: fallback;
+}
+
+public sealed record WidgetContent(
+	string Title,
+	string Artist,
+	string Album,
+	string ProgressText,
+	UiProgressReference Progress,
+	bool IsPlaying,
+	bool HasMedia,
+	WidgetOptions Options)
+{
+	public static WidgetContent Empty { get; } = new(
+		string.Empty, string.Empty, string.Empty, string.Empty,
+		new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow },
+		false, false, WidgetOptions.Default);
+
+	public static WidgetContent FromSnapshot(MediaSnapshot snapshot, WidgetOptions options)
+	{
+		var durationMs = snapshot.Duration > TimeSpan.Zero ? (long?)snapshot.Duration.TotalMilliseconds : null;
+		return new WidgetContent(
+			snapshot.Title,
+			snapshot.Artist,
+			snapshot.Album,
+			snapshot.HasSession ? $"{FormatTime(snapshot.Position)} / {FormatTime(snapshot.Duration)}" : string.Empty,
+			new UiProgressReference
+			{
+				PositionMs = (long)Math.Clamp(snapshot.Position.TotalMilliseconds, 0, double.MaxValue),
+				Anchor = DateTimeOffset.UtcNow,
+				DurationMs = durationMs,
+				Rate = snapshot.Status == PlaybackStatus.Playing ? 1 : 0,
+			},
+			snapshot.Status == PlaybackStatus.Playing,
+			snapshot.HasSession,
+			options);
+	}
+
+	private static string FormatTime(TimeSpan value)
+	{
+		if (value < TimeSpan.Zero)
+		{
+			value = TimeSpan.Zero;
+		}
+
+		return value.TotalHours >= 1
+			? $"{(int)value.TotalHours}:{value.Minutes:D2}:{value.Seconds:D2}"
+			: $"{value.Minutes}:{value.Seconds:D2}";
+	}
+}
+
+internal static class NowPlayingView
+{
+	public static UiElement Build(
+		UiState<WidgetContent> content,
+		Func<string, CancellationToken, Task>? command)
+	{
+		var children = new List<UiElement>
+		{
+			new UiTextRun
+			{
+				Key = "title",
+				Text = UiText.From(() => content.Value.Title),
+				Size = 0.16,
+			},
+			new UiTextRun
+			{
+				Key = "status",
+				Text = UiText.FromLocalized(() => content.Value.HasMedia ? Strings.Widget.Status.Live() : Strings.Widget.NothingPlaying()),
+				Size = 0.1,
+			},
+			new UiTextRun
+			{
+				Key = "artist",
+				Text = UiText.From(() => content.Value.Artist),
+				Size = 0.12,
+			},
+		};
+
+		if (content.Peek().Options.ShowAlbum)
+		{
+			children.Add(new UiTextRun
+			{
+				Key = "album",
+				Text = UiText.From(() => content.Value.Album),
+				Size = 0.1,
+			});
+		}
+
+		if (content.Peek().Options.ShowProgress)
+		{
+			children.Add(new UiProgressBar
+			{
+				Key = "progress",
+				Value = UiValue.From(() => content.Value.Progress),
+				Thickness = 0.05,
+			});
+			children.Add(new UiTextRun
+			{
+				Key = "progress-text",
+				Text = UiText.From(() => content.Value.ProgressText),
+				Size = 0.1,
+			});
+		}
+
+		if (content.Peek().Options.ShowControls)
+		{
+			children.Add(new UiStack
+			{
+				Key = "controls",
+				Direction = UiComponentDirections.Horizontal,
+				Gap = 0.04,
+				Children =
+				[
+					ControlButton("previous", Strings.Widget.Previous(), "previous", content, command),
+					ControlButton("play", Strings.Widget.Play(), "toggle", content, command),
+					ControlButton("next", Strings.Widget.Next(), "next", content, command),
+				],
+			});
+		}
+
+		return new UiStack
+		{
+			Key = "now-playing",
+			Padding = 0.06,
+			Gap = 0.04,
+			Children = children,
+		};
+	}
+
+	private static UiButton ControlButton(
+		string key,
+		MacroDeck.Localization.LocalizedString label,
+		string command,
+		UiState<WidgetContent> content,
+		Func<string, CancellationToken, Task>? handler)
+	{
+		var button = new UiButton
+		{
+			Key = key,
+			Justify = UiComponentJustify.Center,
+			Children =
+			[
+				new UiTextRun
+				{
+					Key = key + "-label",
+					Text = UiText.FromLocalized(() => ResolveLabel(key, content.Value, label)),
+					Size = 0.12,
+				},
+			],
+		};
+
+		if (handler is not null)
+		{
+			var press = handler;
+			var action = command;
+			button = button with { Events = [UiEventHandler.OnAsync(UiComponentEvents.Press, ct => press(action, ct))] };
+		}
+
+		return button;
+	}
+
+	private static MacroDeck.Localization.LocalizedString ResolveLabel(
+		string key,
+		WidgetContent content,
+		MacroDeck.Localization.LocalizedString fallback) =>
+		key == "play" && content.IsPlaying ? Strings.Widget.Pause() : fallback;
+}
+
+internal static class NowPlayingPreviews
+{
+	[UiPreview("Playing", View = "NowPlaying", Profile = UiPreviewProfiles.Widget)]
+	public static UiElement Playing() => NowPlayingView.Build(
+		new UiState<WidgetContent>(new WidgetContent(
+			"Nightcall", "Kavinsky", "OutRun", "0:42 / 3:35",
+			new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 1 },
+			true, true, WidgetOptions.Default)),
+		null);
+
+	[UiPreview("Nothing playing", View = "NowPlaying", Profile = UiPreviewProfiles.Widget)]
+	public static UiElement NothingPlaying() => NowPlayingView.Build(
+		new UiState<WidgetContent>(WidgetContent.Empty),
+		null);
+}
+
+public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
+{
+	private readonly IMediaControlService _media;
+	private readonly Serilog.ILogger _logger;
+	private static readonly object s_registrationGate = new();
+	private static readonly WidgetTypeDescriptor s_descriptor = new(
+		"now-playing",
+		Strings.Widget.NowPlaying.Name(),
+		Strings.Widget.NowPlaying.Description(),
+		"""{"showAlbum":true,"showProgress":true,"showControls":true}""",
+		"""{"type":"object","properties":{"showAlbum":{"type":"boolean"},"showProgress":{"type":"boolean"},"showControls":{"type":"boolean"}}}""",
+		true,
+		new Dictionary<string, string>());
+	private static string? s_widgetTypeId;
+	private static bool s_registered;
+
+	public NowPlayingWidget(IMediaControlService media, Serilog.ILogger logger)
+	{
+		_media = media;
+		_logger = logger.ForContext<NowPlayingWidget>();
+	}
+
+	public string ProviderName => "Windows media";
+
+	public IReadOnlyList<UiSurfaceDeclaration> Surfaces { get; } =
+	[
+		new UiSurfaceDeclaration { Kind = UiSurfaceKinds.Widget, SessionMode = UiSessionModes.Shared },
+		new UiSurfaceDeclaration { Kind = UiSurfaceKinds.Preview, SessionMode = UiSessionModes.Shared },
+		new UiSurfaceDeclaration { Kind = UiSurfaceKinds.Config, SessionMode = UiSessionModes.Exclusive },
+	];
+
+	public async Task InitializeAsync(IWidgetTypeProviderContext context, CancellationToken cancellationToken)
+	{
+		lock (s_registrationGate)
+		{
+			if (s_registered)
+			{
+				return;
+			}
+		}
+
+		const int maxAttempts = 5;
+		for (var attempt = 1; ; attempt++)
+		{
+			try
+			{
+				WidgetTypeRegistration registration = await context.RegisterWidgetTypeAsync(s_descriptor, cancellationToken);
+				lock (s_registrationGate)
+				{
+					s_widgetTypeId = registration.WidgetTypeId;
+					s_registered = true;
+				}
+
+				return;
+			}
+			catch (OperationCanceledException)
+			{
+				throw;
+			}
+			catch (Exception ex) when (attempt < maxAttempts)
+			{
+				_logger.Debug(ex, "Widget registration attempt {Attempt} failed, retrying.", attempt);
+				await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), cancellationToken);
+			}
+		}
+	}
+
+	public IReadOnlyList<WidgetTypeDescriptor> GetWidgetTypes() => [s_descriptor];
+
+	public async Task<IUiSession?> CreateSessionAsync(UiSessionRequest request, CancellationToken cancellationToken)
+	{
+		var surface = request.Surface;
+		if (surface.Kind is UiSurfaceKinds.Widget or UiSurfaceKinds.Preview)
+		{
+			if (s_widgetTypeId is not null
+				&& ReadString(surface, UiWidgetSurfaceAttributes.WidgetType) is string widgetType
+				&& widgetType != s_widgetTypeId)
+			{
+				return null;
+			}
+
+			var options = WidgetOptions.FromData(ReadElement(surface, UiWidgetSurfaceAttributes.Data));
+			if (ReadBool(surface, UiWidgetSurfaceAttributes.Sample) == true)
+			{
+				return new NowPlayingSession(
+					surface,
+					new UiState<WidgetContent>(new WidgetContent(
+						"Nightcall", "Kavinsky", "OutRun", "0:42 / 3:35",
+						new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 0 },
+						true, true, options)),
+					_media,
+					_logger,
+					live: false);
+			}
+
+			var snapshot = await _media.GetSnapshotAsync(cancellationToken);
+			return new NowPlayingSession(
+				surface,
+				new UiState<WidgetContent>(WidgetContent.FromSnapshot(snapshot, options)),
+				_media,
+				_logger,
+				live: true);
+		}
+
+		if (surface.Kind == UiSurfaceKinds.Config
+			&& ReadString(surface, UiConfigSurfaceAttributes.EntryPoint) == UiConfigEntryPoints.WidgetConfig)
+		{
+			var data = ReadElement(surface, UiConfigSurfaceAttributes.WidgetData);
+			var options = WidgetOptions.FromData(data);
+			var showAlbum = new UiState<bool>(options.ShowAlbum);
+			var showProgress = new UiState<bool>(options.ShowProgress);
+			var showControls = new UiState<bool>(options.ShowControls);
+			var view = new UiView(surface, new UiWidgetConfiguration
+			{
+				Key = "config",
+				Properties = new UiWidgetProperties
+				{
+					Key = "properties",
+					Children =
+					[
+						new UiBooleanInput
+						{
+							Key = "showAlbum",
+							Label = Strings.Widget.Config.ShowAlbum(),
+							Binding = Bind.To(showAlbum),
+						},
+						new UiBooleanInput
+						{
+							Key = "showProgress",
+							Label = Strings.Widget.Config.ShowProgress(),
+							Binding = Bind.To(showProgress),
+						},
+						new UiBooleanInput
+						{
+							Key = "showControls",
+							Label = Strings.Widget.Config.ShowControls(),
+							Binding = Bind.To(showControls),
+						},
+					],
+				},
+			});
+			return new NowPlayingSession(view);
+		}
+
+		return null;
+	}
+
+	private static JsonElement ReadElement(MacroDeck.Ui.Model.Surfaces.UiSurface surface, string key) =>
+		surface.Attributes.TryGetValue(key, out var element) ? element : default;
+	private static string? ReadString(MacroDeck.Ui.Model.Surfaces.UiSurface surface, string key)
+	{
+		var element = ReadElement(surface, key);
+		return element.ValueKind == JsonValueKind.String ? element.GetString() : null;
+	}
+
+	private static bool? ReadBool(MacroDeck.Ui.Model.Surfaces.UiSurface surface, string key)
+	{
+		var element = ReadElement(surface, key);
+		return element.ValueKind is JsonValueKind.True or JsonValueKind.False ? element.GetBoolean() : null;
+	}
+
+	private sealed class NowPlayingSession : IUiSession, IDisposable, IAsyncDisposable
+	{
+		private readonly UiView _view;
+		private readonly UiState<WidgetContent>? _content;
+		private readonly IMediaControlService? _media;
+		private readonly Serilog.ILogger? _logger;
+		private readonly CancellationTokenSource _cts = new();
+		private readonly Task? _loop;
+		private bool _disposed;
+
+		public NowPlayingSession(
+			MacroDeck.Ui.Model.Surfaces.UiSurface surface,
+			UiState<WidgetContent> content,
+			IMediaControlService media,
+			Serilog.ILogger logger,
+			bool live)
+		{
+			_content = content;
+			_media = media;
+			_logger = logger;
+			Func<string, CancellationToken, Task>? command = live ? HandleCommandAsync : null;
+			_view = new UiView(surface, NowPlayingView.Build(content, command));
+			_view.Changed += OnChanged;
+			_view.HandlerFaulted += OnHandlerFaulted;
+			if (live)
+			{
+				_loop = RefreshLoopAsync(_cts.Token);
+			}
+		}
+
+		public NowPlayingSession(UiView view)
+		{
+			_view = view;
+			_view.Changed += OnChanged;
+			_view.HandlerFaulted += OnHandlerFaulted;
+		}
+
+		public event EventHandler? Changed;
+
+		public event EventHandler<UiSessionFaultedEventArgs>? Faulted;
+
+		public UiTree BuildTree() => _view.Tree;
+
+		public IReadOnlyList<UiPatch> DrainPatches() => _view.DrainPatches();
+
+		public void Dispatch(UiEvent uiEvent) => _view.Dispatch(uiEvent);
+
+		public void Dispose()
+		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			_disposed = true;
+			_cts.Cancel();
+			_cts.Dispose();
+			_view.Changed -= OnChanged;
+			_view.HandlerFaulted -= OnHandlerFaulted;
+		}
+
+		public ValueTask DisposeAsync()
+		{
+			Dispose();
+			return ValueTask.CompletedTask;
+		}
+
+		private async Task HandleCommandAsync(string command, CancellationToken cancellationToken)
+		{
+			if (_media is null || _content is null)
+			{
+				return;
+			}
+
+			try
+			{
+				var ok = command switch
+				{
+					"previous" => await _media.PreviousAsync(cancellationToken),
+					"next" => await _media.NextAsync(cancellationToken),
+					_ => await _media.TogglePlayPauseAsync(cancellationToken),
+				};
+				if (ok)
+				{
+					await RefreshAsync(cancellationToken);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+			}
+			catch (Exception ex)
+			{
+				_logger?.Debug(ex, "Widget command failed.");
+			}
+		}
+
+		private async Task RefreshLoopAsync(CancellationToken cancellationToken)
+		{
+			using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+			while (!cancellationToken.IsCancellationRequested)
+			{
+				try
+				{
+					await timer.WaitForNextTickAsync(cancellationToken);
+				}
+				catch (OperationCanceledException)
+				{
+					break;
+				}
+
+				try
+				{
+					await RefreshAsync(cancellationToken);
+				}
+				catch (OperationCanceledException)
+				{
+					break;
+				}
+				catch (Exception ex)
+				{
+					_logger?.Debug(ex, "Widget refresh failed.");
+				}
+			}
+		}
+
+		private async Task RefreshAsync(CancellationToken cancellationToken)
+		{
+			if (_media is null || _content is null)
+			{
+				return;
+			}
+
+			var snapshot = await _media.GetSnapshotAsync(cancellationToken);
+			_content.Set(WidgetContent.FromSnapshot(snapshot, _content.Value.Options));
+		}
+
+		private void OnChanged(object? sender, EventArgs e) => Changed?.Invoke(this, e);
+
+		private void OnHandlerFaulted(object? sender, UiHandlerFaultEventArgs e) =>
+			Faulted?.Invoke(this, new UiSessionFaultedEventArgs("handler-fault", e.Exception));
+	}
+}

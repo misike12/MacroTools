@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schemas.macro-deck.app/plugin-manifest-v1.schema.json",
+  "manifestVersion": 1,
+  "id": "com.misu.windows-media",
+  "name": "Windows Media Control",
+  "version": "1.1.0",
+  "description": "Control Windows media playback (SMTC): play, pause, next, previous, volume, seek, shuffle, repeat and live variables.",
+  "icon": "Assets/icon.svg",
+  "entrypoints": {
+    "win-x64": {
+      "executable": "runtimes/win-x64/WindowsMediaControl.exe"
+    }
+  },
+  "publisher": {
+    "name": "Misu"
+  },
+  "license": "MIT",
+  "compatibility": {
+    "macroDeck": ">=3.0.0-beta.2"
+  }
+}

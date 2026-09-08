@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <UserSecretsId>WindowsMediaControl-PluginDevelopment</UserSecretsId>
+        <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+        <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    </PropertyGroup>
+
+    <!-- Microsoft.NET.Sdk plus this framework reference, not Microsoft.NET.Sdk.Web: a plugin is a
+         headless process, and the framework reference is what supplies the hosting surface
+         MacroDeck.Plugin.Hosting builds on. -->
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Build-time only: compile-time diagnostics for plugin authors, the [MacroDeckSdkUsage]
+             attribute the host reads to report real deprecation usage, and the source generator that
+             turns Localization/*.resx into the typed Strings class. Never shipped in the output. -->
+        <PackageReference Include="MacroDeck.Plugin.Analyzers" PrivateAssets="all" />
+        <!-- Referenced directly rather than relied on transitively through the SDK: LocalizedText and
+             the generated Strings class are part of this project's own source. -->
+        <PackageReference Include="MacroDeck.Localization" />
+        <PackageReference Include="MacroDeck.Plugin.Hosting" />
+        <PackageReference Include="MacroDeck.Plugin.Serilog" />
+        <PackageReference Include="MacroDeck.Sdk" />
+        <PackageReference Include="MacroDeck.Ui" />
+    </ItemGroup>
+
+    <!-- The SDK reads the manifest from the content root at startup and resolves the icon path against
+         that same root, so both have to land next to the built executable. -->
+    <ItemGroup>
+        <Content Include="manifest.json" CopyToOutputDirectory="PreserveNewest" />
+        <Content Include="Assets\icon.svg" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+</Project>

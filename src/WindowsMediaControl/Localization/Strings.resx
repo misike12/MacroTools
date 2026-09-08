@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Actions.Play.Name" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="Actions.Play.Description" xml:space="preserve">
+    <value>Resume playback on the current Windows media session.</value>
+  </data>
+  <data name="Actions.Pause.Name" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="Actions.Pause.Description" xml:space="preserve">
+    <value>Pause the current Windows media session.</value>
+  </data>
+  <data name="Actions.TogglePlayPause.Name" xml:space="preserve">
+    <value>Play / Pause</value>
+  </data>
+  <data name="Actions.TogglePlayPause.Description" xml:space="preserve">
+    <value>Toggle between playing and paused. The button follows the live playback state.</value>
+  </data>
+  <data name="Actions.Stop.Name" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="Actions.Stop.Description" xml:space="preserve">
+    <value>Stop the current Windows media session.</value>
+  </data>
+  <data name="Actions.Next.Name" xml:space="preserve">
+    <value>Next track</value>
+  </data>
+  <data name="Actions.Next.Description" xml:space="preserve">
+    <value>Skip to the next track.</value>
+  </data>
+  <data name="Actions.Previous.Name" xml:space="preserve">
+    <value>Previous track</value>
+  </data>
+  <data name="Actions.Previous.Description" xml:space="preserve">
+    <value>Go back to the previous track.</value>
+  </data>
+  <data name="Actions.FastForward.Name" xml:space="preserve">
+    <value>Fast forward</value>
+  </data>
+  <data name="Actions.FastForward.Description" xml:space="preserve">
+    <value>Fast forward, falling back to a 10 second skip when unsupported.</value>
+  </data>
+  <data name="Actions.Rewind.Name" xml:space="preserve">
+    <value>Rewind</value>
+  </data>
+  <data name="Actions.Rewind.Description" xml:space="preserve">
+    <value>Rewind, falling back to a 10 second skip when unsupported.</value>
+  </data>
+  <data name="Actions.SeekForward.Name" xml:space="preserve">
+    <value>Seek forward</value>
+  </data>
+  <data name="Actions.SeekForward.Description" xml:space="preserve">
+    <value>Jump forward by a number of seconds.</value>
+  </data>
+  <data name="Actions.SeekForward.Seconds.Label" xml:space="preserve">
+    <value>Seconds</value>
+  </data>
+  <data name="Actions.SeekForward.Seconds.Description" xml:space="preserve">
+    <value>How far to jump forward.</value>
+  </data>
+  <data name="Actions.SeekBackward.Name" xml:space="preserve">
+    <value>Seek backward</value>
+  </data>
+  <data name="Actions.SeekBackward.Description" xml:space="preserve">
+    <value>Jump backward by a number of seconds.</value>
+  </data>
+  <data name="Actions.SeekBackward.Seconds.Label" xml:space="preserve">
+    <value>Seconds</value>
+  </data>
+  <data name="Actions.SeekBackward.Seconds.Description" xml:space="preserve">
+    <value>How far to jump backward.</value>
+  </data>
+  <data name="Actions.SeekTo.Name" xml:space="preserve">
+    <value>Seek to position</value>
+  </data>
+  <data name="Actions.SeekTo.Description" xml:space="preserve">
+    <value>Jump to an absolute position in the current track.</value>
+  </data>
+  <data name="Actions.SeekTo.Position.Label" xml:space="preserve">
+    <value>Position in seconds</value>
+  </data>
+  <data name="Actions.SeekTo.Position.Description" xml:space="preserve">
+    <value>Position from the start of the track.</value>
+  </data>
+  <data name="Actions.VolumeUp.Name" xml:space="preserve">
+    <value>Volume up</value>
+  </data>
+  <data name="Actions.VolumeUp.Description" xml:space="preserve">
+    <value>Raise the system volume.</value>
+  </data>
+  <data name="Actions.VolumeUp.Step.Label" xml:space="preserve">
+    <value>Step</value>
+  </data>
+  <data name="Actions.VolumeUp.Step.Description" xml:space="preserve">
+    <value>How many percent to raise the volume by.</value>
+  </data>
+  <data name="Actions.VolumeDown.Name" xml:space="preserve">
+    <value>Volume down</value>
+  </data>
+  <data name="Actions.VolumeDown.Description" xml:space="preserve">
+    <value>Lower the system volume.</value>
+  </data>
+  <data name="Actions.VolumeDown.Step.Label" xml:space="preserve">
+    <value>Step</value>
+  </data>
+  <data name="Actions.VolumeDown.Step.Description" xml:space="preserve">
+    <value>How many percent to lower the volume by.</value>
+  </data>
+  <data name="Actions.SetVolume.Name" xml:space="preserve">
+    <value>Set volume</value>
+  </data>
+  <data name="Actions.SetVolume.Description" xml:space="preserve">
+    <value>Set the system volume to an exact value.</value>
+  </data>
+  <data name="Actions.SetVolume.Volume.Label" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="Actions.SetVolume.Volume.Description" xml:space="preserve">
+    <value>Volume in percent, from 0 to 100.</value>
+  </data>
+  <data name="Actions.Mute.Name" xml:space="preserve">
+    <value>Mute</value>
+  </data>
+  <data name="Actions.Mute.Description" xml:space="preserve">
+    <value>Mute the system audio.</value>
+  </data>
+  <data name="Actions.Unmute.Name" xml:space="preserve">
+    <value>Unmute</value>
+  </data>
+  <data name="Actions.Unmute.Description" xml:space="preserve">
+    <value>Unmute the system audio.</value>
+  </data>
+  <data name="Actions.ToggleMute.Name" xml:space="preserve">
+    <value>Mute / Unmute</value>
+  </data>
+  <data name="Actions.ToggleMute.Description" xml:space="preserve">
+    <value>Toggle the system mute state.</value>
+  </data>
+  <data name="States.Playing" xml:space="preserve">
+    <value>Playing</value>
+  </data>
+  <data name="States.Paused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="States.Stopped" xml:space="preserve">
+    <value>Stopped</value>
+  </data>
+  <data name="Errors.NoMediaSession" xml:space="preserve">
+    <value>No media is currently playing.</value>
+  </data>
+  <data name="Errors.MediaCommandFailed" xml:space="preserve">
+    <value>The media command could not be completed.</value>
+  </data>
+  <data name="Errors.ReadOnlyVariable" xml:space="preserve">
+    <value>This variable is read-only.</value>
+  </data>
+  <data name="Params.App.Label" xml:space="preserve">
+    <value>App</value>
+  </data>
+  <data name="Params.App.Description" xml:space="preserve">
+    <value>Optional: only control the app whose id contains this text, e.g. Spotify. Leave empty for the active session.</value>
+  </data>
+  <data name="Events.TrackChanged.Name" xml:space="preserve">
+    <value>Track changed</value>
+  </data>
+  <data name="Events.TrackChanged.Description" xml:space="preserve">
+    <value>Fires when the current track changes.</value>
+  </data>
+  <data name="Events.PlaybackChanged.Name" xml:space="preserve">
+    <value>Playback changed</value>
+  </data>
+  <data name="Events.PlaybackChanged.Description" xml:space="preserve">
+    <value>Fires when playback starts, pauses or stops.</value>
+  </data>
+  <data name="Events.VolumeChanged.Name" xml:space="preserve">
+    <value>Volume changed</value>
+  </data>
+  <data name="Events.VolumeChanged.Description" xml:space="preserve">
+    <value>Fires when the system volume changes.</value>
+  </data>
+  <data name="Events.MuteChanged.Name" xml:space="preserve">
+    <value>Mute changed</value>
+  </data>
+  <data name="Events.MuteChanged.Description" xml:space="preserve">
+    <value>Fires when the system mute state changes.</value>
+  </data>
+  <data name="Widget.NowPlaying.Name" xml:space="preserve">
+    <value>Now Playing</value>
+  </data>
+  <data name="Widget.NowPlaying.Description" xml:space="preserve">
+    <value>Shows the current track with transport controls.</value>
+  </data>
+  <data name="Widget.Play" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="Widget.Pause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="Widget.Previous" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="Widget.Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Widget.NothingPlaying" xml:space="preserve">
+    <value>Nothing playing</value>
+  </data>
+  <data name="Widget.Status.Live" xml:space="preserve">
+    <value>Now playing</value>
+  </data>
+  <data name="Widget.Config.ShowAlbum" xml:space="preserve">
+    <value>Show album</value>
+  </data>
+  <data name="Widget.Config.ShowProgress" xml:space="preserve">
+    <value>Show progress</value>
+  </data>
+  <data name="Widget.Config.ShowControls" xml:space="preserve">
+    <value>Show controls</value>
+  </data>
+  <data name="Variables.Title.DisplayName" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="Variables.Title.Description" xml:space="preserve">
+    <value>The current track title.</value>
+  </data>
+  <data name="Variables.Artist.DisplayName" xml:space="preserve">
+    <value>Artist</value>
+  </data>
+  <data name="Variables.Artist.Description" xml:space="preserve">
+    <value>The current track artist.</value>
+  </data>
+  <data name="Variables.Album.DisplayName" xml:space="preserve">
+    <value>Album</value>
+  </data>
+  <data name="Variables.Album.Description" xml:space="preserve">
+    <value>The current track album.</value>
+  </data>
+  <data name="Variables.SourceApp.DisplayName" xml:space="preserve">
+    <value>Source app</value>
+  </data>
+  <data name="Variables.SourceApp.Description" xml:space="preserve">
+    <value>The app playing the current media.</value>
+  </data>
+  <data name="Variables.PlaybackStatus.DisplayName" xml:space="preserve">
+    <value>Playback status</value>
+  </data>
+  <data name="Variables.PlaybackStatus.Description" xml:space="preserve">
+    <value>Playing, paused, stopped or no-media.</value>
+  </data>
+  <data name="Variables.IsPlaying.DisplayName" xml:space="preserve">
+    <value>Is playing</value>
+  </data>
+  <data name="Variables.IsPlaying.Description" xml:space="preserve">
+    <value>Whether media is currently playing.</value>
+  </data>
+  <data name="Variables.HasMedia.DisplayName" xml:space="preserve">
+    <value>Has media</value>
+  </data>
+  <data name="Variables.HasMedia.Description" xml:space="preserve">
+    <value>Whether a media session exists.</value>
+  </data>
+  <data name="Variables.PositionSeconds.DisplayName" xml:space="preserve">
+    <value>Position in seconds</value>
+  </data>
+  <data name="Variables.PositionSeconds.Description" xml:space="preserve">
+    <value>Playback position in seconds. Writing it seeks the current track.</value>
+  </data>
+  <data name="Variables.DurationSeconds.DisplayName" xml:space="preserve">
+    <value>Duration in seconds</value>
+  </data>
+  <data name="Variables.DurationSeconds.Description" xml:space="preserve">
+    <value>Track length in seconds.</value>
+  </data>
+  <data name="Variables.PositionText.DisplayName" xml:space="preserve">
+    <value>Position text</value>
+  </data>
+  <data name="Variables.PositionText.Description" xml:space="preserve">
+    <value>Playback position formatted as minutes and seconds.</value>
+  </data>
+  <data name="Variables.DurationText.DisplayName" xml:space="preserve">
+    <value>Duration text</value>
+  </data>
+  <data name="Variables.DurationText.Description" xml:space="preserve">
+    <value>Track length formatted as minutes and seconds.</value>
+  </data>
+  <data name="Variables.ProgressPercent.DisplayName" xml:space="preserve">
+    <value>Progress in percent</value>
+  </data>
+  <data name="Variables.ProgressPercent.Description" xml:space="preserve">
+    <value>How far through the track playback is, from 0 to 100. Writing it seeks the current track.</value>
+  </data>
+  <data name="Variables.VolumePercent.DisplayName" xml:space="preserve">
+    <value>Volume in percent</value>
+  </data>
+  <data name="Variables.VolumePercent.Description" xml:space="preserve">
+    <value>The system volume. Writing it changes the volume.</value>
+  </data>
+  <data name="Variables.IsMuted.DisplayName" xml:space="preserve">
+    <value>Is muted</value>
+  </data>
+  <data name="Variables.IsMuted.Description" xml:space="preserve">
+    <value>Whether the system audio is muted. Writing it mutes or unmutes.</value>
+  </data>
+  <data name="Variables.ShuffleEnabled.DisplayName" xml:space="preserve">
+    <value>Shuffle enabled</value>
+  </data>
+  <data name="Variables.ShuffleEnabled.Description" xml:space="preserve">
+    <value>Whether shuffle is active on the current session.</value>
+  </data>
+  <data name="Variables.RepeatMode.DisplayName" xml:space="preserve">
+    <value>Repeat mode</value>
+  </data>
+  <data name="Variables.RepeatMode.Description" xml:space="preserve">
+    <value>Off, all or one.</value>
+  </data>
+</root>
