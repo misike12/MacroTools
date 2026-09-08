@@ -28,6 +28,13 @@ internal sealed class FakeMediaControlService : IMediaControlService
 
 	public byte[]? ArtworkBytes { get; set; }
 
+	public Dictionary<string, (int Volume, bool Muted)> AppVolumes { get; } = new(StringComparer.OrdinalIgnoreCase)
+	{
+		["Spotify.exe"] = (50, false),
+	};
+
+	public List<AudioOutputDevice> Devices { get; } = [new AudioOutputDevice("id-speakers", "Speakers", true), new AudioOutputDevice("id-headphones", "Headphones", false)];
+
 	public List<string> Calls { get; } = [];
 
 	public Task<MediaSnapshot> GetSnapshotAsync(CancellationToken cancellationToken) =>
@@ -112,6 +119,123 @@ internal sealed class FakeMediaControlService : IMediaControlService
 		Task.FromResult(ArtworkBytes is not null && artworkId == Snapshot.ArtworkId
 			? new ArtworkData(ArtworkBytes, "image/png")
 			: null);
+
+	public Task<bool> ToggleShuffleAsync(CancellationToken cancellationToken, string? appId = null) =>
+	RecordBool(nameof(ToggleShuffleAsync), appId, () => Snapshot = Snapshot with { ShuffleActive = !(Snapshot.ShuffleActive ?? false) });
+
+	public Task<bool> SetShuffleAsync(bool enabled, CancellationToken cancellationToken, string? appId = null) =>
+	RecordBool(nameof(SetShuffleAsync), appId, () => Snapshot = Snapshot with { ShuffleActive = enabled });
+
+	public Task<bool> CycleRepeatAsync(CancellationToken cancellationToken, string? appId = null) =>
+	RecordBool(nameof(CycleRepeatAsync), appId, () => Snapshot = Snapshot with
+		{
+			RepeatMode = Snapshot.RepeatMode switch
+			{
+				MediaRepeatMode.Off => MediaRepeatMode.All,
+				MediaRepeatMode.All => MediaRepeatMode.One,
+				_ => MediaRepeatMode.Off,
+			},
+		});
+
+	public Task<bool> SetRepeatAsync(MediaRepeatMode mode, CancellationToken cancellationToken, string? appId = null) =>
+	RecordBool(nameof(SetRepeatAsync), appId, () => Snapshot = Snapshot with { RepeatMode = mode });
+
+	public Task<IReadOnlyList<AudioAppSession>> GetAudioAppsAsync(CancellationToken cancellationToken) =>
+		Task.FromResult<IReadOnlyList<AudioAppSession>>(AppVolumes
+			.Select(pair => new AudioAppSession(pair.Key, 1000 + pair.Key.Length, pair.Key, pair.Value.Volume, pair.Value.Muted))
+			.ToList());
+
+	public Task<bool> SetAppVolumeAsync(string app, int percent, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(SetAppVolumeAsync));
+		var key = AppVolumes.Keys.FirstOrDefault(k => k.Contains(app, StringComparison.OrdinalIgnoreCase));
+		if (key is null)
+		{
+			return Task.FromResult(false);
+		}
+
+		AppVolumes[key] = (Math.Clamp(percent, 0, 100), AppVolumes[key].Muted);
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<bool> AdjustAppVolumeAsync(string app, int delta, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(AdjustAppVolumeAsync));
+		var key = AppVolumes.Keys.FirstOrDefault(k => k.Contains(app, StringComparison.OrdinalIgnoreCase));
+		if (key is null)
+		{
+			return Task.FromResult(false);
+		}
+
+		AppVolumes[key] = (Math.Clamp(AppVolumes[key].Volume + delta, 0, 100), AppVolumes[key].Muted);
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<bool> SetAppMuteAsync(string app, bool muted, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(SetAppMuteAsync));
+		var key = AppVolumes.Keys.FirstOrDefault(k => k.Contains(app, StringComparison.OrdinalIgnoreCase));
+		if (key is null)
+		{
+			return Task.FromResult(false);
+		}
+
+		AppVolumes[key] = (AppVolumes[key].Volume, muted);
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<bool> ToggleAppMuteAsync(string app, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(ToggleAppMuteAsync));
+		var key = AppVolumes.Keys.FirstOrDefault(k => k.Contains(app, StringComparison.OrdinalIgnoreCase));
+		if (key is null)
+		{
+			return Task.FromResult(false);
+		}
+
+		AppVolumes[key] = (AppVolumes[key].Volume, !AppVolumes[key].Muted);
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<IReadOnlyList<AudioOutputDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
+		Task.FromResult<IReadOnlyList<AudioOutputDevice>>(Devices.ToList());
+
+	public Task<bool> SetDefaultDeviceAsync(string device, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(SetDefaultDeviceAsync));
+		var match = Devices.FindIndex(d =>
+			string.Equals(d.Id, device, StringComparison.OrdinalIgnoreCase) ||
+			d.Name.Contains(device, StringComparison.OrdinalIgnoreCase));
+		if (match < 0)
+		{
+			return Task.FromResult(false);
+		}
+
+		for (var i = 0; i < Devices.Count; i++)
+		{
+			Devices[i] = Devices[i] with { IsDefault = i == match };
+		}
+
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(CycleDefaultDeviceAsync));
+		if (Devices.Count == 0)
+		{
+			return Task.FromResult(false);
+		}
+
+		var current = Devices.FindIndex(d => d.IsDefault);
+		var next = Devices[(current + 1) % Devices.Count];
+		for (var i = 0; i < Devices.Count; i++)
+		{
+			Devices[i] = Devices[i] with { IsDefault = Devices[i].Id == next.Id };
+		}
+
+		return Task.FromResult(TransportResult);
+	}
 
 	private Task<bool> RecordBool(string call, string? appId, Action? apply)
 	{

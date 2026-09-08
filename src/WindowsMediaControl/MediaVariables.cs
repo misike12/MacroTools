@@ -52,6 +52,9 @@ internal static class MediaVariables
 		Eager("can-next", VariableType.Boolean, Strings.Variables.CanNext.DisplayName(), Strings.Variables.CanNext.Description()),
 		Eager("can-previous", VariableType.Boolean, Strings.Variables.CanPrevious.DisplayName(), Strings.Variables.CanPrevious.Description()),
 		Eager("can-seek", VariableType.Boolean, Strings.Variables.CanSeek.DisplayName(), Strings.Variables.CanSeek.Description()),
+		Eager("can-shuffle", VariableType.Boolean, Strings.Variables.CanShuffle.DisplayName(), Strings.Variables.CanShuffle.Description()),
+		Eager("can-repeat", VariableType.Boolean, Strings.Variables.CanRepeat.DisplayName(), Strings.Variables.CanRepeat.Description()),
+		Eager("default-device", VariableType.Text, Strings.Variables.DefaultDevice.DisplayName(), Strings.Variables.DefaultDevice.Description()),
 	];
 
 	private static VariableDefinition Eager(

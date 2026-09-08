@@ -119,6 +119,8 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				CanNext = info?.Controls.IsNextEnabled ?? false,
 				CanPrevious = info?.Controls.IsPreviousEnabled ?? false,
 				CanSeek = info?.Controls.IsPlaybackPositionEnabled ?? false,
+				CanShuffle = info?.Controls.IsShuffleEnabled ?? false,
+				CanRepeat = info?.Controls.IsRepeatEnabled ?? false,
 				UpdatedAt = DateTimeOffset.UtcNow,
 			};
 		}
@@ -294,6 +296,248 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	{
 		SystemAudio.ToggleMute();
 		return Task.CompletedTask;
+	}
+
+	public Task<bool> ToggleShuffleAsync(CancellationToken cancellationToken, string? appId = null) =>
+		WithTimeoutAsync(
+			ct => ToggleShuffleCoreAsync(appId, ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
+
+	public Task<bool> SetShuffleAsync(bool enabled, CancellationToken cancellationToken, string? appId = null) =>
+		WithTimeoutAsync(
+			ct => SetShuffleCoreAsync(enabled, appId, ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
+
+	public Task<bool> CycleRepeatAsync(CancellationToken cancellationToken, string? appId = null) =>
+		WithTimeoutAsync(
+			ct => CycleRepeatCoreAsync(appId, ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
+
+	public Task<bool> SetRepeatAsync(MediaRepeatMode mode, CancellationToken cancellationToken, string? appId = null) =>
+		WithTimeoutAsync(
+			ct => SetRepeatCoreAsync(mode, appId, ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
+
+	private async Task<bool> ToggleShuffleCoreAsync(string? appId, CancellationToken cancellationToken)
+	{
+		if (!IsSupported)
+		{
+			return false;
+		}
+
+		try
+		{
+			var session = await GetTargetSessionAsync(appId, cancellationToken);
+			if (session is null)
+			{
+				return false;
+			}
+
+			var shuffle = ReadShuffle(session);
+			if (shuffle is null)
+			{
+				return false;
+			}
+
+			return await session.TryChangeShuffleActiveAsync(!shuffle.Value).AsTask(cancellationToken);
+		}
+		catch (COMException)
+		{
+			return false;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return false;
+		}
+	}
+
+	private async Task<bool> SetShuffleCoreAsync(bool enabled, string? appId, CancellationToken cancellationToken)
+	{
+		if (!IsSupported)
+		{
+			return false;
+		}
+
+		try
+		{
+			var session = await GetTargetSessionAsync(appId, cancellationToken);
+			if (session is null)
+			{
+				return false;
+			}
+
+			return await session.TryChangeShuffleActiveAsync(enabled).AsTask(cancellationToken);
+		}
+		catch (COMException)
+		{
+			return false;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return false;
+		}
+	}
+
+	private async Task<bool> CycleRepeatCoreAsync(string? appId, CancellationToken cancellationToken)
+	{
+		if (!IsSupported)
+		{
+			return false;
+		}
+
+		try
+		{
+			var session = await GetTargetSessionAsync(appId, cancellationToken);
+			if (session is null)
+			{
+				return false;
+			}
+
+			var next = MapRepeat(ReadRepeatMode(session)) switch
+			{
+				MediaRepeatMode.Off => MediaRepeatMode.All,
+				MediaRepeatMode.All => MediaRepeatMode.One,
+				_ => MediaRepeatMode.Off,
+			};
+			return await SetRepeatCoreAsync(next, appId, cancellationToken);
+		}
+		catch (COMException)
+		{
+			return false;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return false;
+		}
+	}
+
+	private async Task<bool> SetRepeatCoreAsync(MediaRepeatMode mode, string? appId, CancellationToken cancellationToken)
+	{
+		if (!IsSupported)
+		{
+			return false;
+		}
+
+		try
+		{
+			var session = await GetTargetSessionAsync(appId, cancellationToken);
+			if (session is null)
+			{
+				return false;
+			}
+
+			return await session.TryChangeAutoRepeatModeAsync(mode switch
+			{
+				MediaRepeatMode.One => MediaPlaybackAutoRepeatMode.Track,
+				MediaRepeatMode.All => MediaPlaybackAutoRepeatMode.List,
+				_ => MediaPlaybackAutoRepeatMode.None,
+			}).AsTask(cancellationToken);
+		}
+		catch (COMException)
+		{
+			return false;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return false;
+		}
+	}
+
+	private static bool? ReadShuffle(GlobalSystemMediaTransportControlsSession session)
+	{
+		try
+		{
+			return session.GetPlaybackInfo()?.IsShuffleActive;
+		}
+		catch (COMException)
+		{
+			return null;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return null;
+		}
+	}
+
+	private static MediaPlaybackAutoRepeatMode? ReadRepeatMode(GlobalSystemMediaTransportControlsSession session)
+	{
+		try
+		{
+			return session.GetPlaybackInfo()?.AutoRepeatMode;
+		}
+		catch (COMException)
+		{
+			return null;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return null;
+		}
+	}
+
+	public Task<IReadOnlyList<AudioAppSession>> GetAudioAppsAsync(CancellationToken cancellationToken) =>
+		Task.FromResult(AppAudio.GetAppSessions());
+
+	public Task<bool> SetAppVolumeAsync(string app, int percent, CancellationToken cancellationToken) =>
+		Task.FromResult(AppAudio.TryAdjustAppVolume(app, (_, muted) => (percent, muted)));
+
+	public Task<bool> AdjustAppVolumeAsync(string app, int delta, CancellationToken cancellationToken) =>
+		Task.FromResult(AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume + delta, muted)));
+
+	public Task<bool> SetAppMuteAsync(string app, bool muted, CancellationToken cancellationToken) =>
+		Task.FromResult(AppAudio.TryAdjustAppVolume(app, (volume, _) => (volume, muted)));
+
+	public Task<bool> ToggleAppMuteAsync(string app, CancellationToken cancellationToken) =>
+		Task.FromResult(AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume, !muted)));
+
+	public async Task<IReadOnlyList<AudioOutputDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
+		await AppAudio.GetOutputDevicesAsync();
+
+	public async Task<bool> SetDefaultDeviceAsync(string device, CancellationToken cancellationToken)
+	{
+		if (string.IsNullOrWhiteSpace(device) || !IsSupported)
+		{
+			return false;
+		}
+
+		var id = await ResolveDeviceIdAsync(device);
+		return id is not null && AppAudio.TrySetDefaultDevice(id);
+	}
+
+	public async Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken)
+	{
+		if (!IsSupported)
+		{
+			return false;
+		}
+
+		var devices = await AppAudio.GetOutputDevicesAsync();
+		if (devices.Count == 0)
+		{
+			return false;
+		}
+
+		var current = devices.ToList().FindIndex(d => d.IsDefault);
+		var next = devices[(current + 1) % devices.Count];
+		return AppAudio.TrySetDefaultDevice(next.Id);
+	}
+
+	private static async Task<string?> ResolveDeviceIdAsync(string device)
+	{
+		var text = device.Trim();
+		var devices = await AppAudio.GetOutputDevicesAsync();
+		return devices.FirstOrDefault(d =>
+			string.Equals(d.Id, text, StringComparison.OrdinalIgnoreCase) ||
+			d.Id.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+			d.Name.Contains(text, StringComparison.OrdinalIgnoreCase))?.Id;
 	}
 
 	public async Task<ArtworkData?> GetArtworkAsync(string artworkId, CancellationToken cancellationToken) =>

@@ -21,6 +21,8 @@ public sealed record MediaSnapshot
 	public bool CanNext { get; init; }
 	public bool CanPrevious { get; init; }
 	public bool CanSeek { get; init; }
+	public bool CanShuffle { get; init; }
+	public bool CanRepeat { get; init; }
 	public PlaybackStatus Status { get; init; } = PlaybackStatus.NoMedia;
 	public TimeSpan Position { get; init; } = TimeSpan.Zero;
 	public TimeSpan Duration { get; init; } = TimeSpan.Zero;

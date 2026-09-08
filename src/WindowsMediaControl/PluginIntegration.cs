@@ -27,6 +27,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private CancellationTokenSource? _loopCts;
 	private Task? _loopTask;
 	private MediaSnapshot _last = MediaSnapshot.Empty;
+	private string _defaultDeviceName = string.Empty;
 	private long _lastEventRefreshTicks;
 	private bool _disposed;
 
@@ -55,6 +56,17 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new MuteAction(media),
 			new UnmuteAction(media),
 			new ToggleMuteAction(media),
+			new ToggleShuffleAction(media, settings),
+			new SetShuffleAction(media, settings),
+			new CycleRepeatAction(media, settings),
+			new SetRepeatAction(media, settings),
+			new SetAppVolumeAction(media),
+			new AdjustAppVolumeAction(media),
+			new MuteAppAction(media),
+			new UnmuteAppAction(media),
+			new ToggleAppMuteAction(media),
+			new SetOutputDeviceAction(media),
+			new CycleOutputDeviceAction(media),
 		];
 		Variables = MediaVariables.CreateDefinitions();
 		DeclaredVariables = Variables;
@@ -247,6 +259,9 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"can-next" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanNext),
 			"can-previous" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPrevious),
 			"can-seek" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanSeek),
+			"can-shuffle" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanShuffle),
+			"can-repeat" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanRepeat),
+			"default-device" => TextOrUnavailable(!string.IsNullOrEmpty(_defaultDeviceName), _defaultDeviceName),
 			_ => VariableReading.Unavailable,
 		};
 		return ValueTask.FromResult(reading);
@@ -429,6 +444,32 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				_last = snapshot;
 				PublishChanges(previous, snapshot);
 			}
+
+			await RefreshDefaultDeviceAsync(cancellationToken);
+		}
+	}
+
+	private async Task RefreshDefaultDeviceAsync(CancellationToken cancellationToken)
+	{
+		try
+		{
+			var devices = await _media.GetAudioDevicesAsync(cancellationToken);
+			foreach (var device in devices)
+			{
+				if (device.IsDefault)
+				{
+					_defaultDeviceName = device.Name;
+					return;
+				}
+			}
+		}
+		catch (OperationCanceledException)
+		{
+			return;
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Default device refresh failed.");
 		}
 	}
 

@@ -150,6 +150,120 @@
   <data name="Actions.ToggleMute.Description" xml:space="preserve">
     <value>Toggle the system mute state.</value>
   </data>
+  <data name="Actions.ToggleShuffle.Name" xml:space="preserve">
+    <value>Toggle shuffle</value>
+  </data>
+  <data name="Actions.ToggleShuffle.Description" xml:space="preserve">
+    <value>Toggle shuffle on the current media session.</value>
+  </data>
+  <data name="Actions.SetShuffle.Name" xml:space="preserve">
+    <value>Set shuffle</value>
+  </data>
+  <data name="Actions.SetShuffle.Description" xml:space="preserve">
+    <value>Turn shuffle on or off explicitly.</value>
+  </data>
+  <data name="Actions.SetShuffle.Enabled.Label" xml:space="preserve">
+    <value>Shuffle on</value>
+  </data>
+  <data name="Actions.SetShuffle.Enabled.Description" xml:space="preserve">
+    <value>Whether shuffle should be enabled.</value>
+  </data>
+  <data name="Actions.CycleRepeat.Name" xml:space="preserve">
+    <value>Cycle repeat mode</value>
+  </data>
+  <data name="Actions.CycleRepeat.Description" xml:space="preserve">
+    <value>Step through off, repeat all and repeat one.</value>
+  </data>
+  <data name="Actions.SetRepeat.Name" xml:space="preserve">
+    <value>Set repeat mode</value>
+  </data>
+  <data name="Actions.SetRepeat.Description" xml:space="preserve">
+    <value>Set the repeat mode explicitly.</value>
+  </data>
+  <data name="Actions.SetRepeat.Mode.Label" xml:space="preserve">
+    <value>Repeat mode</value>
+  </data>
+  <data name="Actions.SetRepeat.Mode.Description" xml:space="preserve">
+    <value>Which repeat mode to use.</value>
+  </data>
+  <data name="RepeatModes.Off" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="RepeatModes.All" xml:space="preserve">
+    <value>Repeat all</value>
+  </data>
+  <data name="RepeatModes.One" xml:space="preserve">
+    <value>Repeat one</value>
+  </data>
+  <data name="Actions.SetAppVolume.Name" xml:space="preserve">
+    <value>Set app volume</value>
+  </data>
+  <data name="Actions.SetAppVolume.Description" xml:space="preserve">
+    <value>Set one app's volume without touching the system volume.</value>
+  </data>
+  <data name="Actions.SetAppVolume.App.Description" xml:space="preserve">
+    <value>The app whose volume to set, e.g. Spotify.</value>
+  </data>
+  <data name="Actions.AdjustAppVolume.Name" xml:space="preserve">
+    <value>Adjust app volume</value>
+  </data>
+  <data name="Actions.AdjustAppVolume.Description" xml:space="preserve">
+    <value>Raise or lower one app's volume by a number of percent.</value>
+  </data>
+  <data name="Actions.AdjustAppVolume.App.Description" xml:space="preserve">
+    <value>The app whose volume to adjust, e.g. Spotify.</value>
+  </data>
+  <data name="Actions.AdjustAppVolume.Delta.Label" xml:space="preserve">
+    <value>Change</value>
+  </data>
+  <data name="Actions.AdjustAppVolume.Delta.Description" xml:space="preserve">
+    <value>Percent to add. Use a negative number to lower.</value>
+  </data>
+  <data name="Actions.MuteApp.Name" xml:space="preserve">
+    <value>Mute app</value>
+  </data>
+  <data name="Actions.MuteApp.Description" xml:space="preserve">
+    <value>Mute one app without muting the system.</value>
+  </data>
+  <data name="Actions.MuteApp.App.Description" xml:space="preserve">
+    <value>The app to mute, e.g. Spotify.</value>
+  </data>
+  <data name="Actions.UnmuteApp.Name" xml:space="preserve">
+    <value>Unmute app</value>
+  </data>
+  <data name="Actions.UnmuteApp.Description" xml:space="preserve">
+    <value>Unmute one app.</value>
+  </data>
+  <data name="Actions.UnmuteApp.App.Description" xml:space="preserve">
+    <value>The app to unmute, e.g. Spotify.</value>
+  </data>
+  <data name="Actions.ToggleAppMute.Name" xml:space="preserve">
+    <value>Mute or unmute app</value>
+  </data>
+  <data name="Actions.ToggleAppMute.Description" xml:space="preserve">
+    <value>Toggle one app's mute state.</value>
+  </data>
+  <data name="Actions.ToggleAppMute.App.Description" xml:space="preserve">
+    <value>The app to toggle, e.g. Spotify.</value>
+  </data>
+  <data name="Actions.SetOutputDevice.Name" xml:space="preserve">
+    <value>Set output device</value>
+  </data>
+  <data name="Actions.SetOutputDevice.Description" xml:space="preserve">
+    <value>Switch the default audio output, e.g. between headphones and speakers.</value>
+  </data>
+  <data name="Actions.SetOutputDevice.Device.Label" xml:space="preserve">
+    <value>Device</value>
+  </data>
+  <data name="Actions.SetOutputDevice.Device.Description" xml:space="preserve">
+    <value>Part of the device name, e.g. Headphones.</value>
+  </data>
+  <data name="Actions.CycleOutputDevice.Name" xml:space="preserve">
+    <value>Next output device</value>
+  </data>
+  <data name="Actions.CycleOutputDevice.Description" xml:space="preserve">
+    <value>Switch to the next available audio output.</value>
+  </data>
   <data name="States.Playing" xml:space="preserve">
     <value>Playing</value>
   </data>
@@ -170,6 +284,15 @@
   </data>
   <data name="Errors.ActionNotSupported" xml:space="preserve">
     <value>This app does not support that action.</value>
+  </data>
+  <data name="Errors.AppAudioSessionNotFound" xml:space="preserve">
+    <value>No audio session was found for that app.</value>
+  </data>
+  <data name="Errors.AudioDeviceNotFound" xml:space="preserve">
+    <value>No audio device matches that name.</value>
+  </data>
+  <data name="Errors.NoAudioDevices" xml:space="preserve">
+    <value>No audio output devices are available.</value>
   </data>
   <data name="Errors.InvalidSettings" xml:space="preserve">
     <value>Some settings are invalid.</value>
@@ -554,5 +677,23 @@
   </data>
   <data name="Variables.CanSeek.Description" xml:space="preserve">
     <value>Whether the current app supports seeking right now.</value>
+  </data>
+  <data name="Variables.CanShuffle.DisplayName" xml:space="preserve">
+    <value>Can shuffle</value>
+  </data>
+  <data name="Variables.CanShuffle.Description" xml:space="preserve">
+    <value>Whether the current app supports shuffle control right now.</value>
+  </data>
+  <data name="Variables.CanRepeat.DisplayName" xml:space="preserve">
+    <value>Can repeat</value>
+  </data>
+  <data name="Variables.CanRepeat.Description" xml:space="preserve">
+    <value>Whether the current app supports repeat control right now.</value>
+  </data>
+  <data name="Variables.DefaultDevice.DisplayName" xml:space="preserve">
+    <value>Output device</value>
+  </data>
+  <data name="Variables.DefaultDevice.Description" xml:space="preserve">
+    <value>The current default audio output device.</value>
   </data>
 </root>

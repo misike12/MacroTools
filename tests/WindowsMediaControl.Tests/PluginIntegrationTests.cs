@@ -516,6 +516,149 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Shuffle_actions_drive_the_fake_session()
+	{
+		var fake = new FakeMediaControlService();
+		var settings = new MediaSettingsProvider();
+		var toggle = new ToggleShuffleAction(fake, settings);
+		var set = new SetShuffleAction(fake, settings);
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var toggled = await toggle.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var setOff = await set.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["enabled"] = false },
+			CancellationToken = ct,
+		});
+
+		Assert.That(toggled.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(setOff.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.ShuffleActive, Is.EqualTo(false));
+	}
+
+	[Test]
+	public async Task Repeat_actions_drive_the_fake_session()
+	{
+		var fake = new FakeMediaControlService();
+		var settings = new MediaSettingsProvider();
+		var cycle = new CycleRepeatAction(fake, settings);
+		var set = new SetRepeatAction(fake, settings);
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var cycled = await cycle.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var setOne = await set.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["mode"] = "one" },
+			CancellationToken = ct,
+		});
+		var badMode = await set.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["mode"] = "everything" },
+			CancellationToken = ct,
+		});
+
+		Assert.That(cycled.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(setOne.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.RepeatMode, Is.EqualTo(MediaRepeatMode.One));
+		Assert.That(badMode.Status, Is.EqualTo(ActionResultStatus.Failed));
+	}
+
+	[Test]
+	public async Task App_volume_actions_drive_the_fake_mixer()
+	{
+		var fake = new FakeMediaControlService();
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var set = await new SetAppVolumeAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["app"] = "spotify", ["volume"] = 30.0 },
+			CancellationToken = ct,
+		});
+		var adjust = await new AdjustAppVolumeAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["app"] = "spotify", ["delta"] = 5.0 },
+			CancellationToken = ct,
+		});
+		var mute = await new MuteAppAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["app"] = "spotify" },
+			CancellationToken = ct,
+		});
+		var toggle = await new ToggleAppMuteAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["app"] = "spotify" },
+			CancellationToken = ct,
+		});
+		var unknown = await new SetAppVolumeAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["app"] = "no-such-app", ["volume"] = 30.0 },
+			CancellationToken = ct,
+		});
+		var missing = await new MuteAppAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+
+		Assert.That(set.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(adjust.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(mute.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(toggle.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.AppVolumes["Spotify.exe"], Is.EqualTo((35, false)));
+		Assert.That(unknown.Status, Is.EqualTo(ActionResultStatus.Failed));
+		Assert.That(missing.Status, Is.EqualTo(ActionResultStatus.Failed));
+	}
+
+	[Test]
+	public async Task Device_actions_drive_the_fake_endpoints()
+	{
+		var fake = new FakeMediaControlService();
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var set = await new SetOutputDeviceAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["device"] = "headphones" },
+			CancellationToken = ct,
+		});
+		var cycle = await new CycleOutputDeviceAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var unknown = await new SetOutputDeviceAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["device"] = "no-such-device" },
+			CancellationToken = ct,
+		});
+
+		Assert.That(set.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(cycle.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(unknown.Status, Is.EqualTo(ActionResultStatus.Failed));
+		Assert.That(fake.Devices.Find(d => d.IsDefault)?.Name, Is.EqualTo("Speakers"));
+	}
+
+	[Test]
+	public async Task New_capability_variables_read()
+	{
+		var fake = new FakeMediaControlService();
+		fake.Snapshot = fake.Snapshot with { CanShuffle = true, CanRepeat = true };
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That((await integration.ReadAsync("can-shuffle")).Value, Is.EqualTo(true));
+		Assert.That((await integration.ReadAsync("can-repeat")).Value, Is.EqualTo(true));
+		Assert.That(await integration.ReadAsync("default-device"), Is.EqualTo(VariableReading.Unavailable));
+	}
+
+	[Test]
 	public async Task Play_reports_not_supported_when_the_session_rejects_it()
 	{
 		var fake = new FakeMediaControlService { TransportResult = false };

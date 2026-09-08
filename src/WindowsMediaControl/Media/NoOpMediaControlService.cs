@@ -27,4 +27,18 @@ public sealed class NoOpMediaControlService : IMediaControlService
 	public Task ToggleMuteAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 	public Task<ArtworkData?> GetArtworkAsync(string artworkId, CancellationToken cancellationToken) =>
 		Task.FromResult<ArtworkData?>(null);
+	public Task<bool> ToggleShuffleAsync(CancellationToken cancellationToken, string? appId = null) => Task.FromResult(false);
+	public Task<bool> SetShuffleAsync(bool enabled, CancellationToken cancellationToken, string? appId = null) => Task.FromResult(false);
+	public Task<bool> CycleRepeatAsync(CancellationToken cancellationToken, string? appId = null) => Task.FromResult(false);
+	public Task<bool> SetRepeatAsync(MediaRepeatMode mode, CancellationToken cancellationToken, string? appId = null) => Task.FromResult(false);
+	public Task<IReadOnlyList<AudioAppSession>> GetAudioAppsAsync(CancellationToken cancellationToken) =>
+		Task.FromResult<IReadOnlyList<AudioAppSession>>([]);
+	public Task<bool> SetAppVolumeAsync(string app, int percent, CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task<bool> AdjustAppVolumeAsync(string app, int delta, CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task<bool> SetAppMuteAsync(string app, bool muted, CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task<bool> ToggleAppMuteAsync(string app, CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task<IReadOnlyList<AudioOutputDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
+		Task.FromResult<IReadOnlyList<AudioOutputDevice>>([]);
+	public Task<bool> SetDefaultDeviceAsync(string device, CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken) => Task.FromResult(false);
 }

@@ -21,5 +21,17 @@ public interface IMediaControlService
 	Task MuteAsync(CancellationToken cancellationToken);
 	Task UnmuteAsync(CancellationToken cancellationToken);
 	Task ToggleMuteAsync(CancellationToken cancellationToken);
+	Task<bool> ToggleShuffleAsync(CancellationToken cancellationToken, string? appId = null);
+	Task<bool> SetShuffleAsync(bool enabled, CancellationToken cancellationToken, string? appId = null);
+	Task<bool> CycleRepeatAsync(CancellationToken cancellationToken, string? appId = null);
+	Task<bool> SetRepeatAsync(MediaRepeatMode mode, CancellationToken cancellationToken, string? appId = null);
 	Task<ArtworkData?> GetArtworkAsync(string artworkId, CancellationToken cancellationToken);
+	Task<IReadOnlyList<AudioAppSession>> GetAudioAppsAsync(CancellationToken cancellationToken);
+	Task<bool> SetAppVolumeAsync(string app, int percent, CancellationToken cancellationToken);
+	Task<bool> AdjustAppVolumeAsync(string app, int delta, CancellationToken cancellationToken);
+	Task<bool> SetAppMuteAsync(string app, bool muted, CancellationToken cancellationToken);
+	Task<bool> ToggleAppMuteAsync(string app, CancellationToken cancellationToken);
+	Task<IReadOnlyList<AudioOutputDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken);
+	Task<bool> SetDefaultDeviceAsync(string device, CancellationToken cancellationToken);
+	Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken);
 }

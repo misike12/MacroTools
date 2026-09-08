@@ -1,10 +1,10 @@
 # Windows Media Control for Macro Deck 3
 
-Control Windows media playback from Macro Deck: transport keys, seeking, system volume, live track variables, album artwork, a Now Playing deck widget and a music player provider. Built on the Windows System Media Transport Controls (SMTC), so it works with Spotify, browsers and any other SMTC-aware app.
+Control Windows media playback from Macro Deck: transport keys, seeking, shuffle and repeat, system and per-app volume, output device switching, live track variables, album artwork, a Now Playing deck widget and a music player provider. Built on the Windows System Media Transport Controls (SMTC) and Core Audio, so it works with Spotify, browsers and any other SMTC-aware app.
 
 ## Features
 
-### Actions (17)
+### Actions (28)
 
 All actions are Windows-only and accept an optional `App` filter (substring match on the app id, e.g. `Spotify`). Empty means the active session.
 
@@ -19,12 +19,19 @@ All actions are Windows-only and accept an optional `App` filter (substring matc
 | Volume up / Volume down | System volume by N percent (default 5). |
 | Set volume | System volume to an exact value (0–100). |
 | Mute / Unmute / Mute-Unmute | System mute control. |
+| Toggle shuffle / Set shuffle | Shuffle via SMTC (works where the app supports it). |
+| Cycle repeat / Set repeat | Step through off, repeat all and repeat one. |
+| Set app volume / Adjust app volume | One app's volume (e.g. Spotify) without touching system volume. |
+| Mute app / Unmute app / Mute-or-unmute app | Per-app mute control. |
+| Set output device / Next output device | Switch the default audio output, e.g. headphones to speakers. |
+
+Shuffle and repeat go through real SMTC control calls and report honestly when an app refuses them. Every transport, seek, shuffle and repeat action accepts an optional `App` filter (substring match on the app id).
 
 Shuffle and repeat cannot be controlled through SMTC (Windows exposes them as read-only state), but both are exposed as variables below.
 
-### Variables (30)
+### Variables (33)
 
-`title`, `artist`, `album`, `album_artist`, `genres`, `track_number`, `track_count`, `subtitle`, `source_app`, `playback_status` (`playing`/`paused`/`stopped`/`no-media`), `playback_type` (`music`/`video`/`image`/`unknown`), `playback_rate`, `is_playing`, `is_live`, `has_media`, `position_seconds`, `duration_seconds`, `position_text` / `duration_text` (`m:ss`), `progress_percent`, `volume_percent`, `is_muted`, `shuffle_enabled`, `repeat_mode`, plus per-action support flags `can_play`, `can_pause`, `can_stop`, `can_next`, `can_previous`, `can_seek`.
+`title`, `artist`, `album`, `album_artist`, `genres`, `track_number`, `track_count`, `subtitle`, `source_app`, `playback_status` (`playing`/`paused`/`stopped`/`no-media`), `playback_type` (`music`/`video`/`image`/`unknown`), `playback_rate`, `is_playing`, `is_live`, `has_media`, `position_seconds`, `duration_seconds`, `position_text` / `duration_text` (`m:ss`), `progress_percent`, `volume_percent`, `is_muted`, `shuffle_enabled`, `repeat_mode`, plus per-action support flags `can_play`, `can_pause`, `can_stop`, `can_next`, `can_previous`, `can_seek`, `can_shuffle`, `can_repeat`, and the current `output_device` name.
 
 Writable: `volume_percent`, `is_muted`, `position_seconds` and `progress_percent` (writing seeks; progress commits on release so slider drags don't stutter playback).
 
