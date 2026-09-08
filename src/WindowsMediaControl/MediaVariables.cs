@@ -12,7 +12,7 @@ internal static class MediaVariables
 		Eager("album", VariableType.Text, Strings.Variables.Album.DisplayName(), Strings.Variables.Album.Description()),
 		Eager("source-app", VariableType.Text, Strings.Variables.SourceApp.DisplayName(), Strings.Variables.SourceApp.Description()),
 		Eager("playback-status", VariableType.Text, Strings.Variables.PlaybackStatus.DisplayName(), Strings.Variables.PlaybackStatus.Description()),
-		Eager("is-playing", VariableType.Boolean, Strings.Variables.IsPlaying.DisplayName(), Strings.Variables.IsPlaying.Description()),
+		Eager("is-playing", VariableType.Boolean, Strings.Variables.IsPlaying.DisplayName(), Strings.Variables.IsPlaying.Description(), name: "media_is_playing"),
 		Eager("has-media", VariableType.Boolean, Strings.Variables.HasMedia.DisplayName(), Strings.Variables.HasMedia.Description()),
 		Eager("position-seconds", VariableType.Numeric, Strings.Variables.PositionSeconds.DisplayName(), Strings.Variables.PositionSeconds.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration, refresh: TimeSpan.FromSeconds(2), write: new VariableWriteCapability { CommitOnRelease = true }),
 		Eager("duration-seconds", VariableType.Numeric, Strings.Variables.DurationSeconds.DisplayName(), Strings.Variables.DurationSeconds.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration),
@@ -48,10 +48,11 @@ internal static class MediaVariables
 		string? unit = null,
 		string? semanticKind = null,
 		TimeSpan? refresh = null,
-		VariableWriteCapability? write = null) =>
+		VariableWriteCapability? write = null,
+		string? name = null) =>
 		VariableDefinition.Eager(id, type) with
 		{
-			Name = id.Replace("-", "_"),
+			Name = name ?? id.Replace("-", "_"),
 			DisplayName = displayName,
 			Description = description,
 			Unit = unit ?? string.Empty,
