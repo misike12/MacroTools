@@ -705,4 +705,7 @@
   <data name="Variables.AppVolume.Description" xml:space="preserve">
     <value>Volume of one app in percent. Writing it changes that app's volume.</value>
   </data>
+  <data name="Variables.AppVolume.DisplayName" xml:space="preserve">
+    <value>{name} volume</value>
+  </data>
 </root>

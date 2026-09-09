@@ -56,7 +56,9 @@ public sealed class SetShuffleAction(IMediaControlService media, MediaSettingsPr
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var enabled = MediaParameters.ReadBooleanValue(context.Parameters.TryGetValue("enabled", out var raw) ? raw : null);
+			var enabled = context.Parameters.TryGetValue("enabled", out var raw)
+				? MediaParameters.ReadBooleanValue(raw)
+				: true;
 			if (enabled is null)
 			{
 				return ActionResult.Failed(

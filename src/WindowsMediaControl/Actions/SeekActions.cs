@@ -147,7 +147,9 @@ public sealed class SeekToAction(IMediaControlService media, MediaSettingsProvid
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var position = MediaParameters.ReadNumber(context.Parameters, PositionParameter);
+			var position = context.Parameters.TryGetValue(PositionParameter, out var raw)
+				? MediaParameters.ReadNumberValue(raw)
+				: 0.0;
 			if (position is null || position < 0)
 			{
 				return ActionResult.Failed(

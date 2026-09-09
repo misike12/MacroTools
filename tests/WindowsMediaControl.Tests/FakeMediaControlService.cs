@@ -76,14 +76,14 @@ internal sealed class FakeMediaControlService : IMediaControlService
 	public Task VolumeUpAsync(int stepPercent, CancellationToken cancellationToken)
 	{
 		Calls.Add(nameof(VolumeUpAsync));
-		Snapshot = Snapshot with { VolumePercent = Math.Clamp(Snapshot.VolumePercent + stepPercent, 0, 100) };
+		Snapshot = Snapshot with { VolumePercent = Math.Clamp(Snapshot.VolumePercent.GetValueOrDefault() + stepPercent, 0, 100) };
 		return Task.CompletedTask;
 	}
 
 	public Task VolumeDownAsync(int stepPercent, CancellationToken cancellationToken)
 	{
 		Calls.Add(nameof(VolumeDownAsync));
-		Snapshot = Snapshot with { VolumePercent = Math.Clamp(Snapshot.VolumePercent - stepPercent, 0, 100) };
+		Snapshot = Snapshot with { VolumePercent = Math.Clamp(Snapshot.VolumePercent.GetValueOrDefault() - stepPercent, 0, 100) };
 		return Task.CompletedTask;
 	}
 

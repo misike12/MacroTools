@@ -62,7 +62,7 @@ internal static class MediaVariables
 		VariableDefinition.OnDemand(processName, VariableType.Numeric) with
 		{
 			Name = SanitizeName(processName),
-			DisplayName = $"{processName} volume",
+			DisplayName = Strings.Variables.AppVolume.DisplayName(processName),
 			Description = Strings.Variables.AppVolume.Description(),
 			Unit = "%",
 			SemanticKind = VariableSemanticKinds.Percentage,

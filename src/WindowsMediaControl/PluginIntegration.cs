@@ -1,4 +1,6 @@
 using MacroDeck.Localization;
+using MacroDeck.Plugin.Hosting.Integrations.HostApis;
+using MacroDeck.Plugin.Protocol.Handshake;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.Events;
@@ -20,6 +22,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 {
 	private readonly IMediaControlService _media;
 	private readonly MediaSettingsProvider _settings;
+	private readonly IPluginCatalogNotifier? _catalogs;
 	private readonly ILogger _logger;
 	private readonly NowPlayingWidget _widget;
 	private readonly object _loopGate = new();
@@ -29,13 +32,15 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private Task? _loopTask;
 	private MediaSnapshot _last = MediaSnapshot.Empty;
 	private string _defaultDeviceName = string.Empty;
+	private string _lastAppSignature = string.Empty;
 	private long _lastEventRefreshTicks;
 	private bool _disposed;
 
-	public PluginIntegration(IMediaControlService media, MediaSettingsProvider settings, ILogger logger)
+	public PluginIntegration(IMediaControlService media, MediaSettingsProvider settings, ILogger logger, IPluginCatalogNotifier? catalogs = null)
 	{
 		_media = media;
 		_settings = settings;
+		_catalogs = catalogs;
 		_logger = logger.ForContext<PluginIntegration>();
 		_widget = new NowPlayingWidget(media, logger);
 		Actions =
@@ -269,7 +274,9 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				reading = NumberOrUnavailable(snapshot.HasSession, Math.Round(snapshot.ProgressPercent, 1));
 				return true;
 			case "volume-percent":
-				reading = VariableReading.Of((double)snapshot.VolumePercent, 0, 100, 1);
+				reading = snapshot.VolumePercent is int percent
+					? VariableReading.Of((double)percent, 0, 100, 1)
+					: VariableReading.Unavailable;
 				return true;
 			case "is-muted":
 				reading = VariableReading.Of(snapshot.IsMuted);
@@ -516,7 +523,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public ValueTask<VariableCatalogPage> DiscoverAsync(VariableCatalogQuery query, CancellationToken cancellationToken = default) =>
 		DiscoverAppVolumesAsync(query, cancellationToken);
 
-	public async ValueTask<VariableCatalogPage> DiscoverAppVolumesAsync(VariableCatalogQuery query, CancellationToken cancellationToken)
+	private async ValueTask<VariableCatalogPage> DiscoverAppVolumesAsync(VariableCatalogQuery query, CancellationToken cancellationToken)
 	{
 		var items = new List<VariableDefinition>();
 		try
@@ -642,7 +649,38 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				PublishChanges(previous, snapshot);
 			}
 
-			await RefreshDefaultDeviceAsync(cancellationToken);
+			await RefreshAudioEnvironmentAsync(cancellationToken);
+		}
+	}
+
+	private async Task RefreshAudioEnvironmentAsync(CancellationToken cancellationToken)
+	{
+		await RefreshDefaultDeviceAsync(cancellationToken);
+		await RefreshAppCatalogAsync(cancellationToken);
+	}
+
+	private async Task RefreshAppCatalogAsync(CancellationToken cancellationToken)
+	{
+		IReadOnlyList<AudioAppSession> apps;
+		try
+		{
+			apps = await _media.GetAudioAppsAsync(cancellationToken);
+		}
+		catch (OperationCanceledException)
+		{
+			return;
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "App catalog refresh failed.");
+			return;
+		}
+
+		var signature = string.Join("\n", apps.Select(app => app.ProcessName).OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
+		if (signature != _lastAppSignature)
+		{
+			_lastAppSignature = signature;
+			_catalogs?.CatalogChanged(CapabilityKinds.Variables, reason: "audio app set changed");
 		}
 	}
 
@@ -709,13 +747,13 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			}
 		}
 
-		if (previous.VolumePercent != current.VolumePercent)
+		if (previous.VolumePercent != current.VolumePercent && current.VolumePercent is int volume)
 		{
 			if (_settings.Current.VolumeEvents)
 			{
 				context.Events.Publish("volume-changed", new Dictionary<string, object?>
 				{
-					["volume"] = (double)current.VolumePercent,
+					["volume"] = (double)volume,
 					["muted"] = current.IsMuted,
 				});
 			}

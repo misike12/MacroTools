@@ -1,7 +1,10 @@
 using System.Text.Json;
+using MacroDeck.Plugin.Hosting.Integrations.HostApis;
+using MacroDeck.Plugin.Protocol.Handshake;
 using MacroDeck.Plugin.Testing;
 using MacroDeck.Plugin.Testing.Fakes;
 using MacroDeck.Sdk.Actions;
+using MacroDeck.Sdk.MusicPlayer;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
@@ -910,6 +913,135 @@ public sealed class PluginIntegrationTests
 		Assert.That(duplicates, Is.Empty);
 		Assert.That(integration.Actions.Count, Is.GreaterThanOrEqualTo(15));
 	}
+
+	[Test]
+	public async Task Music_player_shuffle_change_is_attempted_before_failing()
+	{
+		var fake = new FakeMediaControlService
+		{
+			Snapshot = new FakeMediaControlService().Snapshot with { ShuffleActive = false },
+		};
+		var player = new SystemMusicPlayer(fake);
+
+		await player.SetShuffleAsync(true, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(fake.Snapshot.ShuffleActive, Is.True);
+		Assert.That(fake.Calls, Does.Contain(nameof(FakeMediaControlService.SetShuffleAsync)));
+	}
+
+	[Test]
+	public void Music_player_shuffle_change_throws_when_unsupported()
+	{
+		var fake = new FakeMediaControlService
+		{
+			Snapshot = new FakeMediaControlService().Snapshot with { ShuffleActive = false },
+			TransportResult = false,
+		};
+		var player = new SystemMusicPlayer(fake);
+
+		Assert.ThrowsAsync<InvalidOperationException>(() =>
+			player.SetShuffleAsync(true, TestContext.CurrentContext.CancellationToken));
+	}
+
+	[Test]
+	public async Task Music_player_repeat_change_is_attempted_before_failing()
+	{
+		var fake = new FakeMediaControlService();
+		var player = new SystemMusicPlayer(fake);
+
+		await player.SetRepeatModeAsync(RepeatMode.Context, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(fake.Snapshot.RepeatMode, Is.EqualTo(MediaRepeatMode.All));
+		Assert.That(fake.Calls, Does.Contain(nameof(FakeMediaControlService.SetRepeatAsync)));
+	}
+
+	[Test]
+	public async Task Volume_variable_is_unavailable_without_an_audio_reading()
+	{
+		var fake = new FakeMediaControlService { Snapshot = MediaSnapshot.Empty };
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var volume = await integration.ReadAsync("volume-percent", TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(volume, Is.EqualTo(VariableReading.Unavailable));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Set_shuffle_uses_enabled_by_default()
+	{
+		var fake = new FakeMediaControlService
+		{
+			Snapshot = new FakeMediaControlService().Snapshot with { ShuffleActive = false },
+		};
+		var action = new SetShuffleAction(fake, new MediaSettingsProvider());
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.ShuffleActive, Is.True);
+	}
+
+	[Test]
+	public async Task Adjust_app_volume_rejects_an_unreadable_delta()
+	{
+		var action = new AdjustAppVolumeAction(new FakeMediaControlService());
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["app"] = "Spotify", ["delta"] = new object() },
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Failed));
+	}
+
+	[Test]
+	public void App_volume_display_name_uses_the_localized_template()
+	{
+		Assert.That(Strings.LocalizationCatalog.KeysOf("en"), Does.Contain("Variables.AppVolume.DisplayName"));
+		Assert.That(Strings.LocalizationCatalog.TryGetTemplate("en", "Variables.AppVolume.DisplayName", out var template), Is.True);
+		Assert.That(template, Is.EqualTo("{name} volume"));
+		Assert.That(MediaVariables.AppVolume("Spotify").Name, Is.EqualTo("app_Spotify"));
+	}
+
+	[Test]
+	public async Task App_set_change_notifies_the_variables_catalog()
+	{
+		var fake = new FakeMediaControlService();
+		var notifier = new FakeCatalogNotifier();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger(), notifier);
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		await WaitForCatalogNotificationAsync(notifier, TestContext.CurrentContext.CancellationToken);
+		notifier.Calls.Clear();
+		fake.AppVolumes["Discord"] = (40, false);
+		await WaitForCatalogNotificationAsync(notifier, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(notifier.Calls, Does.Contain(CapabilityKinds.Variables));
+		await integration.ShutdownAsync();
+	}
+
+	private static async Task WaitForCatalogNotificationAsync(FakeCatalogNotifier notifier, CancellationToken cancellationToken)
+	{
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline && notifier.Calls.Count == 0)
+		{
+			await Task.Delay(100, cancellationToken);
+		}
+	}
+
+	private sealed class FakeCatalogNotifier : IPluginCatalogNotifier
+	{
+		public List<string> Calls { get; } = [];
+
+		public void CatalogChanged(string kind, string? localId = null, string? reason = null) => Calls.Add(kind);
+	}
 }
 
 [TestFixture]
@@ -1142,4 +1274,3 @@ public sealed class LocalizationTests
 		}
 	}
 }
-

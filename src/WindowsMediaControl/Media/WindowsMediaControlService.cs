@@ -102,7 +102,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				Status = hasSession ? status : PlaybackStatus.NoMedia,
 				Position = position,
 				Duration = duration,
-				VolumePercent = audio?.VolumePercent ?? 50,
+				VolumePercent = audio?.VolumePercent,
 				IsMuted = audio?.IsMuted ?? false,
 				ShuffleActive = info?.IsShuffleActive,
 				RepeatMode = MapRepeat(info?.AutoRepeatMode),
@@ -237,29 +237,23 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		}
 	}
 
-	public Task VolumeUpAsync(int stepPercent, CancellationToken cancellationToken)
-	{
-		AdjustVolume(stepPercent);
-		return Task.CompletedTask;
-	}
+	public Task VolumeUpAsync(int stepPercent, CancellationToken cancellationToken) =>
+		Task.Run(() => AdjustVolume(stepPercent), cancellationToken);
 
-	public Task VolumeDownAsync(int stepPercent, CancellationToken cancellationToken)
-	{
-		AdjustVolume(-stepPercent);
-		return Task.CompletedTask;
-	}
+	public Task VolumeDownAsync(int stepPercent, CancellationToken cancellationToken) =>
+		Task.Run(() => AdjustVolume(-stepPercent), cancellationToken);
 
-	public Task SetVolumeAsync(int percent, CancellationToken cancellationToken)
-	{
-		var settings = _settings.Current;
-		if (settings.UnmuteOnVolumeChange)
+	public Task SetVolumeAsync(int percent, CancellationToken cancellationToken) =>
+		Task.Run(() =>
 		{
-			SystemAudio.SetMute(false);
-		}
+			var settings = _settings.Current;
+			if (settings.UnmuteOnVolumeChange)
+			{
+				SystemAudio.SetMute(false);
+			}
 
-		SystemAudio.SetVolume(settings.ClampVolume(percent));
-		return Task.CompletedTask;
-	}
+			SystemAudio.SetVolume(settings.ClampVolume(percent));
+		}, cancellationToken);
 
 	private void AdjustVolume(int delta)
 	{
@@ -273,23 +267,14 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		SystemAudio.SetVolume(settings.ClampVolume((current?.VolumePercent ?? 50) + delta));
 	}
 
-	public Task MuteAsync(CancellationToken cancellationToken)
-	{
-		SystemAudio.SetMute(true);
-		return Task.CompletedTask;
-	}
+	public Task MuteAsync(CancellationToken cancellationToken) =>
+		Task.Run(() => SystemAudio.SetMute(true), cancellationToken);
 
-	public Task UnmuteAsync(CancellationToken cancellationToken)
-	{
-		SystemAudio.SetMute(false);
-		return Task.CompletedTask;
-	}
+	public Task UnmuteAsync(CancellationToken cancellationToken) =>
+		Task.Run(() => SystemAudio.SetMute(false), cancellationToken);
 
-	public Task ToggleMuteAsync(CancellationToken cancellationToken)
-	{
-		SystemAudio.ToggleMute();
-		return Task.CompletedTask;
-	}
+	public Task ToggleMuteAsync(CancellationToken cancellationToken) =>
+		Task.Run(SystemAudio.ToggleMute, cancellationToken);
 
 	public Task<bool> ToggleShuffleAsync(CancellationToken cancellationToken, string? appId = null) =>
 		WithTimeoutAsync(
@@ -477,19 +462,19 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	}
 
 	public Task<IReadOnlyList<AudioAppSession>> GetAudioAppsAsync(CancellationToken cancellationToken) =>
-		Task.FromResult(AppAudio.GetAppSessions());
+		Task.Run(AppAudio.GetAppSessions, cancellationToken);
 
 	public Task<bool> SetAppVolumeAsync(string app, int percent, CancellationToken cancellationToken) =>
-		Task.FromResult(AppAudio.TryAdjustAppVolume(app, (_, muted) => (percent, muted)));
+		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (_, muted) => (percent, muted)), cancellationToken);
 
 	public Task<bool> AdjustAppVolumeAsync(string app, int delta, CancellationToken cancellationToken) =>
-		Task.FromResult(AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume + delta, muted)));
+		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume + delta, muted)), cancellationToken);
 
 	public Task<bool> SetAppMuteAsync(string app, bool muted, CancellationToken cancellationToken) =>
-		Task.FromResult(AppAudio.TryAdjustAppVolume(app, (volume, _) => (volume, muted)));
+		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, _) => (volume, muted)), cancellationToken);
 
 	public Task<bool> ToggleAppMuteAsync(string app, CancellationToken cancellationToken) =>
-		Task.FromResult(AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume, !muted)));
+		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume, !muted)), cancellationToken);
 
 	public async Task<IReadOnlyList<AudioOutputDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
 		await AppAudio.GetOutputDevicesAsync();
@@ -502,7 +487,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		}
 
 		var id = await ResolveDeviceIdAsync(device);
-		return id is not null && AppAudio.TrySetDefaultDevice(id);
+		return id is not null && await Task.Run(() => AppAudio.TrySetDefaultDevice(id), cancellationToken);
 	}
 
 	public async Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken)
@@ -520,7 +505,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 		var current = devices.ToList().FindIndex(d => d.IsDefault);
 		var next = devices[(current + 1) % devices.Count];
-		return AppAudio.TrySetDefaultDevice(next.Id);
+		return await Task.Run(() => AppAudio.TrySetDefaultDevice(next.Id), cancellationToken);
 	}
 
 	private static async Task<string?> ResolveDeviceIdAsync(string device)
@@ -574,10 +559,14 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				return null;
 			}
 
-			if (_artworkCache.Count >= Math.Max(1, _settings.Current.ArtworkCacheSize))
+		if (_artworkCache.Count >= Math.Max(1, _settings.Current.ArtworkCacheSize))
+		{
+			foreach (var key in _artworkCache.Keys)
 			{
-				_artworkCache.Clear();
+				_artworkCache.TryRemove(key, out _);
+				break;
 			}
+		}
 
 			return _artworkCache.GetOrAdd(artworkId, art);
 		}

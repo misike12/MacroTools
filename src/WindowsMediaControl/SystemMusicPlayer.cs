@@ -91,6 +91,11 @@ public sealed class SystemMusicPlayer(IMediaControlService media) : IMusicPlayer
 			return;
 		}
 
+		if (await media.SetShuffleAsync(enabled, cancellationToken))
+		{
+			return;
+		}
+
 		throw new InvalidOperationException("The current media session does not support changing shuffle.");
 	}
 
@@ -104,6 +109,17 @@ public sealed class SystemMusicPlayer(IMediaControlService media) : IMusicPlayer
 			_ => RepeatMode.Off,
 		};
 		if (current == mode)
+		{
+			return;
+		}
+
+		var target = mode switch
+		{
+			RepeatMode.Track => MediaRepeatMode.One,
+			RepeatMode.Context => MediaRepeatMode.All,
+			_ => MediaRepeatMode.Off,
+		};
+		if (await media.SetRepeatAsync(target, cancellationToken))
 		{
 			return;
 		}

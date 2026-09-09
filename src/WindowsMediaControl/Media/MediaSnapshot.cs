@@ -28,7 +28,7 @@ public sealed record MediaSnapshot
 	public PlaybackStatus Status { get; init; } = PlaybackStatus.NoMedia;
 	public TimeSpan Position { get; init; } = TimeSpan.Zero;
 	public TimeSpan Duration { get; init; } = TimeSpan.Zero;
-	public int VolumePercent { get; init; } = 50;
+	public int? VolumePercent { get; init; }
 	public bool IsMuted { get; init; }
 	public bool? ShuffleActive { get; init; }
 	public MediaRepeatMode RepeatMode { get; init; } = MediaRepeatMode.Off;

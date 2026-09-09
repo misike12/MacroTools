@@ -119,6 +119,10 @@ internal static class NowPlayingView
 
 		if (options.ShowProgress)
 		{
+			var anchor = content.Peek().Progress;
+			var span = anchor.DurationMs is { } total && total > 0
+				? Math.Clamp((double)anchor.PositionMs / total, 0, 1)
+				: 0;
 			media.Add(new UiProgressBar
 			{
 				Key = "progress",
@@ -130,6 +134,13 @@ internal static class NowPlayingView
 					? UiValue.None<string>()
 					: UiValue.Of(content.Value.Accent)),
 				Thickness = 0.05,
+				Fallback = new UiRangeBar
+				{
+					Key = "progress-fallback",
+					Start = UiValue.Of(0.0),
+					End = UiValue.Of(span),
+					Thickness = 0.05,
+				},
 			});
 			if (!options.Compact)
 			{
@@ -341,7 +352,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 					surface,
 					new UiState<WidgetContent>(new WidgetContent(
 						"Nightcall", "Kavinsky", "OutRun", "0:42 / 3:35",
-						new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 0 },
+						new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 1 },
 						true, true, options, "#1DB954", "#07451B")),
 					_media,
 					_logger,

@@ -33,7 +33,7 @@ public sealed class SetAppVolumeAction(IMediaControlService media) : IActionDefi
 		},
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor 	CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media);
 
 	private sealed class Executor(IMediaControlService media) : IActionExecutor
 	{
@@ -97,19 +97,28 @@ public sealed class AdjustAppVolumeAction(IMediaControlService media) : IActionD
 		},
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor 	CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media);
 
 	private sealed class Executor(IMediaControlService media) : IActionExecutor
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			var app = MediaParameters.ReadApp(context.Parameters);
-			var delta = MediaParameters.ReadNumber(context.Parameters, "delta") ?? 5;
+			var delta = context.Parameters.TryGetValue("delta", out var raw)
+				? MediaParameters.ReadNumberValue(raw)
+				: 5.0;
 			if (string.IsNullOrWhiteSpace(app))
 			{
 				return ActionResult.Failed(
 					ActionErrorCodes.InvalidParameter,
 					Strings.Params.App.Label());
+			}
+
+			if (delta is null)
+			{
+				return ActionResult.Failed(
+					ActionErrorCodes.InvalidParameter,
+					Strings.Actions.AdjustAppVolume.Delta.Label());
 			}
 
 			if (delta == 0)
@@ -119,7 +128,7 @@ public sealed class AdjustAppVolumeAction(IMediaControlService media) : IActionD
 
 			try
 			{
-				return await media.AdjustAppVolumeAsync(app, (int)delta, context.CancellationToken)
+				return await media.AdjustAppVolumeAsync(app, (int)delta.Value, context.CancellationToken)
 					? ActionResult.Success()
 					: ActionResult.Failed(ActionErrorCodes.NotFound, Strings.Errors.AppAudioSessionNotFound());
 			}
@@ -148,7 +157,7 @@ public sealed class MuteAppAction(IMediaControlService media) : IActionDefinitio
 		},
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor 	CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media);
 
 	private sealed class Executor(IMediaControlService media) : IActionExecutor
 	{
@@ -193,7 +202,7 @@ public sealed class UnmuteAppAction(IMediaControlService media) : IActionDefinit
 		},
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor 	CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media);
 
 	private sealed class Executor(IMediaControlService media) : IActionExecutor
 	{
@@ -238,7 +247,7 @@ public sealed class ToggleAppMuteAction(IMediaControlService media) : IActionDef
 		},
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
-	public IActionExecutor 	CreateExecutor() => new Executor(media);
+	public IActionExecutor CreateExecutor() => new Executor(media);
 
 	private sealed class Executor(IMediaControlService media) : IActionExecutor
 	{
