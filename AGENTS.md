@@ -27,7 +27,7 @@ src/WindowsMediaControl/
   manifest.json          identity, icon, win-x64 entrypoint
   macrodeck-build.json   the win-x64 publish target
   PluginIntegration.cs   actions, variables, events, music player, widget and config-flow wiring, poll loop
-  Media/                 SMTC service, CoreAudio volume, snapshot/artwork/text helpers
+  Media/                 SMTC service, CoreAudio volume, snapshot/artwork/text helpers, AudioComInterop (single shared CoreAudio COM surface)
   Actions/               transport, seek and volume actions plus shared parameter helpers
   Widgets/               Now Playing widget type, sessions, configuration and previews
   Config/                settings model, config flow, settings reader
