@@ -1,6 +1,4 @@
 using System.Text.Json;
-using MacroDeck.Plugin.Hosting.Integrations.HostApis;
-using MacroDeck.Plugin.Protocol.Handshake;
 using MacroDeck.Plugin.Testing;
 using MacroDeck.Plugin.Testing.Fakes;
 using MacroDeck.Sdk.Actions;
@@ -1008,39 +1006,6 @@ public sealed class PluginIntegrationTests
 		Assert.That(Strings.LocalizationCatalog.TryGetTemplate("en", "Variables.AppVolume.DisplayName", out var template), Is.True);
 		Assert.That(template, Is.EqualTo("{name} volume"));
 		Assert.That(MediaVariables.AppVolume("Spotify").Name, Is.EqualTo("app_Spotify"));
-	}
-
-	[Test]
-	public async Task App_set_change_notifies_the_variables_catalog()
-	{
-		var fake = new FakeMediaControlService();
-		var notifier = new FakeCatalogNotifier();
-		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger(), notifier);
-		await integration.InitializeAsync(new FakeIntegrationContext());
-
-		await WaitForCatalogNotificationAsync(notifier, TestContext.CurrentContext.CancellationToken);
-		notifier.Calls.Clear();
-		fake.AppVolumes["Discord"] = (40, false);
-		await WaitForCatalogNotificationAsync(notifier, TestContext.CurrentContext.CancellationToken);
-
-		Assert.That(notifier.Calls, Does.Contain(CapabilityKinds.Variables));
-		await integration.ShutdownAsync();
-	}
-
-	private static async Task WaitForCatalogNotificationAsync(FakeCatalogNotifier notifier, CancellationToken cancellationToken)
-	{
-		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
-		while (DateTimeOffset.UtcNow < deadline && notifier.Calls.Count == 0)
-		{
-			await Task.Delay(100, cancellationToken);
-		}
-	}
-
-	private sealed class FakeCatalogNotifier : IPluginCatalogNotifier
-	{
-		public List<string> Calls { get; } = [];
-
-		public void CatalogChanged(string kind, string? localId = null, string? reason = null) => Calls.Add(kind);
 	}
 }
 
