@@ -68,26 +68,14 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			var status = MapStatus(info?.PlaybackStatus);
 			var hasSession = status != PlaybackStatus.NoMedia || !string.IsNullOrWhiteSpace(props?.Title);
 
-			var position = timeline?.Position ?? TimeSpan.Zero;
+			var position = MediaTimeline.Extrapolate(
+				timeline?.Position ?? TimeSpan.Zero,
+				timeline?.EndTime ?? TimeSpan.Zero,
+				timeline?.LastUpdatedTime,
+				status,
+				_settings.Current.ExtrapolatePosition,
+				DateTimeOffset.Now);
 			var duration = timeline?.EndTime ?? TimeSpan.Zero;
-			if (_settings.Current.ExtrapolatePosition && status == PlaybackStatus.Playing && timeline is not null)
-			{
-				var elapsed = DateTimeOffset.Now - timeline.LastUpdatedTime;
-				if (elapsed is { TotalSeconds: >= 0 and < 3600 })
-				{
-					position += elapsed;
-				}
-			}
-
-			if (duration > TimeSpan.Zero && position > duration)
-			{
-				position = duration;
-			}
-
-			if (position < TimeSpan.Zero)
-			{
-				position = TimeSpan.Zero;
-			}
 
 			var artworkId = hasSession
 				? ArtworkIdFor(session.SourceAppUserModelId, props?.Title, props?.Artist, props?.AlbumTitle)
@@ -112,6 +100,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				ArtworkAccent = accent,
 				ArtworkAccentDark = accentDark,
 				Status = hasSession ? status : PlaybackStatus.NoMedia,
+				Position = position,
 				Duration = duration,
 				VolumePercent = audio?.VolumePercent ?? 50,
 				IsMuted = audio?.IsMuted ?? false,

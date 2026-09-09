@@ -797,6 +797,46 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public void Timeline_extrapolates_while_playing()
+	{
+		var now = new DateTimeOffset(2026, 9, 9, 12, 0, 10, TimeSpan.Zero);
+
+		var position = MediaTimeline.Extrapolate(
+			TimeSpan.FromSeconds(13), TimeSpan.FromMinutes(2),
+			new DateTimeOffset(2026, 9, 9, 12, 0, 0, TimeSpan.Zero),
+			PlaybackStatus.Playing, true, now);
+
+		Assert.That(position.TotalSeconds, Is.EqualTo(23).Within(0.5));
+	}
+
+	[Test]
+	public void Timeline_holds_when_paused_or_disabled()
+	{
+		var updated = new DateTimeOffset(2026, 9, 9, 12, 0, 0, TimeSpan.Zero);
+		var now = updated.AddSeconds(30);
+
+		Assert.That(
+			MediaTimeline.Extrapolate(TimeSpan.FromSeconds(13), TimeSpan.FromMinutes(2), updated, PlaybackStatus.Paused, true, now),
+			Is.EqualTo(TimeSpan.FromSeconds(13)));
+		Assert.That(
+			MediaTimeline.Extrapolate(TimeSpan.FromSeconds(13), TimeSpan.FromMinutes(2), updated, PlaybackStatus.Playing, false, now),
+			Is.EqualTo(TimeSpan.FromSeconds(13)));
+	}
+
+	[Test]
+	public void Timeline_clamps_to_duration_and_zero()
+	{
+		var updated = new DateTimeOffset(2026, 9, 9, 12, 0, 0, TimeSpan.Zero);
+
+		Assert.That(
+			MediaTimeline.Extrapolate(TimeSpan.FromSeconds(110), TimeSpan.FromSeconds(113), updated, PlaybackStatus.Playing, true, updated.AddMinutes(5)),
+			Is.EqualTo(TimeSpan.FromSeconds(113)));
+		Assert.That(
+			MediaTimeline.Extrapolate(TimeSpan.FromSeconds(-5), TimeSpan.FromSeconds(113), updated, PlaybackStatus.Playing, true, updated),
+			Is.EqualTo(TimeSpan.Zero));
+	}
+
+	[Test]
 	public void Action_ids_are_unique_across_the_plugin()
 	{
 		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());
