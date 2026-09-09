@@ -33,6 +33,10 @@ Shuffle and repeat go through real SMTC control calls and report honestly when a
 
 Writable: `volume_percent`, `is_muted`, `position_seconds` and `progress_percent` (writing seeks; progress commits on release so slider drags don't stutter playback).
 
+### App volume sliders
+
+Besides the fixed variables above, the plugin offers a browsable **App volumes** catalog: every app currently in the Windows volume mixer appears as its own writable 0–100 variable. To put a Spotify slider on your deck, add a **Slider** widget, bind it to a variable, browse to App volumes and pick the app. Both `Spotify` and `Spotify.exe` spellings resolve to the same app, and the binding survives app restarts (it simply reads unavailable while the app has no audio session).
+
 ### Events (4)
 
 `track-changed` (title/artist/album/app), `playback-changed` (status/isPlaying), `volume-changed` (volume/muted), `mute-changed` (muted).

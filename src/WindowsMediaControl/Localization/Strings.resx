@@ -702,4 +702,7 @@
   <data name="Variables.CoverAccent.Description" xml:space="preserve">
     <value>The dominant cover color as a hex code, for tinting your own widgets.</value>
   </data>
+  <data name="Variables.AppVolume.Description" xml:space="preserve">
+    <value>Volume of one app in percent. Writing it changes that app's volume.</value>
+  </data>
 </root>

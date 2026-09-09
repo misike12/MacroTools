@@ -612,7 +612,7 @@ public sealed class PluginIntegrationTests
 		Assert.That(adjust.Status, Is.EqualTo(ActionResultStatus.Succeeded));
 		Assert.That(mute.Status, Is.EqualTo(ActionResultStatus.Succeeded));
 		Assert.That(toggle.Status, Is.EqualTo(ActionResultStatus.Succeeded));
-		Assert.That(fake.AppVolumes["Spotify.exe"], Is.EqualTo((35, false)));
+		Assert.That(fake.AppVolumes["Spotify"], Is.EqualTo((35, false)));
 		Assert.That(unknown.Status, Is.EqualTo(ActionResultStatus.Failed));
 		Assert.That(missing.Status, Is.EqualTo(ActionResultStatus.Failed));
 	}
@@ -712,6 +712,66 @@ public sealed class PluginIntegrationTests
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		Assert.That((await integration.ReadAsync("cover-accent")).Value, Is.EqualTo("#FF0000"));
+	}
+
+	[Test]
+	public async Task Catalog_discovers_mixer_apps()
+	{
+		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var page = await integration.DiscoverAsync(
+			new VariableCatalogQuery { PageSize = 50 },
+			TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(page.Items.Count, Is.EqualTo(1));
+		Assert.That(page.Items[0].Id, Is.EqualTo("Spotify"));
+	}
+
+	[Test]
+	public async Task Catalog_resolve_accepts_resource_ids()
+	{
+		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var resolved = await integration.ResolveAsync("Spotify.exe", TestContext.CurrentContext.CancellationToken);
+		var rejected = await integration.ResolveAsync("not valid id!!", TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(resolved, Is.Not.Null);
+		Assert.That(rejected, Is.Null);
+	}
+
+	[Test]
+	public async Task App_volume_reads_and_writes_through_variables()
+	{
+		var fake = new FakeMediaControlService();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var reading = await integration.ReadAsync("Spotify.exe", TestContext.CurrentContext.CancellationToken);
+		var written = await integration.SetValueAsync("Spotify.exe", 30.0, TestContext.CurrentContext.CancellationToken);
+		var missing = await integration.ReadAsync("no-such-app", TestContext.CurrentContext.CancellationToken);
+		var missingWrite = await integration.SetValueAsync("no-such-app", 30.0, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(reading.Value, Is.EqualTo(50.0));
+		Assert.That(written.Status, Is.EqualTo(VariableWriteStatus.Applied));
+		Assert.That(fake.AppVolumes["Spotify"].Volume, Is.EqualTo(30));
+		Assert.That(missing, Is.EqualTo(VariableReading.Unavailable));
+		Assert.That(missingWrite.Status, Is.EqualTo(VariableWriteStatus.Unavailable));
+	}
+
+	[Test]
+	public async Task App_volume_accepts_exe_suffixed_ids()
+	{
+		var fake = new FakeMediaControlService();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var reading = await integration.ReadAsync("Spotify.exe", TestContext.CurrentContext.CancellationToken);
+		var resolved = await integration.ResolveAsync("Spotify.exe", TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(reading.Value, Is.EqualTo(50.0));
+		Assert.That(resolved?.Id, Is.EqualTo("Spotify"));
 	}
 
 	[Test]

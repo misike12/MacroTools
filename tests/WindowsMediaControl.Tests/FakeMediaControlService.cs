@@ -30,7 +30,7 @@ internal sealed class FakeMediaControlService : IMediaControlService
 
 	public Dictionary<string, (int Volume, bool Muted)> AppVolumes { get; } = new(StringComparer.OrdinalIgnoreCase)
 	{
-		["Spotify.exe"] = (50, false),
+		["Spotify"] = (50, false),
 	};
 
 	public List<AudioOutputDevice> Devices { get; } = [new AudioOutputDevice("id-speakers", "Speakers", true), new AudioOutputDevice("id-headphones", "Headphones", false)];

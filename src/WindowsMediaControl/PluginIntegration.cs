@@ -4,6 +4,7 @@ using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.Events;
 using MacroDeck.Sdk.MusicPlayer;
 using MacroDeck.Sdk.ConfigFlow;
+using MacroDeck.Sdk.Identity;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
@@ -128,13 +129,13 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 	public bool VariablesDependOnConfiguration => false;
 
-	public bool SupportsCatalog => false;
+	public bool SupportsCatalog => true;
 
 	public bool SupportsPush => false;
 
-	public bool SupportsSearch => false;
+	public bool SupportsSearch => true;
 
-	public string CatalogName => string.Empty;
+	public string CatalogName => "App volumes";
 
 	public int? CatalogEntryCount => null;
 
@@ -216,56 +217,183 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		}
 	}
 
-	public ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)
+	public async ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)
 	{
 		var snapshot = _last;
-		VariableReading reading = localId switch
+		if (TryReadEager(snapshot, localId, out var reading))
 		{
-			"title" => TextOrUnavailable(snapshot.HasSession, snapshot.Title),
-			"artist" => TextOrUnavailable(snapshot.HasSession, snapshot.Artist),
-			"album" => TextOrUnavailable(snapshot.HasSession, snapshot.Album),
-			"source-app" => TextOrUnavailable(snapshot.HasSession, snapshot.AppId),
-			"playback-status" => VariableReading.Of(StatusToken(snapshot)),
-			"is-playing" => VariableReading.Of(snapshot is { HasSession: true, Status: PlaybackStatus.Playing }),
-			"has-media" => VariableReading.Of(snapshot.HasSession),
-			"position-seconds" => NumberOrUnavailable(snapshot.HasSession, snapshot.Position.TotalSeconds),
-			"duration-seconds" => NumberOrUnavailable(snapshot.HasSession, snapshot.Duration.TotalSeconds),
-			"position-text" => TextOrUnavailable(snapshot.HasSession, FormatTime(snapshot.Position)),
-			"duration-text" => TextOrUnavailable(snapshot.HasSession, FormatTime(snapshot.Duration)),
-			"progress-percent" => NumberOrUnavailable(snapshot.HasSession, Math.Round(snapshot.ProgressPercent, 1)),
-			"volume-percent" => VariableReading.Of((double)snapshot.VolumePercent, 0, 100, 1),
-			"is-muted" => VariableReading.Of(snapshot.IsMuted),
-			"shuffle-enabled" => snapshot.ShuffleActive is null
+			return reading;
+		}
+
+		return await ReadAppVolumeAsync(localId, cancellationToken);
+	}
+
+	private bool TryReadEager(MediaSnapshot snapshot, string localId, out VariableReading reading)
+	{
+		switch (localId)
+		{
+			case "title":
+				reading = TextOrUnavailable(snapshot.HasSession, snapshot.Title);
+				return true;
+			case "artist":
+				reading = TextOrUnavailable(snapshot.HasSession, snapshot.Artist);
+				return true;
+			case "album":
+				reading = TextOrUnavailable(snapshot.HasSession, snapshot.Album);
+				return true;
+			case "source-app":
+				reading = TextOrUnavailable(snapshot.HasSession, snapshot.AppId);
+				return true;
+			case "playback-status":
+				reading = VariableReading.Of(StatusToken(snapshot));
+				return true;
+			case "is-playing":
+				reading = VariableReading.Of(snapshot is { HasSession: true, Status: PlaybackStatus.Playing });
+				return true;
+			case "has-media":
+				reading = VariableReading.Of(snapshot.HasSession);
+				return true;
+			case "position-seconds":
+				reading = NumberOrUnavailable(snapshot.HasSession, snapshot.Position.TotalSeconds);
+				return true;
+			case "duration-seconds":
+				reading = NumberOrUnavailable(snapshot.HasSession, snapshot.Duration.TotalSeconds);
+				return true;
+			case "position-text":
+				reading = TextOrUnavailable(snapshot.HasSession, FormatTime(snapshot.Position));
+				return true;
+			case "duration-text":
+				reading = TextOrUnavailable(snapshot.HasSession, FormatTime(snapshot.Duration));
+				return true;
+			case "progress-percent":
+				reading = NumberOrUnavailable(snapshot.HasSession, Math.Round(snapshot.ProgressPercent, 1));
+				return true;
+			case "volume-percent":
+				reading = VariableReading.Of((double)snapshot.VolumePercent, 0, 100, 1);
+				return true;
+			case "is-muted":
+				reading = VariableReading.Of(snapshot.IsMuted);
+				return true;
+			case "shuffle-enabled":
+				reading = snapshot.ShuffleActive is null
+					? VariableReading.Unavailable
+					: VariableReading.Of(snapshot.ShuffleActive.Value);
+				return true;
+			case "repeat-mode":
+				reading = TextOrUnavailable(snapshot.HasSession, RepeatToken(snapshot.RepeatMode));
+				return true;
+			case "album-artist":
+				reading = TextOrUnavailable(snapshot.HasSession, snapshot.AlbumArtist);
+				return true;
+			case "genres":
+				reading = TextOrUnavailable(snapshot.HasSession, string.Join(", ", snapshot.Genres));
+				return true;
+			case "track-number":
+				reading = snapshot is { HasSession: true } && snapshot.TrackNumber > 0
+					? VariableReading.Of((double)snapshot.TrackNumber)
+					: VariableReading.Unavailable;
+				return true;
+			case "track-count":
+				reading = snapshot is { HasSession: true } && snapshot.AlbumTrackCount > 0
+					? VariableReading.Of((double)snapshot.AlbumTrackCount)
+					: VariableReading.Unavailable;
+				return true;
+			case "subtitle":
+				reading = TextOrUnavailable(snapshot.HasSession, snapshot.Subtitle);
+				return true;
+			case "playback-type":
+				reading = TextOrUnavailable(snapshot.HasSession, PlaybackTypeToken(snapshot.PlaybackType));
+				return true;
+			case "playback-rate":
+				reading = snapshot is { HasSession: true } && snapshot.PlaybackRate is double rate
+					? VariableReading.Of(rate)
+					: VariableReading.Unavailable;
+				return true;
+			case "is-live":
+				reading = VariableReading.Of(snapshot is { HasSession: true, Status: PlaybackStatus.Playing } && snapshot.Duration <= TimeSpan.Zero);
+				return true;
+			case "can-play":
+				reading = VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPlay);
+				return true;
+			case "can-pause":
+				reading = VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPause);
+				return true;
+			case "can-stop":
+				reading = VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanStop);
+				return true;
+			case "can-next":
+				reading = VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanNext);
+				return true;
+			case "can-previous":
+				reading = VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPrevious);
+				return true;
+			case "can-seek":
+				reading = VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanSeek);
+				return true;
+			case "can-shuffle":
+				reading = VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanShuffle);
+				return true;
+			case "can-repeat":
+				reading = VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanRepeat);
+				return true;
+			case "default-device":
+				reading = TextOrUnavailable(!string.IsNullOrEmpty(_defaultDeviceName), _defaultDeviceName);
+				return true;
+			case "cover-accent":
+				reading = TextOrUnavailable(snapshot.HasSession, snapshot.ArtworkAccent);
+				return true;
+			default:
+				reading = VariableReading.Unavailable;
+				return false;
+		}
+	}
+
+	private async ValueTask<VariableReading> ReadAppVolumeAsync(string localId, CancellationToken cancellationToken)
+	{
+		var appId = NormalizeAppId(localId);
+		if (!MacroDeckId.IsValidLocalId(appId, LocalIdKind.Resource))
+		{
+			return VariableReading.Unavailable;
+		}
+
+		try
+		{
+			var app = await FindAppAsync(appId, cancellationToken);
+			return app is null
 				? VariableReading.Unavailable
-				: VariableReading.Of(snapshot.ShuffleActive.Value),
-			"repeat-mode" => TextOrUnavailable(snapshot.HasSession, RepeatToken(snapshot.RepeatMode)),
-			"album-artist" => TextOrUnavailable(snapshot.HasSession, snapshot.AlbumArtist),
-			"genres" => TextOrUnavailable(snapshot.HasSession, string.Join(", ", snapshot.Genres)),
-			"track-number" => snapshot is { HasSession: true } && snapshot.TrackNumber > 0
-				? VariableReading.Of((double)snapshot.TrackNumber)
-				: VariableReading.Unavailable,
-			"track-count" => snapshot is { HasSession: true } && snapshot.AlbumTrackCount > 0
-				? VariableReading.Of((double)snapshot.AlbumTrackCount)
-				: VariableReading.Unavailable,
-			"subtitle" => TextOrUnavailable(snapshot.HasSession, snapshot.Subtitle),
-			"playback-type" => TextOrUnavailable(snapshot.HasSession, PlaybackTypeToken(snapshot.PlaybackType)),
-			"playback-rate" => snapshot is { HasSession: true } && snapshot.PlaybackRate is double rate
-				? VariableReading.Of(rate)
-				: VariableReading.Unavailable,
-			"is-live" => VariableReading.Of(snapshot is { HasSession: true, Status: PlaybackStatus.Playing } && snapshot.Duration <= TimeSpan.Zero),
-			"can-play" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPlay),
-			"can-pause" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPause),
-			"can-stop" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanStop),
-			"can-next" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanNext),
-			"can-previous" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanPrevious),
-			"can-seek" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanSeek),
-			"can-shuffle" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanShuffle),
-			"can-repeat" => VariableReading.Of(snapshot is { HasSession: true } && snapshot.CanRepeat),
-			"default-device" => TextOrUnavailable(!string.IsNullOrEmpty(_defaultDeviceName), _defaultDeviceName),
-			"cover-accent" => TextOrUnavailable(snapshot.HasSession, snapshot.ArtworkAccent),
-			_ => VariableReading.Unavailable,
-		};
-		return ValueTask.FromResult(reading);
+				: VariableReading.Of((double)app.VolumePercent, 0, 100, 1);
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "App volume read failed.");
+			return VariableReading.Unavailable;
+		}
+	}
+
+	private static string NormalizeAppId(string localId)
+	{
+		var text = localId.Trim();
+		return text.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+			? text[..^4].Trim()
+			: text;
+	}
+
+	private async ValueTask<AudioAppSession?> FindAppAsync(string localId, CancellationToken cancellationToken)
+	{
+		var apps = await _media.GetAudioAppsAsync(cancellationToken);
+		foreach (var app in apps)
+		{
+			if (string.Equals(app.ProcessName, localId, StringComparison.OrdinalIgnoreCase))
+			{
+				return app;
+			}
+		}
+
+		return null;
 	}
 
 	public async ValueTask<VariableWriteResult> SetValueAsync(string localId, object? value, CancellationToken cancellationToken = default)
@@ -346,6 +474,32 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				return VariableWriteResult.Applied();
 			}
 
+			if (MacroDeckId.IsValidLocalId(localId, LocalIdKind.Resource))
+			{
+				var percent = MediaParameters.ReadNumberValue(value);
+				if (percent is null || percent < 0 || percent > 100)
+				{
+					return VariableWriteResult.InvalidValue(Strings.Variables.AppVolume.Description());
+				}
+
+				var appId = NormalizeAppId(localId);
+				try
+				{
+					return await _media.SetAppVolumeAsync(appId, (int)Math.Round(percent.Value), cancellationToken)
+						? VariableWriteResult.Applied()
+						: VariableWriteResult.Unavailable(Strings.Variables.AppVolume.Description());
+				}
+				catch (OperationCanceledException)
+				{
+					throw;
+				}
+				catch (Exception ex)
+				{
+					_logger.Debug(ex, "App volume write failed.");
+					return VariableWriteResult.Unavailable(Strings.Variables.AppVolume.Description());
+				}
+			}
+
 			return VariableWriteResult.NotWritable(Strings.Errors.ReadOnlyVariable());
 		}
 		catch (OperationCanceledException)
@@ -360,10 +514,52 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	}
 
 	public ValueTask<VariableCatalogPage> DiscoverAsync(VariableCatalogQuery query, CancellationToken cancellationToken = default) =>
-		ValueTask.FromResult(VariableCatalogPage.Empty);
+		DiscoverAppVolumesAsync(query, cancellationToken);
 
-	public ValueTask<VariableDefinition?> ResolveAsync(string localId, CancellationToken cancellationToken = default) =>
-		ValueTask.FromResult<VariableDefinition?>(null);
+	public async ValueTask<VariableCatalogPage> DiscoverAppVolumesAsync(VariableCatalogQuery query, CancellationToken cancellationToken)
+	{
+		var items = new List<VariableDefinition>();
+		try
+		{
+			var apps = await _media.GetAudioAppsAsync(cancellationToken);
+			foreach (var app in apps)
+			{
+				if (!string.IsNullOrWhiteSpace(query.Search)
+					&& !app.ProcessName.Contains(query.Search, StringComparison.OrdinalIgnoreCase))
+				{
+					continue;
+				}
+
+				if (!MacroDeckId.IsValidLocalId(app.ProcessName, LocalIdKind.Resource))
+				{
+					continue;
+				}
+
+				items.Add(MediaVariables.AppVolume(app.ProcessName));
+				if (query.PageSize > 0 && items.Count >= query.PageSize)
+				{
+					break;
+				}
+			}
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "App volume discovery failed.");
+		}
+
+		return new VariableCatalogPage { Items = items };
+	}
+
+	public ValueTask<VariableDefinition?> ResolveAsync(string localId, CancellationToken cancellationToken = default)
+	{
+		var appId = NormalizeAppId(localId);
+		return ValueTask.FromResult<VariableDefinition?>(
+			MacroDeckId.IsValidLocalId(appId, LocalIdKind.Resource) ? MediaVariables.AppVolume(appId) : null);
+	}
 
 	public ValueTask<IReadOnlyList<VariableValue>> SubscribeAsync(IReadOnlyCollection<string> localIds, CancellationToken cancellationToken = default) =>
 		ValueTask.FromResult<IReadOnlyList<VariableValue>>([]);

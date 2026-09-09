@@ -58,6 +58,30 @@ internal static class MediaVariables
 		Eager("cover-accent", VariableType.Text, Strings.Variables.CoverAccent.DisplayName(), Strings.Variables.CoverAccent.Description()),
 	];
 
+	public static VariableDefinition AppVolume(string processName) =>
+		VariableDefinition.OnDemand(processName, VariableType.Numeric) with
+		{
+			Name = SanitizeName(processName),
+			DisplayName = $"{processName} volume",
+			Description = Strings.Variables.AppVolume.Description(),
+			Unit = "%",
+			SemanticKind = VariableSemanticKinds.Percentage,
+			IsBindable = true,
+			IsContainer = false,
+			Write = new VariableWriteCapability(),
+		};
+
+	private static string SanitizeName(string processName)
+	{
+		var builder = new System.Text.StringBuilder("app_");
+		foreach (var ch in processName)
+		{
+			builder.Append(char.IsLetterOrDigit(ch) || ch == '_' ? ch : '_');
+		}
+
+		return builder.ToString();
+	}
+
 	private static VariableDefinition Eager(
 		string id,
 		VariableType type,
