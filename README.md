@@ -64,6 +64,16 @@ macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
 
 The locally packed artifact is unsigned, so Macro Deck asks for an explicit confirmation on install. (Store releases are signed server-side by the Creator Portal.)
 
+Headless alternative over plain HTTP on the host machine (no auth on the loopback listener; the TLS port requires login). The port lives in `%TEMP%\macro-deck-host.port`:
+
+```powershell
+$port = Get-Content "$env:TEMP\macro-deck-host.port"
+$body = @{ path = "C:\path\to\com.misu.windows-media-1.8.1.macroDeckPlugin"; force = $false; allowUnsigned = $true } | ConvertTo-Json -Compress
+Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/plugin-installation/install-path" -Method Post -ContentType "application/json" -Body $body
+```
+
+`GET /api/plugin-installation` on the same port lists what is installed. Uploading the file bytes instead works via `POST /api/plugin-installation/install?allowUnsigned=true` as multipart form data (`file` field).
+
 Adding the configuration page means the integration starts disabled until its one-time setup is completed: open the plugin in Macro Deck, walk through the five short steps and it enables itself. Every number field shows its default as a hint; leaving one empty keeps that default. Later edits apply live without restarting.
 
 For development, press F5 with the **Macro Deck - Real Host** launch profile instead: approve the pairing prompt once (Developer Mode must be on) and later runs reuse the stored credential. See `src/WindowsMediaControl/Properties/launchSettings.json`.
