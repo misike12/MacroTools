@@ -9,8 +9,7 @@ on:
   push:
     branches:
       - master
-    paths:
-      - "src/WindowsMediaControl/**"
+  workflow_dispatch:
 
 permissions:
   contents: write
