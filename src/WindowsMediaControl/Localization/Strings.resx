@@ -264,6 +264,24 @@
   <data name="Actions.CycleOutputDevice.Description" xml:space="preserve">
     <value>Switch to the next available audio output.</value>
   </data>
+  <data name="Actions.SetInputDevice.Name" xml:space="preserve">
+    <value>Set input device</value>
+  </data>
+  <data name="Actions.SetInputDevice.Description" xml:space="preserve">
+    <value>Switch the default microphone, e.g. between headset and webcam mic.</value>
+  </data>
+  <data name="Actions.SetInputDevice.Device.Label" xml:space="preserve">
+    <value>Device</value>
+  </data>
+  <data name="Actions.SetInputDevice.Device.Description" xml:space="preserve">
+    <value>Part of the device name, e.g. Microphone.</value>
+  </data>
+  <data name="Actions.CycleInputDevice.Name" xml:space="preserve">
+    <value>Next input device</value>
+  </data>
+  <data name="Actions.CycleInputDevice.Description" xml:space="preserve">
+    <value>Switch to the next available microphone.</value>
+  </data>
   <data name="States.Playing" xml:space="preserve">
     <value>Playing</value>
   </data>
@@ -293,6 +311,9 @@
   </data>
   <data name="Errors.NoAudioDevices" xml:space="preserve">
     <value>No audio output devices are available.</value>
+  </data>
+  <data name="Errors.NoAudioInputDevices" xml:space="preserve">
+    <value>No microphones are available.</value>
   </data>
   <data name="Errors.InvalidSettings" xml:space="preserve">
     <value>Some settings are invalid.</value>
@@ -695,6 +716,12 @@
   </data>
   <data name="Variables.DefaultDevice.Description" xml:space="preserve">
     <value>The current default audio output device.</value>
+  </data>
+  <data name="Variables.DefaultInputDevice.DisplayName" xml:space="preserve">
+    <value>Input device</value>
+  </data>
+  <data name="Variables.DefaultInputDevice.Description" xml:space="preserve">
+    <value>The current default microphone.</value>
   </data>
   <data name="Variables.CoverAccent.DisplayName" xml:space="preserve">
     <value>Cover accent</value>

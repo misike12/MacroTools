@@ -33,7 +33,9 @@ internal sealed class FakeMediaControlService : IMediaControlService
 		["Spotify"] = (50, false),
 	};
 
-	public List<AudioOutputDevice> Devices { get; } = [new AudioOutputDevice("id-speakers", "Speakers", true), new AudioOutputDevice("id-headphones", "Headphones", false)];
+	public List<AudioDevice> Devices { get; } = [new AudioDevice("id-speakers", "Speakers", true), new AudioDevice("id-headphones", "Headphones", false)];
+
+	public List<AudioDevice> InputDevices { get; } = [new AudioDevice("id-mic-array", "Microphone Array", true), new AudioDevice("id-headset-mic", "Headset Microphone", false)];
 
 	public List<string> Calls { get; } = [];
 
@@ -200,8 +202,8 @@ internal sealed class FakeMediaControlService : IMediaControlService
 		return Task.FromResult(TransportResult);
 	}
 
-	public Task<IReadOnlyList<AudioOutputDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
-		Task.FromResult<IReadOnlyList<AudioOutputDevice>>(Devices.ToList());
+	public Task<IReadOnlyList<AudioDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
+		Task.FromResult<IReadOnlyList<AudioDevice>>(Devices.ToList());
 
 	public Task<bool> SetDefaultDeviceAsync(string device, CancellationToken cancellationToken)
 	{
@@ -235,6 +237,46 @@ internal sealed class FakeMediaControlService : IMediaControlService
 		for (var i = 0; i < Devices.Count; i++)
 		{
 			Devices[i] = Devices[i] with { IsDefault = Devices[i].Id == next.Id };
+		}
+
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<IReadOnlyList<AudioDevice>> GetAudioInputDevicesAsync(CancellationToken cancellationToken) =>
+		Task.FromResult<IReadOnlyList<AudioDevice>>(InputDevices.ToList());
+
+	public Task<bool> SetDefaultInputDeviceAsync(string device, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(SetDefaultInputDeviceAsync));
+		var match = InputDevices.FindIndex(d =>
+			string.Equals(d.Id, device, StringComparison.OrdinalIgnoreCase) ||
+			d.Name.Contains(device, StringComparison.OrdinalIgnoreCase));
+		if (match < 0)
+		{
+			return Task.FromResult(false);
+		}
+
+		for (var i = 0; i < InputDevices.Count; i++)
+		{
+			InputDevices[i] = InputDevices[i] with { IsDefault = i == match };
+		}
+
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(CycleDefaultInputDeviceAsync));
+		if (InputDevices.Count == 0)
+		{
+			return Task.FromResult(false);
+		}
+
+		var current = InputDevices.FindIndex(d => d.IsDefault);
+		var next = InputDevices[(current + 1) % InputDevices.Count];
+		for (var i = 0; i < InputDevices.Count; i++)
+		{
+			InputDevices[i] = InputDevices[i] with { IsDefault = InputDevices[i].Id == next.Id };
 		}
 
 		return Task.FromResult(TransportResult);

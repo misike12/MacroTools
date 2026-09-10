@@ -5,7 +5,7 @@ namespace WindowsMediaControl.Media;
 
 public sealed record AudioAppSession(string ProcessName, int ProcessId, string DisplayName, int VolumePercent, bool IsMuted);
 
-public sealed record AudioOutputDevice(string Id, string Name, bool IsDefault);
+public sealed record AudioDevice(string Id, string Name, bool IsDefault);
 
 internal static class AppAudio
 {
@@ -81,11 +81,16 @@ internal static class AppAudio
 		return matched;
 	}
 
-	public static async Task<IReadOnlyList<AudioOutputDevice>> GetOutputDevicesAsync()
+	public static Task<IReadOnlyList<AudioDevice>> GetOutputDevicesAsync() =>
+		FindDevicesAsync(DeviceClass.AudioRender, GetDefaultEndpointId(EDataFlow.Render));
+
+	public static Task<IReadOnlyList<AudioDevice>> GetInputDevicesAsync() =>
+		FindDevicesAsync(DeviceClass.AudioCapture, GetDefaultEndpointId(EDataFlow.Capture));
+
+	private static async Task<IReadOnlyList<AudioDevice>> FindDevicesAsync(DeviceClass deviceClass, string? defaultId)
 	{
-		var devices = new List<AudioOutputDevice>();
-		string? defaultId = GetDefaultRenderEndpointId();
-		var found = await DeviceInformation.FindAllAsync(DeviceClass.AudioRender);
+		var devices = new List<AudioDevice>();
+		var found = await DeviceInformation.FindAllAsync(deviceClass);
 		foreach (var device in found)
 		{
 			if (!device.IsEnabled)
@@ -93,7 +98,7 @@ internal static class AppAudio
 				continue;
 			}
 
-			devices.Add(new AudioOutputDevice(
+			devices.Add(new AudioDevice(
 				device.Id,
 				string.IsNullOrWhiteSpace(device.Name) ? device.Id : device.Name,
 				defaultId is not null && device.Id.Contains(defaultId, StringComparison.OrdinalIgnoreCase)));
@@ -127,12 +132,18 @@ internal static class AppAudio
 		}
 	}
 
-	public static string? GetDefaultRenderEndpointId()
+	public static string? GetDefaultRenderEndpointId() =>
+		GetDefaultEndpointId(EDataFlow.Render);
+
+	public static string? GetDefaultCaptureEndpointId() =>
+		GetDefaultEndpointId(EDataFlow.Capture);
+
+	private static string? GetDefaultEndpointId(EDataFlow flow)
 	{
 		try
 		{
 			var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
-			if (enumerator.GetDefaultAudioEndpoint(EDataFlow.Render, ERole.Multimedia, out var device) != 0 || device is null)
+			if (enumerator.GetDefaultAudioEndpoint(flow, ERole.Multimedia, out var device) != 0 || device is null)
 			{
 				return null;
 			}

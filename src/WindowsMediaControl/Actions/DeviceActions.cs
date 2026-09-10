@@ -76,3 +76,75 @@ public sealed class CycleOutputDeviceAction(IMediaControlService media) : IActio
 		}
 	}
 }
+
+public sealed class SetInputDeviceAction(IMediaControlService media) : IActionDefinition
+{
+	public string Id => "set-input-device";
+	public LocalizedText Name => Strings.Actions.SetInputDevice.Name();
+	public LocalizedText Description => Strings.Actions.SetInputDevice.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } =
+	[
+		new ActionParameter
+		{
+			Name = "device",
+			Type = ActionParameterType.String,
+			Label = Strings.Actions.SetInputDevice.Device.Label(),
+			Description = Strings.Actions.SetInputDevice.Device.Description(),
+			Required = true,
+		},
+	];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
+	public IActionExecutor CreateExecutor() => new Executor(media);
+
+	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	{
+		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			var device = context.Parameters.TryGetValue("device", out var raw) ? raw?.ToString()?.Trim() : null;
+			if (string.IsNullOrWhiteSpace(device))
+			{
+				return ActionResult.Failed(
+					ActionErrorCodes.InvalidParameter,
+					Strings.Actions.SetInputDevice.Device.Label());
+			}
+
+			try
+			{
+				return await media.SetDefaultInputDeviceAsync(device, context.CancellationToken)
+					? ActionResult.Success()
+					: ActionResult.Failed(ActionErrorCodes.NotFound, Strings.Errors.AudioDeviceNotFound());
+			}
+			catch (Exception)
+			{
+				return MediaActionResults.ProviderError();
+			}
+		}
+	}
+}
+
+public sealed class CycleInputDeviceAction(IMediaControlService media) : IActionDefinition
+{
+	public string Id => "cycle-input-device";
+	public LocalizedText Name => Strings.Actions.CycleInputDevice.Name();
+	public LocalizedText Description => Strings.Actions.CycleInputDevice.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
+	public IActionExecutor CreateExecutor() => new Executor(media);
+
+	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	{
+		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			try
+			{
+				return await media.CycleDefaultInputDeviceAsync(context.CancellationToken)
+					? ActionResult.Success()
+					: ActionResult.Failed(ActionErrorCodes.Unavailable, Strings.Errors.NoAudioInputDevices());
+			}
+			catch (Exception)
+			{
+				return MediaActionResults.ProviderError();
+			}
+		}
+	}
+}

@@ -10,6 +10,7 @@ namespace WindowsMediaControl.Media;
 internal enum EDataFlow
 {
 	Render = 0,
+	Capture = 1,
 }
 
 internal enum ERole

@@ -476,7 +476,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	public Task<bool> ToggleAppMuteAsync(string app, CancellationToken cancellationToken) =>
 		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume, !muted)), cancellationToken);
 
-	public async Task<IReadOnlyList<AudioOutputDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
+	public async Task<IReadOnlyList<AudioDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
 		await AppAudio.GetOutputDevicesAsync();
 
 	public async Task<bool> SetDefaultDeviceAsync(string device, CancellationToken cancellationToken)
@@ -486,18 +486,40 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			return false;
 		}
 
-		var id = await ResolveDeviceIdAsync(device);
+		var id = await ResolveDeviceIdAsync(device, AppAudio.GetOutputDevicesAsync);
 		return id is not null && await Task.Run(() => AppAudio.TrySetDefaultDevice(id), cancellationToken);
 	}
 
-	public async Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken)
+	public Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken) =>
+		CycleDefaultDeviceAsync(AppAudio.GetOutputDevicesAsync, cancellationToken);
+
+	public async Task<IReadOnlyList<AudioDevice>> GetAudioInputDevicesAsync(CancellationToken cancellationToken) =>
+		await AppAudio.GetInputDevicesAsync();
+
+	public async Task<bool> SetDefaultInputDeviceAsync(string device, CancellationToken cancellationToken)
+	{
+		if (string.IsNullOrWhiteSpace(device) || !IsSupported)
+		{
+			return false;
+		}
+
+		var id = await ResolveDeviceIdAsync(device, AppAudio.GetInputDevicesAsync);
+		return id is not null && await Task.Run(() => AppAudio.TrySetDefaultDevice(id), cancellationToken);
+	}
+
+	public Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken) =>
+		CycleDefaultDeviceAsync(AppAudio.GetInputDevicesAsync, cancellationToken);
+
+	private async Task<bool> CycleDefaultDeviceAsync(
+		Func<Task<IReadOnlyList<AudioDevice>>> enumerate,
+		CancellationToken cancellationToken)
 	{
 		if (!IsSupported)
 		{
 			return false;
 		}
 
-		var devices = await AppAudio.GetOutputDevicesAsync();
+		var devices = await enumerate();
 		if (devices.Count == 0)
 		{
 			return false;
@@ -508,10 +530,12 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		return await Task.Run(() => AppAudio.TrySetDefaultDevice(next.Id), cancellationToken);
 	}
 
-	private static async Task<string?> ResolveDeviceIdAsync(string device)
+	private static async Task<string?> ResolveDeviceIdAsync(
+		string device,
+		Func<Task<IReadOnlyList<AudioDevice>>> enumerate)
 	{
 		var text = device.Trim();
-		var devices = await AppAudio.GetOutputDevicesAsync();
+		var devices = await enumerate();
 		return devices.FirstOrDefault(d =>
 			string.Equals(d.Id, text, StringComparison.OrdinalIgnoreCase) ||
 			d.Id.Contains(text, StringComparison.OrdinalIgnoreCase) ||

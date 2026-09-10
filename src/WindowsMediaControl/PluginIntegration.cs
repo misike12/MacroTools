@@ -29,6 +29,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private Task? _loopTask;
 	private MediaSnapshot _last = MediaSnapshot.Empty;
 	private string _defaultDeviceName = string.Empty;
+	private string _defaultInputDeviceName = string.Empty;
 	private long _lastEventRefreshTicks;
 	private bool _disposed;
 
@@ -68,6 +69,8 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new ToggleAppMuteAction(media),
 			new SetOutputDeviceAction(media),
 			new CycleOutputDeviceAction(media),
+			new SetInputDeviceAction(media),
+			new CycleInputDeviceAction(media),
 		];
 		Variables = MediaVariables.CreateDefinitions();
 		DeclaredVariables = Variables;
@@ -340,6 +343,9 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				return true;
 			case "default-device":
 				reading = TextOrUnavailable(!string.IsNullOrEmpty(_defaultDeviceName), _defaultDeviceName);
+				return true;
+			case "default-input-device":
+				reading = TextOrUnavailable(!string.IsNullOrEmpty(_defaultInputDeviceName), _defaultInputDeviceName);
 				return true;
 			case "cover-accent":
 				reading = TextOrUnavailable(snapshot.HasSession, snapshot.ArtworkAccent);
@@ -663,6 +669,16 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				if (device.IsDefault)
 				{
 					_defaultDeviceName = device.Name;
+					break;
+				}
+			}
+
+			var inputs = await _media.GetAudioInputDevicesAsync(cancellationToken);
+			foreach (var device in inputs)
+			{
+				if (device.IsDefault)
+				{
+					_defaultInputDeviceName = device.Name;
 					return;
 				}
 			}

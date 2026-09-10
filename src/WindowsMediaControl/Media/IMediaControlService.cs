@@ -32,7 +32,10 @@ public interface IMediaControlService
 	Task<bool> AdjustAppVolumeAsync(string app, int delta, CancellationToken cancellationToken);
 	Task<bool> SetAppMuteAsync(string app, bool muted, CancellationToken cancellationToken);
 	Task<bool> ToggleAppMuteAsync(string app, CancellationToken cancellationToken);
-	Task<IReadOnlyList<AudioOutputDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken);
+	Task<IReadOnlyList<AudioDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken);
 	Task<bool> SetDefaultDeviceAsync(string device, CancellationToken cancellationToken);
 	Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken);
+	Task<IReadOnlyList<AudioDevice>> GetAudioInputDevicesAsync(CancellationToken cancellationToken);
+	Task<bool> SetDefaultInputDeviceAsync(string device, CancellationToken cancellationToken);
+	Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken);
 }

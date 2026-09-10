@@ -647,6 +647,44 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Input_device_actions_drive_the_fake_microphones()
+	{
+		var fake = new FakeMediaControlService();
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var set = await new SetInputDeviceAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["device"] = "headset" },
+			CancellationToken = ct,
+		});
+		var cycle = await new CycleInputDeviceAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var unknown = await new SetInputDeviceAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["device"] = "no-such-device" },
+			CancellationToken = ct,
+		});
+
+		Assert.That(set.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(cycle.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(unknown.Status, Is.EqualTo(ActionResultStatus.Failed));
+		Assert.That(fake.InputDevices.Find(d => d.IsDefault)?.Name, Is.EqualTo("Microphone Array"));
+	}
+
+	[Test]
+	public async Task Default_input_device_is_unavailable_before_the_first_poll()
+	{
+		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That(await integration.ReadAsync("default-input-device"), Is.EqualTo(VariableReading.Unavailable));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
 	public async Task New_capability_variables_read()
 	{
 		var fake = new FakeMediaControlService();
@@ -1223,6 +1261,7 @@ public sealed class LocalizationTests
 			"Actions.Stop.Name", "Actions.Next.Name", "Actions.Previous.Name",
 			"Actions.SeekForward.Name", "Actions.SeekTo.Name",
 			"Actions.VolumeUp.Name", "Actions.SetVolume.Name", "Actions.ToggleMute.Name",
+			"Actions.SetInputDevice.Name", "Actions.CycleInputDevice.Name",
 		})
 		{
 			Assert.That(Strings.LocalizationCatalog.KeysOf("en"), Does.Contain(key), key);

@@ -55,6 +55,7 @@ internal static class MediaVariables
 		Eager("can-shuffle", VariableType.Boolean, Strings.Variables.CanShuffle.DisplayName(), Strings.Variables.CanShuffle.Description()),
 		Eager("can-repeat", VariableType.Boolean, Strings.Variables.CanRepeat.DisplayName(), Strings.Variables.CanRepeat.Description()),
 		Eager("default-device", VariableType.Text, Strings.Variables.DefaultDevice.DisplayName(), Strings.Variables.DefaultDevice.Description()),
+		Eager("default-input-device", VariableType.Text, Strings.Variables.DefaultInputDevice.DisplayName(), Strings.Variables.DefaultInputDevice.Description()),
 		Eager("cover-accent", VariableType.Text, Strings.Variables.CoverAccent.DisplayName(), Strings.Variables.CoverAccent.Description()),
 	];
 
