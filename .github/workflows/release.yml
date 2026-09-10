@@ -57,7 +57,6 @@ jobs:
           }
 
       - name: Run tests
-        if: steps.version.outputs.released == 'false'
         run: dotnet test --nologo
 
       - name: Build plugin artifact
