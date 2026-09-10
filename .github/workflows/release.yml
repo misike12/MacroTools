@@ -1,18 +1,25 @@
 name: Release plugin
 
-# Cut a release by tagging the manifest version:
-#   1. Bump "version" in src/WindowsMediaControl/manifest.json
-#   2. git tag v<version> && git push origin master --tags
-# The workflow verifies tag and manifest agree, then builds, packs and
-# attaches the .macroDeckPlugin artifact to the GitHub release.
+# Fully automatic: pushing a manifest version to master that has no release
+# yet builds, packs and publishes it. Just bump "version" in
+# src/WindowsMediaControl/manifest.json and push - pushes without a version
+# bump find the release already there and do nothing.
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - master
+    paths:
+      - "src/WindowsMediaControl/**"
 
 permissions:
   contents: write
+
+# Serialize releases: two pushes racing the same new version must not both
+# cut it. The loser sees the winner's release and skips.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -30,29 +37,44 @@ jobs:
       - name: Install macrodeck-plugin CLI
         run: dotnet tool install --global MacroDeck.Plugin.Cli --prerelease
 
-      - name: Check tag matches manifest version
-        shell: pwsh
-        run: |
-          $tag = "${{ github.ref_name }}".TrimStart("v")
-          $manifest = Get-Content -LiteralPath "src/WindowsMediaControl/manifest.json" -Raw |
-            ConvertFrom-Json
-          if ($manifest.version -ne $tag) {
-            Write-Error "Tag v$tag does not match manifest version $($manifest.version)."
-            exit 1
-          }
-
-      - name: Run tests
-        run: dotnet test --nologo
-
-      - name: Build plugin artifact
-        run: macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
-
-      - name: Create GitHub release
+      - name: Resolve version
+        id: version
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $manifest = Get-Content -LiteralPath "src/WindowsMediaControl/manifest.json" -Raw |
+            ConvertFrom-Json
+          $tag = "v$($manifest.version)"
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          gh release view $tag *>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Output "Release $tag already exists, nothing to do."
+            "released=true" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "released=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Run tests
+        if: steps.version.outputs.released == 'false'
+        run: dotnet test --nologo
+
+      - name: Build plugin artifact
+        if: steps.version.outputs.released == 'false'
+        run: macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
+
+      - name: Tag and release
+        if: steps.version.outputs.released == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag $tag
+          git push origin $tag
           $args = @("release", "create", $tag, "--generate-notes")
           if ($tag -match "-") { $args += "--prerelease" }
           Get-ChildItem -LiteralPath "artifacts" -Filter "*.macroDeckPlugin" |

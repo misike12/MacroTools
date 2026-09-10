@@ -90,14 +90,11 @@ macrodeck-plugin test --project src/WindowsMediaControl --report markdown --outp
 
 ## Releasing
 
-```bash
-git tag v1.10.1
-git push origin master --tags
-```
-
-The tag must match `"version"` in `src/WindowsMediaControl/manifest.json` exactly
-(`v` prefix plus the manifest version). Pushing it runs `.github/workflows/release.yml`,
-which runs the tests, packs the artifact and attaches it to the GitHub release.
+Bump `"version"` in `src/WindowsMediaControl/manifest.json` and push to `master`.
+`.github/workflows/release.yml` notices the version has no release yet, runs the
+tests, packs the artifact and attaches it to the GitHub release as `v<version>`.
+Pushes without a version bump are no-ops. Versions containing `-`
+(e.g. `1.11.0-beta.1`) are published as pre-releases.
 
 ## Project layout
 
