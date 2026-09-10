@@ -627,7 +627,14 @@ public sealed class PluginIntegrationTests
 		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
 
 		Assert.That(session, Is.Not.Null);
-		Assert.That(session!.BuildTree(), Is.Not.Null);
+		var tree = session!.BuildTree();
+		Assert.That(tree, Is.Not.Null);
+		var json = System.Text.Json.JsonSerializer.Serialize(tree);
+		Assert.That(json, Does.Contain("now-playing.times"));
+		Assert.That(json, Does.Contain("now-playing.times.elapsed"));
+		Assert.That(json, Does.Contain("now-playing.times.duration"));
+		Assert.That(json, Does.Contain("semibold"));
+		Assert.That(json, Does.Not.Contain("borderStyle"));
 		if (session is IAsyncDisposable asyncDisposable)
 		{
 			await asyncDisposable.DisposeAsync();

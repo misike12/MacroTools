@@ -90,7 +90,8 @@ internal static class NowPlayingView
 			{
 				Key = "title",
 				Text = UiText.From(() => content.Value.Title),
-				Size = options.Compact ? UiSize.Capped(0.1, 12) : UiSize.Capped(0.12, 14),
+				Size = options.Compact ? UiSize.Capped(0.1, 12) : UiSize.Capped(0.125, 15),
+				Weight = UiComponentTextWeights.SemiBold,
 				Align = UiComponentAlignments.Center,
 				Wrap = true,
 				MaxLines = 2,
@@ -100,6 +101,7 @@ internal static class NowPlayingView
 				Key = "artist",
 				Text = UiText.From(() => content.Value.Artist),
 				Size = options.Compact ? UiSize.Capped(0.09, 10) : UiSize.Capped(0.1, 12),
+				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			},
 		};
@@ -110,7 +112,8 @@ internal static class NowPlayingView
 			{
 				Key = "album",
 				Text = UiText.From(() => content.Value.Album),
-				Size = UiSize.Capped(0.09, 10),
+				Size = UiSize.Capped(0.085, 10),
+				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			});
 		}
@@ -131,23 +134,22 @@ internal static class NowPlayingView
 				EndColor = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.Accent)
 					? UiValue.None<string>()
 					: UiValue.Of(content.Value.Accent)),
-				Thickness = 0.05,
+				Thickness = 0.04,
 				Fallback = new UiRangeBar
 				{
 					Key = "progress-fallback",
 					Start = UiValue.Of(0.0),
 					End = UiValue.Of(span),
-					Thickness = 0.05,
+					Thickness = 0.04,
 				},
 			});
 			if (!options.Compact)
 			{
 				media.Add(new UiStack
 				{
-					Key = "progress-text",
+					Key = "times",
 					Direction = UiComponentDirections.Horizontal,
-					Justify = UiComponentJustify.Center,
-					Gap = 0.01,
+					Justify = UiComponentJustify.SpaceBetween,
 					Children =
 					[
 						new UiProgressText
@@ -155,20 +157,16 @@ internal static class NowPlayingView
 							Key = "elapsed",
 							Format = UiProgressFormats.Elapsed,
 							Value = UiValue.From(() => content.Value.Progress),
-							Size = UiSize.Capped(0.09, 10),
-						},
-						new UiTextRun
-						{
-							Key = "separator",
-							Text = UiText.From(() => " / "),
-							Size = UiSize.Capped(0.09, 10),
+							Size = UiSize.Capped(0.08, 10),
+							Role = UiComponentTextRoles.Muted,
 						},
 						new UiProgressText
 						{
 							Key = "duration",
 							Format = UiProgressFormats.Duration,
 							Value = UiValue.From(() => content.Value.Progress),
-							Size = UiSize.Capped(0.09, 10),
+							Size = UiSize.Capped(0.08, 10),
+							Role = UiComponentTextRoles.Muted,
 						},
 					],
 				});
@@ -182,12 +180,12 @@ internal static class NowPlayingView
 				Key = "controls",
 				Direction = UiComponentDirections.Horizontal,
 				Justify = UiComponentJustify.Center,
-				Gap = 0.04,
+				Gap = 0.05,
 				Children =
 				[
-					ControlButton("previous", Strings.Widget.Symbols.Previous(), "previous", content, command),
-					ControlButton("play", Strings.Widget.Symbols.Play(), "toggle", content, command),
-					ControlButton("next", Strings.Widget.Symbols.Next(), "next", content, command),
+					ControlButton("previous", Strings.Widget.Symbols.Previous(), "previous", side: true, content, command),
+					ControlButton("play", Strings.Widget.Symbols.Play(), "toggle", side: false, content, command),
+					ControlButton("next", Strings.Widget.Symbols.Next(), "next", side: true, content, command),
 				],
 			});
 		}
@@ -217,8 +215,8 @@ internal static class NowPlayingView
 		return new UiStack
 		{
 			Key = "now-playing",
-			Padding = 0.06,
-			Gap = 0.04,
+			Padding = 0.07,
+			Gap = 0.045,
 			Background = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.AccentDark)
 				? UiValue.None<string>()
 				: UiValue.Of(content.Value.AccentDark)),
@@ -230,6 +228,7 @@ internal static class NowPlayingView
 		string key,
 		MacroDeck.Localization.LocalizedString label,
 		string command,
+		bool side,
 		UiState<WidgetContent> content,
 		Func<string, CancellationToken, Task>? handler)
 	{
@@ -237,9 +236,9 @@ internal static class NowPlayingView
 		{
 			Key = key,
 			Justify = UiComponentJustify.Center,
-			Fill = true,
+			Fill = !side,
+			MainSize = side ? UiSize.Capped(0.2, 48) : default,
 			Corner = UiComponentButtonCorners.Tile,
-			BorderStyle = UiComponentBorderStyles.Static,
 			Children =
 			[
 				new UiTextRun
