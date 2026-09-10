@@ -30,6 +30,8 @@ public sealed record MediaSnapshot
 	public TimeSpan Duration { get; init; } = TimeSpan.Zero;
 	public int? VolumePercent { get; init; }
 	public bool IsMuted { get; init; }
+	public int? MicVolumePercent { get; init; }
+	public bool IsMicMuted { get; init; }
 	public bool? ShuffleActive { get; init; }
 	public MediaRepeatMode RepeatMode { get; init; } = MediaRepeatMode.Off;
 	public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;

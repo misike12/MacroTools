@@ -46,4 +46,11 @@ public sealed class NoOpMediaControlService : IMediaControlService
 		Task.FromResult<IReadOnlyList<AudioDevice>>([]);
 	public Task<bool> SetDefaultInputDeviceAsync(string device, CancellationToken cancellationToken) => Task.FromResult(false);
 	public Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task SetMicVolumeAsync(int percent, CancellationToken cancellationToken) => Task.CompletedTask;
+	public Task MuteMicAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+	public Task UnmuteMicAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+	public Task ToggleMicMuteAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+	public Task<bool> SoloAppAsync(string app, CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task<double?> GetMicPeakAsync(CancellationToken cancellationToken) => Task.FromResult<double?>(null);
+	public Task<double?> GetSystemPeakAsync(CancellationToken cancellationToken) => Task.FromResult<double?>(null);
 }

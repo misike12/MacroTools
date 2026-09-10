@@ -38,4 +38,11 @@ public interface IMediaControlService
 	Task<IReadOnlyList<AudioDevice>> GetAudioInputDevicesAsync(CancellationToken cancellationToken);
 	Task<bool> SetDefaultInputDeviceAsync(string device, CancellationToken cancellationToken);
 	Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken);
+	Task SetMicVolumeAsync(int percent, CancellationToken cancellationToken);
+	Task MuteMicAsync(CancellationToken cancellationToken);
+	Task UnmuteMicAsync(CancellationToken cancellationToken);
+	Task ToggleMicMuteAsync(CancellationToken cancellationToken);
+	Task<bool> SoloAppAsync(string app, CancellationToken cancellationToken);
+	Task<double?> GetMicPeakAsync(CancellationToken cancellationToken);
+	Task<double?> GetSystemPeakAsync(CancellationToken cancellationToken);
 }

@@ -150,6 +150,39 @@
   <data name="Actions.ToggleMute.Description" xml:space="preserve">
     <value>Toggle the system mute state.</value>
   </data>
+  <data name="Actions.SetMicVolume.Name" xml:space="preserve">
+    <value>Set microphone volume</value>
+  </data>
+  <data name="Actions.SetMicVolume.Description" xml:space="preserve">
+    <value>Set the default microphone volume to an exact value.</value>
+  </data>
+  <data name="Actions.MuteMic.Name" xml:space="preserve">
+    <value>Mute microphone</value>
+  </data>
+  <data name="Actions.MuteMic.Description" xml:space="preserve">
+    <value>Mute the default microphone.</value>
+  </data>
+  <data name="Actions.UnmuteMic.Name" xml:space="preserve">
+    <value>Unmute microphone</value>
+  </data>
+  <data name="Actions.UnmuteMic.Description" xml:space="preserve">
+    <value>Unmute the default microphone.</value>
+  </data>
+  <data name="Actions.ToggleMicMute.Name" xml:space="preserve">
+    <value>Mute / unmute microphone</value>
+  </data>
+  <data name="Actions.ToggleMicMute.Description" xml:space="preserve">
+    <value>Toggle the default microphone mute state.</value>
+  </data>
+  <data name="Actions.FocusApp.Name" xml:space="preserve">
+    <value>Focus app audio</value>
+  </data>
+  <data name="Actions.FocusApp.Description" xml:space="preserve">
+    <value>Mute every app except one, e.g. keep only Discord audible.</value>
+  </data>
+  <data name="Actions.FocusApp.App.Description" xml:space="preserve">
+    <value>The app to keep audible, e.g. Discord.</value>
+  </data>
   <data name="Actions.ToggleShuffle.Name" xml:space="preserve">
     <value>Toggle shuffle</value>
   </data>
@@ -602,6 +635,36 @@
   </data>
   <data name="Variables.IsMuted.Description" xml:space="preserve">
     <value>Whether the system audio is muted. Writing it mutes or unmutes.</value>
+  </data>
+  <data name="Variables.MicVolume.DisplayName" xml:space="preserve">
+    <value>Microphone volume</value>
+  </data>
+  <data name="Variables.MicVolume.Description" xml:space="preserve">
+    <value>The default microphone volume. Writing it changes the volume.</value>
+  </data>
+  <data name="Variables.MicMuted.DisplayName" xml:space="preserve">
+    <value>Microphone muted</value>
+  </data>
+  <data name="Variables.MicMuted.Description" xml:space="preserve">
+    <value>Whether the default microphone is muted. Writing it mutes or unmutes.</value>
+  </data>
+  <data name="Variables.MicLevel.DisplayName" xml:space="preserve">
+    <value>Microphone level</value>
+  </data>
+  <data name="Variables.MicLevel.Description" xml:space="preserve">
+    <value>The live input level of the default microphone, from 0 to 100.</value>
+  </data>
+  <data name="Variables.SystemLevel.DisplayName" xml:space="preserve">
+    <value>System level</value>
+  </data>
+  <data name="Variables.SystemLevel.Description" xml:space="preserve">
+    <value>The live output level of the default speakers, from 0 to 100.</value>
+  </data>
+  <data name="Variables.ActiveApps.DisplayName" xml:space="preserve">
+    <value>Active apps</value>
+  </data>
+  <data name="Variables.ActiveApps.Description" xml:space="preserve">
+    <value>Apps currently holding an audio session, comma separated.</value>
   </data>
   <data name="Variables.ShuffleEnabled.DisplayName" xml:space="preserve">
     <value>Shuffle enabled</value>

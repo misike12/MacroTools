@@ -274,3 +274,48 @@ public sealed class ToggleAppMuteAction(IMediaControlService media) : IActionDef
 		}
 	}
 }
+
+public sealed class FocusAppAction(IMediaControlService media) : IActionDefinition
+{
+	public string Id => "focus-app";
+	public LocalizedText Name => Strings.Actions.FocusApp.Name();
+	public LocalizedText Description => Strings.Actions.FocusApp.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } =
+	[
+		new ActionParameter
+		{
+			Name = MediaParameters.AppParameter,
+			Type = ActionParameterType.String,
+			Label = Strings.Params.App.Label(),
+			Description = Strings.Actions.FocusApp.App.Description(),
+			Required = true,
+		},
+	];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
+	public IActionExecutor CreateExecutor() => new Executor(media);
+
+	private sealed class Executor(IMediaControlService media) : IActionExecutor
+	{
+		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			var app = MediaParameters.ReadApp(context.Parameters);
+			if (string.IsNullOrWhiteSpace(app))
+			{
+				return ActionResult.Failed(
+					ActionErrorCodes.InvalidParameter,
+					Strings.Params.App.Label());
+			}
+
+			try
+			{
+				return await media.SoloAppAsync(app, context.CancellationToken)
+					? ActionResult.Success()
+					: ActionResult.Failed(ActionErrorCodes.NotFound, Strings.Errors.AppAudioSessionNotFound());
+			}
+			catch (Exception)
+			{
+				return MediaActionResults.ProviderError();
+			}
+		}
+	}
+}

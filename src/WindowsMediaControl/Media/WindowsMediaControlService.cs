@@ -64,6 +64,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			var info = session.GetPlaybackInfo();
 			var timeline = session.GetTimelineProperties();
 			var audio = SystemAudio.TryRead();
+			var mic = SystemAudio.TryReadCapture();
 
 			var status = MapStatus(info?.PlaybackStatus);
 			var hasSession = status != PlaybackStatus.NoMedia || !string.IsNullOrWhiteSpace(props?.Title);
@@ -104,6 +105,8 @@ public sealed class WindowsMediaControlService : IMediaControlService
 				Duration = duration,
 				VolumePercent = audio?.VolumePercent,
 				IsMuted = audio?.IsMuted ?? false,
+				MicVolumePercent = mic?.VolumePercent,
+				IsMicMuted = mic?.IsMuted ?? false,
 				ShuffleActive = info?.IsShuffleActive,
 				RepeatMode = MapRepeat(info?.AutoRepeatMode),
 				CanPlay = info?.Controls.IsPlayEnabled ?? false,
@@ -509,6 +512,36 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 	public Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken) =>
 		CycleDefaultDeviceAsync(AppAudio.GetInputDevicesAsync, cancellationToken);
+
+	public Task SetMicVolumeAsync(int percent, CancellationToken cancellationToken) =>
+		Task.Run(() =>
+		{
+			var settings = _settings.Current;
+			if (settings.UnmuteOnVolumeChange)
+			{
+				SystemAudio.SetCaptureMute(false);
+			}
+
+			SystemAudio.SetCaptureVolume(settings.ClampVolume(percent));
+		}, cancellationToken);
+
+	public Task MuteMicAsync(CancellationToken cancellationToken) =>
+		Task.Run(() => SystemAudio.SetCaptureMute(true), cancellationToken);
+
+	public Task UnmuteMicAsync(CancellationToken cancellationToken) =>
+		Task.Run(() => SystemAudio.SetCaptureMute(false), cancellationToken);
+
+	public Task ToggleMicMuteAsync(CancellationToken cancellationToken) =>
+		Task.Run(SystemAudio.ToggleCaptureMute, cancellationToken);
+
+	public Task<bool> SoloAppAsync(string app, CancellationToken cancellationToken) =>
+		Task.Run(() => AppAudio.TrySoloApp(app), cancellationToken);
+
+	public Task<double?> GetMicPeakAsync(CancellationToken cancellationToken) =>
+		Task.Run(() => SystemAudio.TryReadPeak(EDataFlow.Capture), cancellationToken);
+
+	public Task<double?> GetSystemPeakAsync(CancellationToken cancellationToken) =>
+		Task.Run(() => SystemAudio.TryReadPeak(EDataFlow.Render), cancellationToken);
 
 	private static async Task<bool> CycleDefaultDeviceAsync(
 		Func<Task<IReadOnlyList<AudioDevice>>> enumerate,

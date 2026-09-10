@@ -81,6 +81,111 @@ internal static class AppAudio
 		return matched;
 	}
 
+	public static bool TrySoloApp(string app)
+	{
+		var found = false;
+		var applied = true;
+		try
+		{
+			var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
+			foreach (var device in EnumerateActiveRenderDevices(enumerator))
+			{
+				try
+				{
+					SoloDeviceSessions(device, app, ref found, ref applied);
+				}
+				catch (COMException)
+				{
+				}
+				catch (UnauthorizedAccessException)
+				{
+				}
+			}
+		}
+		catch (COMException)
+		{
+			return false;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return false;
+		}
+
+		return found && applied;
+	}
+
+	private static void SoloDeviceSessions(IMMDevice device, string app, ref bool found, ref bool applied)
+	{
+		var sessionManagerId = typeof(IAudioSessionManager2).GUID;
+		if (device.Activate(ref sessionManagerId, (int)CLSCTX.All, IntPtr.Zero, out var managerObject) != 0
+			|| managerObject is not IAudioSessionManager2 manager)
+		{
+			return;
+		}
+
+		if (manager.GetSessionEnumerator(out var enumerator) != 0 || enumerator is null)
+		{
+			return;
+		}
+
+		if (enumerator.GetCount(out var count) != 0)
+		{
+			return;
+		}
+
+		for (var i = 0; i < count; i++)
+		{
+			IAudioSessionControl2? control = null;
+			try
+			{
+				if (enumerator.GetSession(i, out control) != 0 || control is null)
+				{
+					continue;
+				}
+
+				if (control.IsSystemSoundsSession() == 0)
+				{
+					continue;
+				}
+
+				if (control.GetProcessId(out var pid) != 0)
+				{
+					continue;
+				}
+
+				string name;
+				try
+				{
+					using var process = System.Diagnostics.Process.GetProcessById(pid);
+					name = process.ProcessName;
+				}
+				catch (Exception)
+				{
+					continue;
+				}
+
+				if (control is not ISimpleAudioVolume volume)
+				{
+					continue;
+				}
+
+				if (name.Contains(app, StringComparison.OrdinalIgnoreCase))
+				{
+					found = true;
+					applied &= volume.SetMute(false, Guid.Empty) == 0;
+				}
+				else
+				{
+					applied &= volume.SetMute(true, Guid.Empty) == 0;
+				}
+			}
+			catch (Exception)
+			{
+				continue;
+			}
+		}
+	}
+
 	public static Task<IReadOnlyList<AudioDevice>> GetOutputDevicesAsync() =>
 		FindDevicesAsync(DeviceClass.AudioRender, GetDefaultEndpointId(EDataFlow.Render));
 

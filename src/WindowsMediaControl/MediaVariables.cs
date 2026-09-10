@@ -36,6 +36,26 @@ internal static class MediaVariables
 			Description = Strings.Variables.IsMuted.Description(),
 			Write = new VariableWriteCapability(),
 		},
+		VariableDefinition.Eager("mic-volume-percent", VariableType.Numeric) with
+		{
+			Name = "mic_volume_percent",
+			DisplayName = Strings.Variables.MicVolume.DisplayName(),
+			Description = Strings.Variables.MicVolume.Description(),
+			Unit = "%",
+			SemanticKind = VariableSemanticKinds.Percentage,
+			RefreshInterval = TimeSpan.FromSeconds(5),
+			Write = new VariableWriteCapability(),
+		},
+		VariableDefinition.Eager("is-mic-muted", VariableType.Boolean) with
+		{
+			Name = "is_mic_muted",
+			DisplayName = Strings.Variables.MicMuted.DisplayName(),
+			Description = Strings.Variables.MicMuted.Description(),
+			Write = new VariableWriteCapability(),
+		},
+		Eager("mic-level-percent", VariableType.Numeric, Strings.Variables.MicLevel.DisplayName(), Strings.Variables.MicLevel.Description(), unit: "%", semanticKind: VariableSemanticKinds.Percentage, refresh: TimeSpan.FromMilliseconds(250)),
+		Eager("system-level-percent", VariableType.Numeric, Strings.Variables.SystemLevel.DisplayName(), Strings.Variables.SystemLevel.Description(), unit: "%", semanticKind: VariableSemanticKinds.Percentage, refresh: TimeSpan.FromMilliseconds(250)),
+		Eager("active-apps", VariableType.Text, Strings.Variables.ActiveApps.DisplayName(), Strings.Variables.ActiveApps.Description()),
 		Eager("shuffle-enabled", VariableType.Boolean, Strings.Variables.ShuffleEnabled.DisplayName(), Strings.Variables.ShuffleEnabled.Description()),
 		Eager("repeat-mode", VariableType.Text, Strings.Variables.RepeatMode.DisplayName(), Strings.Variables.RepeatMode.Description()),
 		Eager("album-artist", VariableType.Text, Strings.Variables.AlbumArtist.DisplayName(), Strings.Variables.AlbumArtist.Description()),

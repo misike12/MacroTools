@@ -37,6 +37,14 @@ internal sealed class FakeMediaControlService : IMediaControlService
 
 	public List<AudioDevice> InputDevices { get; } = [new AudioDevice("id-mic-array", "Microphone Array", true), new AudioDevice("id-headset-mic", "Headset Microphone", false)];
 
+	public int? MicVolumePercent { get; set; } = 80;
+
+	public bool IsMicMuted { get; set; }
+
+	public double? MicPeak { get; set; }
+
+	public double? SystemPeak { get; set; }
+
 	public List<string> Calls { get; } = [];
 
 	public Task<MediaSnapshot> GetSnapshotAsync(CancellationToken cancellationToken) =>
@@ -281,6 +289,57 @@ internal sealed class FakeMediaControlService : IMediaControlService
 
 		return Task.FromResult(TransportResult);
 	}
+
+	public Task SetMicVolumeAsync(int percent, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(SetMicVolumeAsync));
+		MicVolumePercent = Math.Clamp(percent, 0, 100);
+		return Task.CompletedTask;
+	}
+
+	public Task MuteMicAsync(CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(MuteMicAsync));
+		IsMicMuted = true;
+		return Task.CompletedTask;
+	}
+
+	public Task UnmuteMicAsync(CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(UnmuteMicAsync));
+		IsMicMuted = false;
+		return Task.CompletedTask;
+	}
+
+	public Task ToggleMicMuteAsync(CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(ToggleMicMuteAsync));
+		IsMicMuted = !IsMicMuted;
+		return Task.CompletedTask;
+	}
+
+	public Task<bool> SoloAppAsync(string app, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(SoloAppAsync));
+		var match = AppVolumes.Keys.FirstOrDefault(k => k.Contains(app, StringComparison.OrdinalIgnoreCase));
+		if (match is null)
+		{
+			return Task.FromResult(false);
+		}
+
+		foreach (var key in AppVolumes.Keys.ToList())
+		{
+			AppVolumes[key] = (AppVolumes[key].Volume, !string.Equals(key, match, StringComparison.OrdinalIgnoreCase));
+		}
+
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<double?> GetMicPeakAsync(CancellationToken cancellationToken) =>
+		Task.FromResult(MicPeak);
+
+	public Task<double?> GetSystemPeakAsync(CancellationToken cancellationToken) =>
+		Task.FromResult(SystemPeak);
 
 	private Task<bool> RecordBool(string call, string? appId, Action? apply)
 	{

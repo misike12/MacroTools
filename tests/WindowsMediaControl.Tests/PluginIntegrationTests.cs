@@ -951,6 +951,123 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Mic_actions_drive_the_fake_microphone()
+	{
+		var fake = new FakeMediaControlService();
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var set = await new SetMicVolumeAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["volume"] = 30.0 },
+			CancellationToken = ct,
+		});
+		var mute = await new MuteMicAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var toggle = await new ToggleMicMuteAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var unmute = await new UnmuteMicAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var bad = await new SetMicVolumeAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["volume"] = 150.0 },
+			CancellationToken = ct,
+		});
+
+		Assert.That(set.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(mute.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(toggle.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(unmute.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(bad.Status, Is.EqualTo(ActionResultStatus.Failed));
+		Assert.That(fake.MicVolumePercent, Is.EqualTo(30));
+		Assert.That(fake.IsMicMuted, Is.False);
+	}
+
+	[Test]
+	public async Task Mic_variables_read_and_write()
+	{
+		var fake = new FakeMediaControlService
+		{
+			Snapshot = new FakeMediaControlService().Snapshot with { MicVolumePercent = 80, IsMicMuted = true },
+		};
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That((await integration.ReadAsync("mic-volume-percent")).Value, Is.EqualTo(80.0));
+		Assert.That((await integration.ReadAsync("is-mic-muted")).Value, Is.EqualTo(true));
+
+		var volume = await integration.SetValueAsync("mic-volume-percent", 40.0);
+		var mute = await integration.SetValueAsync("is-mic-muted", false);
+
+		Assert.That(volume.Status, Is.EqualTo(VariableWriteStatus.Applied));
+		Assert.That(mute.Status, Is.EqualTo(VariableWriteStatus.Applied));
+		Assert.That(fake.MicVolumePercent, Is.EqualTo(40));
+		Assert.That(fake.IsMicMuted, Is.False);
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Peak_variables_report_live_levels()
+	{
+		var fake = new FakeMediaControlService { MicPeak = 62.5, SystemPeak = 33.0 };
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That((await integration.ReadAsync("mic-level-percent")).Value, Is.EqualTo(62.5));
+		Assert.That((await integration.ReadAsync("system-level-percent")).Value, Is.EqualTo(33.0));
+
+		fake.MicPeak = null;
+		Assert.That(await integration.ReadAsync("mic-level-percent"), Is.EqualTo(VariableReading.Unavailable));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Active_apps_lists_sessions()
+	{
+		var fake = new FakeMediaControlService();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That((await integration.ReadAsync("active-apps")).Value, Is.EqualTo("Spotify"));
+
+		fake.AppVolumes.Clear();
+		Assert.That(await integration.ReadAsync("active-apps"), Is.EqualTo(VariableReading.Unavailable));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Focus_app_mutes_everything_else()
+	{
+		var fake = new FakeMediaControlService();
+		fake.AppVolumes["Discord"] = (70, false);
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var focused = await new FocusAppAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["app"] = "discord" },
+			CancellationToken = ct,
+		});
+		var unknown = await new FocusAppAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["app"] = "no-such-app" },
+			CancellationToken = ct,
+		});
+
+		Assert.That(focused.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(unknown.Status, Is.EqualTo(ActionResultStatus.Failed));
+		Assert.That(fake.AppVolumes["Discord"].Muted, Is.False);
+		Assert.That(fake.AppVolumes["Spotify"].Muted, Is.True);
+	}
+
+	[Test]
 	public async Task Music_player_shuffle_change_is_attempted_before_failing()
 	{
 		var fake = new FakeMediaControlService
@@ -1262,6 +1379,7 @@ public sealed class LocalizationTests
 			"Actions.SeekForward.Name", "Actions.SeekTo.Name",
 			"Actions.VolumeUp.Name", "Actions.SetVolume.Name", "Actions.ToggleMute.Name",
 			"Actions.SetInputDevice.Name", "Actions.CycleInputDevice.Name",
+			"Actions.SetMicVolume.Name", "Actions.MuteMic.Name", "Actions.FocusApp.Name",
 		})
 		{
 			Assert.That(Strings.LocalizationCatalog.KeysOf("en"), Does.Contain(key), key);

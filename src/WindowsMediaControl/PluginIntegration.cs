@@ -71,6 +71,11 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new CycleOutputDeviceAction(media),
 			new SetInputDeviceAction(media),
 			new CycleInputDeviceAction(media),
+			new SetMicVolumeAction(media),
+			new MuteMicAction(media),
+			new UnmuteMicAction(media),
+			new ToggleMicMuteAction(media),
+			new FocusAppAction(media),
 		];
 		Variables = MediaVariables.CreateDefinitions();
 		DeclaredVariables = Variables;
@@ -222,6 +227,16 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 	public async ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)
 	{
+		if (localId is "mic-level-percent" or "system-level-percent")
+		{
+			return await ReadPeakAsync(localId == "mic-level-percent", cancellationToken);
+		}
+
+		if (localId == "active-apps")
+		{
+			return await ReadActiveAppsAsync(cancellationToken);
+		}
+
 		var snapshot = _last;
 		if (TryReadEager(snapshot, localId, out var reading))
 		{
@@ -229,6 +244,50 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		}
 
 		return await ReadAppVolumeAsync(localId, cancellationToken);
+	}
+
+	private async ValueTask<VariableReading> ReadPeakAsync(bool microphone, CancellationToken cancellationToken)
+	{
+		try
+		{
+			var peak = microphone
+				? await _media.GetMicPeakAsync(cancellationToken)
+				: await _media.GetSystemPeakAsync(cancellationToken);
+			return peak is null ? VariableReading.Unavailable : VariableReading.Of(peak.Value, 0, 100, 1);
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Peak level read failed.");
+			return VariableReading.Unavailable;
+		}
+	}
+
+	private async ValueTask<VariableReading> ReadActiveAppsAsync(CancellationToken cancellationToken)
+	{
+		try
+		{
+			var apps = await _media.GetAudioAppsAsync(cancellationToken);
+			var names = apps
+				.Select(app => app.ProcessName)
+				.Where(name => !string.IsNullOrWhiteSpace(name))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+				.ToList();
+			return names.Count == 0 ? VariableReading.Unavailable : VariableReading.Of(string.Join(", ", names));
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Active apps read failed.");
+			return VariableReading.Unavailable;
+		}
 	}
 
 	private bool TryReadEager(MediaSnapshot snapshot, string localId, out VariableReading reading)
@@ -278,6 +337,14 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				return true;
 			case "is-muted":
 				reading = VariableReading.Of(snapshot.IsMuted);
+				return true;
+			case "mic-volume-percent":
+				reading = snapshot.MicVolumePercent is int micPercent
+					? VariableReading.Of((double)micPercent, 0, 100, 1)
+					: VariableReading.Unavailable;
+				return true;
+			case "is-mic-muted":
+				reading = VariableReading.Of(snapshot.IsMicMuted);
 				return true;
 			case "shuffle-enabled":
 				reading = snapshot.ShuffleActive is null
@@ -436,6 +503,40 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				else
 				{
 					await _media.UnmuteAsync(cancellationToken);
+				}
+
+				_last = await _media.GetSnapshotAsync(cancellationToken);
+				return VariableWriteResult.Applied();
+			}
+
+			if (localId == "mic-volume-percent")
+			{
+				var percent = MediaParameters.ReadNumberValue(value);
+				if (percent is null || percent < 0 || percent > 100)
+				{
+					return VariableWriteResult.InvalidValue(Strings.Variables.MicVolume.DisplayName());
+				}
+
+				await _media.SetMicVolumeAsync((int)Math.Round(percent.Value), cancellationToken);
+				_last = await _media.GetSnapshotAsync(cancellationToken);
+				return VariableWriteResult.Applied();
+			}
+
+			if (localId == "is-mic-muted")
+			{
+				var muted = MediaParameters.ReadBooleanValue(value);
+				if (muted is null)
+				{
+					return VariableWriteResult.InvalidValue(Strings.Variables.MicMuted.DisplayName());
+				}
+
+				if (muted.Value)
+				{
+					await _media.MuteMicAsync(cancellationToken);
+				}
+				else
+				{
+					await _media.UnmuteMicAsync(cancellationToken);
 				}
 
 				_last = await _media.GetSnapshotAsync(cancellationToken);
