@@ -40,7 +40,9 @@ public sealed class SetAppVolumeAction(IMediaControlService media) : IActionDefi
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
 			var app = MediaParameters.ReadApp(context.Parameters);
-			var volume = MediaParameters.ReadNumber(context.Parameters, "volume");
+			var volume = context.Parameters.TryGetValue("volume", out var raw)
+				? MediaParameters.ReadNumberValue(raw)
+				: 50.0;
 			if (string.IsNullOrWhiteSpace(app))
 			{
 				return ActionResult.Failed(

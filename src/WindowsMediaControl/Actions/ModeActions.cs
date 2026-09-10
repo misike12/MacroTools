@@ -135,7 +135,7 @@ public sealed class SetRepeatAction(IMediaControlService media, MediaSettingsPro
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var mode = context.Parameters.TryGetValue("mode", out var raw) ? raw?.ToString()?.ToLowerInvariant() : null;
+			var mode = context.Parameters.TryGetValue("mode", out var raw) ? raw?.ToString()?.ToLowerInvariant() : "all";
 			var repeat = mode switch
 			{
 				"off" => MediaRepeatMode.Off,

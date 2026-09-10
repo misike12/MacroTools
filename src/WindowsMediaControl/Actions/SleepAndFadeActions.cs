@@ -233,9 +233,9 @@ public sealed class FadeInPlayAction(IMediaControlService media, MediaSettingsPr
 			try
 			{
 				var app = MediaParameters.ReadApp(context.Parameters, settings);
-				var end = (int)Math.Round(target
-					?? (await media.GetSnapshotAsync(context.CancellationToken)).VolumePercent
-					?? 50);
+				var snapshot = await media.GetSnapshotAsync(context.CancellationToken);
+				var start = snapshot.VolumePercent ?? 50;
+				var end = (int)Math.Round(target ?? snapshot.VolumePercent ?? 50);
 				if (end <= 0)
 				{
 					end = 50;
@@ -243,7 +243,21 @@ public sealed class FadeInPlayAction(IMediaControlService media, MediaSettingsPr
 
 				await media.SetVolumeAsync(0, context.CancellationToken);
 				var played = await media.PlayAsync(context.CancellationToken, app);
-				await FadeRamp.RampAsync(media, 0, end, seconds.Value, context.CancellationToken);
+				if (!played)
+				{
+					try
+					{
+						await media.SetVolumeAsync(start, context.CancellationToken);
+					}
+					catch (Exception)
+					{
+					}
+				}
+				else
+				{
+					await FadeRamp.RampAsync(media, 0, end, seconds.Value, context.CancellationToken);
+				}
+
 				return await MediaActionResults.FromControlResult(media, played, context.CancellationToken);
 			}
 			catch (Exception)

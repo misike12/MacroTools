@@ -105,7 +105,7 @@ src/WindowsMediaControl/
   macrodeck-build.json   self-contained publish recipe for `macrodeck-plugin build`
   PluginIntegration.cs   actions, variables, events, music player, widget wiring, poll loop
   Media/                 SMTC service (WindowsMediaControlService), CoreAudio volume, snapshot model
-  Actions/               transport, seek and volume actions plus shared parameter helpers
+  Actions/               transport, seek, volume, mode, app-volume, device, mic, focus, sleep, fade and system-sounds actions plus shared parameter helpers
   Widgets/               Now Playing widget type, sessions, configuration and previews
   Localization/Strings.resx   every user-facing string (localized, no literals in code)
   Assets/icon.svg        plugin icon

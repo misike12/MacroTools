@@ -372,6 +372,57 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Fade_in_play_restores_volume_when_play_fails()
+	{
+		var fake = new FakeMediaControlService { TransportResult = false };
+		var action = new FadeInPlayAction(fake, new MediaSettingsProvider());
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["seconds"] = 0.1, ["target"] = 30.0 },
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Failed));
+		Assert.That(fake.Snapshot.VolumePercent, Is.EqualTo(50));
+	}
+
+	[Test]
+	public async Task Set_volume_uses_default_when_missing()
+	{
+		var fake = new FakeMediaControlService
+		{
+			Snapshot = new FakeMediaControlService().Snapshot with { VolumePercent = 30 },
+		};
+		var action = new SetVolumeAction(fake);
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.VolumePercent, Is.EqualTo(50));
+	}
+
+	[Test]
+	public async Task Set_repeat_uses_all_when_missing()
+	{
+		var fake = new FakeMediaControlService();
+		var action = new SetRepeatAction(fake, new MediaSettingsProvider());
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.RepeatMode, Is.EqualTo(MediaRepeatMode.All));
+	}
+
+	[Test]
 	public async Task Fade_in_play_ramps_up_to_the_target()
 	{
 		var fake = new FakeMediaControlService

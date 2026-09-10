@@ -146,7 +146,9 @@ public sealed class SetVolumeAction(IMediaControlService media) : IActionDefinit
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var volume = MediaParameters.ReadNumber(context.Parameters, VolumeParameter);
+			var volume = context.Parameters.TryGetValue(VolumeParameter, out var raw)
+				? MediaParameters.ReadNumberValue(raw)
+				: 50.0;
 			if (volume is null || volume < 0 || volume > 100)
 			{
 				return ActionResult.Failed(
