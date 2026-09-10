@@ -83,8 +83,15 @@ For development, press F5 with the **Macro Deck - Real Host** launch profile ins
 ```bash
 dotnet build
 dotnet test
+$env:WINDOWS_MEDIA_CONTROL_NOOP_AUDIO = "1"
 macrodeck-plugin test --project src/WindowsMediaControl --report markdown --output conformance.md
+Remove-Item Env:\WINDOWS_MEDIA_CONTROL_NOOP_AUDIO
 ```
+
+Conformance runs against a no-op audio backend on purpose: the suite drives every
+action including volume and device switches, and the no-op keeps it from touching
+real hardware. Live hardware behavior is covered by the `*LiveTests` fixtures and
+manual verification instead.
 
 `dotnet tool install --global MacroDeck.Plugin.Cli --prerelease` provides `macrodeck-plugin`.
 

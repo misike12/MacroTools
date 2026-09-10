@@ -1398,13 +1398,18 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public void Device_roles_map_to_native_role_ids()
 	{
-		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("all"), Is.EqualTo(new[] { 0, 1, 2 }));
-		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("multimedia"), Is.EqualTo(new[] { 1 }));
-		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("console"), Is.EqualTo(new[] { 0 }));
-		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("communications"), Is.EqualTo(new[] { 2 }));
-		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("nonsense"), Is.EqualTo(new[] { 0, 1, 2 }));
-		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles(null), Is.EqualTo(new[] { 0, 1, 2 }));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("all"), Is.EqualTo(AllRoles));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("multimedia"), Is.EqualTo(MultimediaRole));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("console"), Is.EqualTo(ConsoleRole));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("communications"), Is.EqualTo(CommunicationsRole));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("nonsense"), Is.EqualTo(AllRoles));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles(null), Is.EqualTo(AllRoles));
 	}
+
+	private static readonly int[] AllRoles = [0, 1, 2];
+	private static readonly int[] MultimediaRole = [1];
+	private static readonly int[] ConsoleRole = [0];
+	private static readonly int[] CommunicationsRole = [2];
 
 	[Test]
 	public void App_volume_display_name_uses_the_localized_template()

@@ -307,8 +307,15 @@ enrollment token only through the project's local .NET User Secrets and remove i
 Do not add a second run configuration or a CLI/executable startup path.
 
 ```bash
+$env:WINDOWS_MEDIA_CONTROL_NOOP_AUDIO = "1"
 macrodeck-plugin test --project src/WindowsMediaControl --report markdown --output conformance.md
+Remove-Item Env:\WINDOWS_MEDIA_CONTROL_NOOP_AUDIO
 ```
+
+The no-op gate matters: the suite invokes every declared action with default parameters,
+which on real hardware would flip volumes, mutes and default devices. `NoOp` keeps the
+run side-effect free; hardware truthfulness is covered by the `*LiveTests` fixtures and
+live verification instead.
 
 The conformance suite drives a real session: capability contracts, invocation and cancellation semantics,
 reconnect and resume, the reserved endpoints, logging limits. Exit `0` conformant, `1` the plugin is

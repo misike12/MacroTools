@@ -111,6 +111,18 @@ internal interface IAudioEndpointVolume
 
 	[PreserveSig]
 	int GetMute([MarshalAs(UnmanagedType.Bool)] out bool pbMute);
+
+	[PreserveSig]
+	int GetChannelVolumeLevel(int channel, out float levelDb);
+
+	[PreserveSig]
+	int SetChannelVolumeLevel(int channel, float levelDb, Guid eventContext);
+
+	[PreserveSig]
+	int GetChannelVolumeLevelScalar(int channel, out float level);
+
+	[PreserveSig]
+	int SetChannelVolumeLevelScalar(int channel, float level, Guid eventContext);
 }
 
 [ComImport]
