@@ -5,8 +5,8 @@ work in this repository, update this file as part of that change rather than lea
 
 This repository started from the **Macro Deck 3 out-of-process plugin template**, but it is
 now a real plugin, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
-Control integration (17 actions, 16 variables, 4 events, a music player, a Now Playing widget type
-and a 5-step configuration flow). The template's example action is long gone. The orientation and
+Control integration (41 actions, 40 variables plus an app-volume catalog, 4 events, a music player, a Now Playing widget type
+and a 5-step configuration flow with 26 settings). The template's example action is long gone. The orientation and
 identity checklists below still apply to the mechanics (manifest, build recipe, analyzers), but do
 not "restore" the minimal shape.
 

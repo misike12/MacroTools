@@ -1372,6 +1372,38 @@ public sealed class PluginIntegrationTests
 		{
 			Assert.That(definition.RefreshInterval, Is.Not.Null, definition.Id);
 		}
+
+		Assert.That(MediaVariables.AppVolume("Spotify").RefreshInterval, Is.Not.Null);
+	}
+
+	[Test]
+	public void Non_finite_numbers_are_rejected_as_values()
+	{
+		Assert.That(MediaParameters.ReadNumberValue(double.NaN), Is.Null);
+		Assert.That(MediaParameters.ReadNumberValue(double.PositiveInfinity), Is.Null);
+		Assert.That(MediaParameters.ReadNumberValue(42), Is.EqualTo(42.0));
+		Assert.That(MediaParameters.ReadNumberValue("12.5"), Is.EqualTo(12.5));
+	}
+
+	[Test]
+	public void Volume_clamps_survive_negative_limits()
+	{
+		var settings = MediaSettings.Default with { MaxVolumeLimit = -5, MicMaxVolumeLimit = -5 };
+
+		Assert.That(settings.ClampVolume(80), Is.EqualTo(0));
+		Assert.That(settings.ClampMicVolume(80), Is.EqualTo(0));
+		Assert.That(MediaSettings.Default.ClampVolume(80), Is.EqualTo(80));
+	}
+
+	[Test]
+	public void Device_roles_map_to_native_role_ids()
+	{
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("all"), Is.EqualTo(new[] { 0, 1, 2 }));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("multimedia"), Is.EqualTo(new[] { 1 }));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("console"), Is.EqualTo(new[] { 0 }));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("communications"), Is.EqualTo(new[] { 2 }));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles("nonsense"), Is.EqualTo(new[] { 0, 1, 2 }));
+		Assert.That(MediaSettings.DeviceRoles.ToNativeRoles(null), Is.EqualTo(new[] { 0, 1, 2 }));
 	}
 
 	[Test]

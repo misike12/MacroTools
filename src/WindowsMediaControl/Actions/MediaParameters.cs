@@ -44,7 +44,7 @@ internal static class MediaParameters
 		parameters.TryGetValue(name, out var raw) ? ReadNumberValue(raw) : null;
 
 	public static double? ReadNumberValue(object? raw) =>
-		raw switch
+		Finite(raw switch
 		{
 			null => null,
 			double d => d,
@@ -53,7 +53,10 @@ internal static class MediaParameters
 			long l => l,
 			string s when double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed) => parsed,
 			_ => null,
-		};
+		});
+
+	private static double? Finite(double? value) =>
+		value is { } finite && double.IsFinite(finite) ? finite : null;
 
 	public static bool? ReadBooleanValue(object? raw) =>
 		raw switch

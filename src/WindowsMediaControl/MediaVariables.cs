@@ -92,6 +92,7 @@ internal static class MediaVariables
 			Description = Strings.Variables.AppVolume.Description(),
 			Unit = "%",
 			SemanticKind = VariableSemanticKinds.Percentage,
+			RefreshInterval = TimeSpan.FromSeconds(2),
 			IsBindable = true,
 			IsContainer = false,
 			Write = new VariableWriteCapability(),

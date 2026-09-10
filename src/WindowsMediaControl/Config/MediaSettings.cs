@@ -56,9 +56,9 @@ public sealed record MediaSettings(
 		FocusUnmuteTarget: true,
 		EventDebounceMs: 750);
 
-	public int ClampVolume(int percent) => Math.Clamp(percent, 0, MaxVolumeLimit);
+	public int ClampVolume(int percent) => Math.Clamp(percent, 0, Math.Max(0, MaxVolumeLimit));
 
-	public int ClampMicVolume(int percent) => Math.Clamp(percent, 0, MicMaxVolumeLimit);
+	public int ClampMicVolume(int percent) => Math.Clamp(percent, 0, Math.Max(0, MicMaxVolumeLimit));
 
 	public static class DeviceRoles
 	{

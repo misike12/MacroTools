@@ -241,13 +241,13 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	}
 
 	public Task VolumeUpAsync(int stepPercent, CancellationToken cancellationToken) =>
-		Task.Run(() => AdjustVolume(stepPercent), cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(() => AdjustVolume(stepPercent), ct), ControlTimeout, cancellationToken);
 
 	public Task VolumeDownAsync(int stepPercent, CancellationToken cancellationToken) =>
-		Task.Run(() => AdjustVolume(-stepPercent), cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(() => AdjustVolume(-stepPercent), ct), ControlTimeout, cancellationToken);
 
 	public Task SetVolumeAsync(int percent, CancellationToken cancellationToken) =>
-		Task.Run(() =>
+		WithTimeoutAsync(ct => Task.Run(() =>
 		{
 			var settings = _settings.Current;
 			if (settings.UnmuteOnVolumeChange)
@@ -256,7 +256,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			}
 
 			SystemAudio.SetVolume(settings.ClampVolume(percent));
-		}, cancellationToken);
+		}, ct), ControlTimeout, cancellationToken);
 
 	private void AdjustVolume(int delta)
 	{
@@ -271,13 +271,13 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	}
 
 	public Task MuteAsync(CancellationToken cancellationToken) =>
-		Task.Run(() => SystemAudio.SetMute(true), cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(() => SystemAudio.SetMute(true), ct), ControlTimeout, cancellationToken);
 
 	public Task UnmuteAsync(CancellationToken cancellationToken) =>
-		Task.Run(() => SystemAudio.SetMute(false), cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(() => SystemAudio.SetMute(false), ct), ControlTimeout, cancellationToken);
 
 	public Task ToggleMuteAsync(CancellationToken cancellationToken) =>
-		Task.Run(SystemAudio.ToggleMute, cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(SystemAudio.ToggleMute, ct), ControlTimeout, cancellationToken);
 
 	public Task<bool> ToggleShuffleAsync(CancellationToken cancellationToken, string? appId = null) =>
 		WithTimeoutAsync(
@@ -465,22 +465,42 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	}
 
 	public Task<IReadOnlyList<AudioAppSession>> GetAudioAppsAsync(CancellationToken cancellationToken) =>
-		Task.Run(AppAudio.GetAppSessions, cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(AppAudio.GetAppSessions, ct), ControlTimeout, [], cancellationToken);
 
 	public Task<bool> SetAppVolumeAsync(string app, int percent, CancellationToken cancellationToken) =>
-		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (_, muted) => (percent, muted)), cancellationToken);
+		WithTimeoutAsync(
+			ct => Task.Run(() => AppAudio.TryAdjustAppVolume(app, (_, muted) => (percent, muted)), ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
 
 	public Task<bool> AdjustAppVolumeAsync(string app, int delta, CancellationToken cancellationToken) =>
-		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume + delta, muted)), cancellationToken);
+		WithTimeoutAsync(
+			ct => Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume + delta, muted)), ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
 
 	public Task<bool> SetAppMuteAsync(string app, bool muted, CancellationToken cancellationToken) =>
-		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, _) => (volume, muted)), cancellationToken);
+		WithTimeoutAsync(
+			ct => Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, _) => (volume, muted)), ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
 
 	public Task<bool> ToggleAppMuteAsync(string app, CancellationToken cancellationToken) =>
-		Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume, !muted)), cancellationToken);
+		WithTimeoutAsync(
+			ct => Task.Run(() => AppAudio.TryAdjustAppVolume(app, (volume, muted) => (volume, !muted)), ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
 
 	public async Task<IReadOnlyList<AudioDevice>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
-		await AppAudio.GetOutputDevicesAsync();
+		await WithTimeoutAsync(
+			ct => Task.Run(AppAudio.GetOutputDevicesAsync, ct),
+			ControlTimeout,
+			(IReadOnlyList<AudioDevice>)[],
+			cancellationToken);
 
 	public async Task<bool> SetDefaultDeviceAsync(string device, CancellationToken cancellationToken)
 	{
@@ -489,20 +509,28 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			return false;
 		}
 
-		var id = await ResolveDeviceIdAsync(device, AppAudio.GetOutputDevicesAsync);
-		return id is not null && await Task.Run(
-			() => AppAudio.TrySetDefaultDevice(id, MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole)),
+		var id = await ResolveDeviceIdAsync(device, GetAudioDevicesAsync, cancellationToken);
+		return id is not null && await WithTimeoutAsync(
+			ct => Task.Run(
+				() => AppAudio.TrySetDefaultDevice(id, MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole)),
+				ct),
+			ControlTimeout,
+			false,
 			cancellationToken);
 	}
 
 	public Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken) =>
 		CycleDefaultDeviceAsync(
-			AppAudio.GetOutputDevicesAsync,
+			GetAudioDevicesAsync,
 			MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole),
 			cancellationToken);
 
 	public async Task<IReadOnlyList<AudioDevice>> GetAudioInputDevicesAsync(CancellationToken cancellationToken) =>
-		await AppAudio.GetInputDevicesAsync();
+		await WithTimeoutAsync(
+			ct => Task.Run(AppAudio.GetInputDevicesAsync, ct),
+			ControlTimeout,
+			(IReadOnlyList<AudioDevice>)[],
+			cancellationToken);
 
 	public async Task<bool> SetDefaultInputDeviceAsync(string device, CancellationToken cancellationToken)
 	{
@@ -511,20 +539,24 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			return false;
 		}
 
-		var id = await ResolveDeviceIdAsync(device, AppAudio.GetInputDevicesAsync);
-		return id is not null && await Task.Run(
-			() => AppAudio.TrySetDefaultDevice(id, MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole)),
+		var id = await ResolveDeviceIdAsync(device, GetAudioInputDevicesAsync, cancellationToken);
+		return id is not null && await WithTimeoutAsync(
+			ct => Task.Run(
+				() => AppAudio.TrySetDefaultDevice(id, MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole)),
+				ct),
+			ControlTimeout,
+			false,
 			cancellationToken);
 	}
 
 	public Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken) =>
 		CycleDefaultDeviceAsync(
-			AppAudio.GetInputDevicesAsync,
+			GetAudioInputDevicesAsync,
 			MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole),
 			cancellationToken);
 
 	public Task SetMicVolumeAsync(int percent, CancellationToken cancellationToken) =>
-		Task.Run(() =>
+		WithTimeoutAsync(ct => Task.Run(() =>
 		{
 			var settings = _settings.Current;
 			if (settings.UnmuteMicOnVolumeChange)
@@ -533,37 +565,57 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			}
 
 			SystemAudio.SetCaptureVolume(settings.ClampMicVolume(percent));
-		}, cancellationToken);
+		}, ct), ControlTimeout, cancellationToken);
 
 	public Task MuteMicAsync(CancellationToken cancellationToken) =>
-		Task.Run(() => SystemAudio.SetCaptureMute(true), cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(() => SystemAudio.SetCaptureMute(true), ct), ControlTimeout, cancellationToken);
 
 	public Task UnmuteMicAsync(CancellationToken cancellationToken) =>
-		Task.Run(() => SystemAudio.SetCaptureMute(false), cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(() => SystemAudio.SetCaptureMute(false), ct), ControlTimeout, cancellationToken);
 
 	public Task ToggleMicMuteAsync(CancellationToken cancellationToken) =>
-		Task.Run(SystemAudio.ToggleCaptureMute, cancellationToken);
+		WithTimeoutAsync(ct => Task.Run(SystemAudio.ToggleCaptureMute, ct), ControlTimeout, cancellationToken);
 
 	public Task<bool> SoloAppAsync(string app, CancellationToken cancellationToken) =>
-		Task.Run(() => AppAudio.TrySoloApp(app, _settings.Current.FocusUnmuteTarget), cancellationToken);
+		WithTimeoutAsync(
+			ct => Task.Run(() => AppAudio.TrySoloApp(app, _settings.Current.FocusUnmuteTarget), ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
 
 	public Task<bool> SetSystemSoundsMuteAsync(bool muted, CancellationToken cancellationToken) =>
-		Task.Run(() => AppAudio.TrySetSystemSoundsMute(muted), cancellationToken);
+		WithTimeoutAsync(
+			ct => Task.Run(() => AppAudio.TrySetSystemSoundsMute(muted), ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
 
 	public async Task<bool> ToggleSystemSoundsMuteAsync(CancellationToken cancellationToken)
 	{
-		var current = await Task.Run(AppAudio.TryGetSystemSoundsMute, cancellationToken);
+		var current = await WithTimeoutAsync(
+			ct => Task.Run(AppAudio.TryGetSystemSoundsMute, ct),
+			ControlTimeout,
+			(bool?)null,
+			cancellationToken);
 		return await SetSystemSoundsMuteAsync(!(current ?? false), cancellationToken);
 	}
 
 	public Task<double?> GetMicPeakAsync(CancellationToken cancellationToken) =>
-		Task.Run(() => SystemAudio.TryReadPeak(EDataFlow.Capture), cancellationToken);
+		WithTimeoutAsync(
+			ct => Task.Run(() => SystemAudio.TryReadPeak(EDataFlow.Capture), ct),
+			ControlTimeout,
+			(double?)null,
+			cancellationToken);
 
 	public Task<double?> GetSystemPeakAsync(CancellationToken cancellationToken) =>
-		Task.Run(() => SystemAudio.TryReadPeak(EDataFlow.Render), cancellationToken);
+		WithTimeoutAsync(
+			ct => Task.Run(() => SystemAudio.TryReadPeak(EDataFlow.Render), ct),
+			ControlTimeout,
+			(double?)null,
+			cancellationToken);
 
-	private static async Task<bool> CycleDefaultDeviceAsync(
-		Func<Task<IReadOnlyList<AudioDevice>>> enumerate,
+	private async Task<bool> CycleDefaultDeviceAsync(
+		Func<CancellationToken, Task<IReadOnlyList<AudioDevice>>> enumerate,
 		int[] roles,
 		CancellationToken cancellationToken)
 	{
@@ -572,7 +624,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			return false;
 		}
 
-		var devices = await enumerate();
+		var devices = await enumerate(cancellationToken);
 		if (devices.Count == 0)
 		{
 			return false;
@@ -580,15 +632,20 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 		var current = devices.ToList().FindIndex(d => d.IsDefault);
 		var next = devices[(current + 1) % devices.Count];
-		return await Task.Run(() => AppAudio.TrySetDefaultDevice(next.Id, roles), cancellationToken);
+		return await WithTimeoutAsync(
+			ct => Task.Run(() => AppAudio.TrySetDefaultDevice(next.Id, roles), ct),
+			ControlTimeout,
+			false,
+			cancellationToken);
 	}
 
 	private static async Task<string?> ResolveDeviceIdAsync(
 		string device,
-		Func<Task<IReadOnlyList<AudioDevice>>> enumerate)
+		Func<CancellationToken, Task<IReadOnlyList<AudioDevice>>> enumerate,
+		CancellationToken cancellationToken)
 	{
 		var text = device.Trim();
-		var devices = await enumerate();
+		var devices = await enumerate(cancellationToken);
 		return devices.FirstOrDefault(d =>
 			string.Equals(d.Id, text, StringComparison.OrdinalIgnoreCase) ||
 			d.Id.Contains(text, StringComparison.OrdinalIgnoreCase) ||
@@ -969,6 +1026,16 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			return fallback;
 		}
 	}
+
+	private static Task<bool> WithTimeoutAsync(
+		Func<CancellationToken, Task> invoke,
+		TimeSpan timeout,
+		CancellationToken cancellationToken) =>
+		WithTimeoutAsync(async ct =>
+		{
+			await invoke(ct);
+			return true;
+		}, timeout, false, cancellationToken);
 
 	private static MediaPlaybackType MapContentType(Windows.Media.MediaPlaybackType? type) =>
 		type switch
