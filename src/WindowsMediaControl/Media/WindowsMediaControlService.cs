@@ -510,7 +510,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	public Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken) =>
 		CycleDefaultDeviceAsync(AppAudio.GetInputDevicesAsync, cancellationToken);
 
-	private async Task<bool> CycleDefaultDeviceAsync(
+	private static async Task<bool> CycleDefaultDeviceAsync(
 		Func<Task<IReadOnlyList<AudioDevice>>> enumerate,
 		CancellationToken cancellationToken)
 	{

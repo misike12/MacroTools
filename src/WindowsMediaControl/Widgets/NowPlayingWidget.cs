@@ -43,7 +43,6 @@ public sealed record WidgetContent(
 	string Title,
 	string Artist,
 	string Album,
-	string ProgressText,
 	UiProgressReference Progress,
 	bool IsPlaying,
 	bool HasMedia,
@@ -52,7 +51,7 @@ public sealed record WidgetContent(
 	string AccentDark)
 {
 	public static WidgetContent Empty { get; } = new(
-		string.Empty, string.Empty, string.Empty, string.Empty,
+		string.Empty, string.Empty, string.Empty,
 		new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow },
 		false, false, WidgetOptions.Default, string.Empty, string.Empty);
 
@@ -63,7 +62,6 @@ public sealed record WidgetContent(
 			snapshot.Title,
 			snapshot.Artist,
 			snapshot.Album,
-			snapshot.HasSession ? $"{MediaText.FormatDuration(snapshot.Position)} / {MediaText.FormatDuration(snapshot.Duration)}" : string.Empty,
 			new UiProgressReference
 			{
 				PositionMs = (long)Math.Clamp(snapshot.Position.TotalMilliseconds, 0, double.MaxValue),
@@ -144,12 +142,35 @@ internal static class NowPlayingView
 			});
 			if (!options.Compact)
 			{
-				media.Add(new UiTextRun
+				media.Add(new UiStack
 				{
 					Key = "progress-text",
-					Text = UiText.From(() => content.Value.ProgressText),
-					Size = UiSize.Capped(0.09, 10),
-					Align = UiComponentAlignments.Center,
+					Direction = UiComponentDirections.Horizontal,
+					Justify = UiComponentJustify.Center,
+					Gap = 0.01,
+					Children =
+					[
+						new UiProgressText
+						{
+							Key = "elapsed",
+							Format = UiProgressFormats.Elapsed,
+							Value = UiValue.From(() => content.Value.Progress),
+							Size = UiSize.Capped(0.09, 10),
+						},
+						new UiTextRun
+						{
+							Key = "separator",
+							Text = UiText.From(() => " / "),
+							Size = UiSize.Capped(0.09, 10),
+						},
+						new UiProgressText
+						{
+							Key = "duration",
+							Format = UiProgressFormats.Duration,
+							Value = UiValue.From(() => content.Value.Progress),
+							Size = UiSize.Capped(0.09, 10),
+						},
+					],
 				});
 			}
 		}
@@ -253,7 +274,7 @@ internal static class NowPlayingPreviews
 	[UiPreview("Playing", View = "NowPlaying", Profile = UiPreviewProfiles.Widget)]
 	public static UiElement Playing() => NowPlayingView.Build(
 		new UiState<WidgetContent>(new WidgetContent(
-			"Nightcall", "Kavinsky", "OutRun", "0:42 / 3:35",
+			"Nightcall", "Kavinsky", "OutRun",
 			new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 1 },
 			true, true, WidgetOptions.Default, "#1DB954", "#07451B")),
 		null);
@@ -351,7 +372,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 				return new NowPlayingSession(
 					surface,
 					new UiState<WidgetContent>(new WidgetContent(
-						"Nightcall", "Kavinsky", "OutRun", "0:42 / 3:35",
+						"Nightcall", "Kavinsky", "OutRun",
 						new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 1 },
 						true, true, options, "#1DB954", "#07451B")),
 					_media,
@@ -566,7 +587,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 			}
 
 			var snapshot = await _media.GetSnapshotAsync(cancellationToken);
-			if (!string.IsNullOrEmpty(snapshot.ArtworkId))
+			if (!string.IsNullOrEmpty(snapshot.ArtworkId) && _media.TryGetCachedArtwork(snapshot.ArtworkId) is null)
 			{
 				try
 				{
@@ -579,8 +600,39 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 			}
 
 			var cached = _media.TryGetCachedArtwork(snapshot.ArtworkId);
-			_content.Set(WidgetContent.FromSnapshot(
-				snapshot, _content.Value.Options, cached?.Accent ?? string.Empty, cached?.AccentDark ?? string.Empty));
+			var next = WidgetContent.FromSnapshot(
+				snapshot, _content.Value.Options, cached?.Accent ?? string.Empty, cached?.AccentDark ?? string.Empty);
+			if (NeedsRefresh(_content.Value, next))
+			{
+				_content.Set(next);
+			}
+		}
+
+		// The bar and the times tick on the reader's own clock from the published reference, so
+		// pushing a new anchor every tick would only spend a patch to redraw the same second and
+		// make the bar stutter on every re-anchor. Re-anchor when the reader's prediction drifts.
+		private static bool NeedsRefresh(WidgetContent current, WidgetContent next)
+		{
+			if (current.Title != next.Title
+				|| current.Artist != next.Artist
+				|| current.Album != next.Album
+				|| current.IsPlaying != next.IsPlaying
+				|| current.HasMedia != next.HasMedia
+				|| current.Accent != next.Accent
+				|| current.AccentDark != next.AccentDark
+				|| current.Progress.DurationMs != next.Progress.DurationMs
+				|| current.Progress.Rate != next.Progress.Rate)
+			{
+				return true;
+			}
+
+			var predicted = current.Progress.PositionMs;
+			if (current.IsPlaying)
+			{
+				predicted += (long)(DateTimeOffset.UtcNow - current.Progress.Anchor).TotalMilliseconds;
+			}
+
+			return Math.Abs(predicted - next.Progress.PositionMs) > 1500;
 		}
 
 		private void OnChanged(object? sender, EventArgs e) => Changed?.Invoke(this, e);
