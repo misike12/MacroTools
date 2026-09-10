@@ -42,20 +42,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $ErrorActionPreference = "Continue"
-          Write-Output "gh: $((Get-Command gh -ErrorAction SilentlyContinue)?.Source)"
+          Write-Output "Shell: $($PSVersionTable.PSVersion) on $($PSVersionTable.OS)."
           $manifest = Get-Content -LiteralPath "src/WindowsMediaControl/manifest.json" -Raw |
             ConvertFrom-Json
           $tag = "v$($manifest.version)"
           Write-Output "Manifest version resolves to tag $tag."
           "tag=$tag" >> $env:GITHUB_OUTPUT
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = "application/vnd.github+json"
+          }
           $exists = $false
           try {
-            $info = gh release view $tag --json tagName 2>$null | ConvertFrom-Json
-            $exists = $null -ne $info
+            $response = Invoke-WebRequest `
+              -Uri "https://api.github.com/repos/${{ github.repository }}/releases/tags/$tag" `
+              -Headers $headers -TimeoutSec 30 -UseBasicParsing
+            $exists = $response.StatusCode -eq 200
+            Write-Output "Release lookup HTTP $($response.StatusCode)."
           }
           catch {
-            Write-Output "Release lookup threw: $($_.Exception.Message)"
+            Write-Output "Release lookup failed (treated as missing): $($_.Exception.Message)"
             $exists = $false
           }
           if ($exists) {
@@ -81,12 +87,34 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
+          $repo = "${{ github.repository }}"
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = "application/vnd.github+json"
+          }
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag $tag
           git push origin $tag
-          $args = @("release", "create", $tag, "--generate-notes")
-          if ($tag -match "-") { $args += "--prerelease" }
-          Get-ChildItem -LiteralPath "artifacts" -Filter "*.macroDeckPlugin" |
-            ForEach-Object { $args += $_.FullName }
-          & gh @args
+          $payload = @{
+            tag_name = $tag
+            name = $tag
+            generate_release_notes = $true
+          }
+          if ($tag -match "-") { $payload.prerelease = $true }
+          $release = Invoke-RestMethod `
+            -Uri "https://api.github.com/repos/$repo/releases" `
+            -Method Post -Headers $headers `
+            -Body ($payload | ConvertTo-Json -Compress) `
+            -ContentType "application/json"
+          Write-Output "Created release $($release.id)."
+          $uploadBase = $release.upload_url -replace "\{\?name,label\}$", ""
+          Get-ChildItem -LiteralPath "artifacts" -Filter "*.macroDeckPlugin" | ForEach-Object {
+            $uri = "$uploadBase?name=$($_.Name)"
+            $assetHeaders = @{
+              Authorization = "Bearer $env:GH_TOKEN"
+              "Content-Type" = "application/octet-stream"
+            }
+            $asset = Invoke-RestMethod -Uri $uri -Method Post -Headers $assetHeaders -InFile $_.FullName
+            Write-Output "Uploaded $($asset.name) ($($asset.size) bytes)."
+          }
