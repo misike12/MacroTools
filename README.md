@@ -88,6 +88,17 @@ macrodeck-plugin test --project src/WindowsMediaControl --report markdown --outp
 
 `dotnet tool install --global MacroDeck.Plugin.Cli --prerelease` provides `macrodeck-plugin`.
 
+## Releasing
+
+```bash
+git tag v1.10.1
+git push origin master --tags
+```
+
+The tag must match `"version"` in `src/WindowsMediaControl/manifest.json` exactly
+(`v` prefix plus the manifest version). Pushing it runs `.github/workflows/release.yml`,
+which runs the tests, packs the artifact and attaches it to the GitHub release.
+
 ## Project layout
 
 ```

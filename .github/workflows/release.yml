@@ -1,0 +1,60 @@
+name: Release plugin
+
+# Cut a release by tagging the manifest version:
+#   1. Bump "version" in src/WindowsMediaControl/manifest.json
+#   2. git tag v<version> && git push origin master --tags
+# The workflow verifies tag and manifest agree, then builds, packs and
+# attaches the .macroDeckPlugin artifact to the GitHub release.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install macrodeck-plugin CLI
+        run: dotnet tool install --global MacroDeck.Plugin.Cli --prerelease
+
+      - name: Check tag matches manifest version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $manifest = Get-Content -LiteralPath "src/WindowsMediaControl/manifest.json" -Raw |
+            ConvertFrom-Json
+          if ($manifest.version -ne $tag) {
+            Write-Error "Tag v$tag does not match manifest version $($manifest.version)."
+            exit 1
+          }
+
+      - name: Run tests
+        run: dotnet test --nologo
+
+      - name: Build plugin artifact
+        run: macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $args = @("release", "create", $tag, "--generate-notes")
+          if ($tag -match "-") { $args += "--prerelease" }
+          Get-ChildItem -LiteralPath "artifacts" -Filter "*.macroDeckPlugin" |
+            ForEach-Object { $args += $_.FullName }
+          & gh @args
