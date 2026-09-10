@@ -81,7 +81,10 @@ internal static class AppAudio
 		return matched;
 	}
 
-	public static bool TrySoloApp(string app)
+	public static bool TrySoloApp(string app) =>
+		TrySoloApp(app, unmuteTarget: true);
+
+	public static bool TrySoloApp(string app, bool unmuteTarget)
 	{
 		var found = false;
 		var applied = true;
@@ -92,7 +95,7 @@ internal static class AppAudio
 			{
 				try
 				{
-					SoloDeviceSessions(device, app, ref found, ref applied);
+					SoloDeviceSessions(device, app, unmuteTarget, ref found, ref applied);
 				}
 				catch (COMException)
 				{
@@ -114,7 +117,7 @@ internal static class AppAudio
 		return found && applied;
 	}
 
-	private static void SoloDeviceSessions(IMMDevice device, string app, ref bool found, ref bool applied)
+	private static void SoloDeviceSessions(IMMDevice device, string app, bool unmuteTarget, ref bool found, ref bool applied)
 	{
 		var sessionManagerId = typeof(IAudioSessionManager2).GUID;
 		if (device.Activate(ref sessionManagerId, (int)CLSCTX.All, IntPtr.Zero, out var managerObject) != 0
@@ -172,7 +175,10 @@ internal static class AppAudio
 				if (name.Contains(app, StringComparison.OrdinalIgnoreCase))
 				{
 					found = true;
-					applied &= volume.SetMute(false, Guid.Empty) == 0;
+					if (unmuteTarget)
+					{
+						applied &= volume.SetMute(false, Guid.Empty) == 0;
+					}
 				}
 				else
 				{
@@ -212,12 +218,15 @@ internal static class AppAudio
 		return devices;
 	}
 
-	public static bool TrySetDefaultDevice(string deviceId)
+	public static bool TrySetDefaultDevice(string deviceId) =>
+		TrySetDefaultDevice(deviceId, [0, 1, 2]);
+
+	public static bool TrySetDefaultDevice(string deviceId, int[] roles)
 	{
 		try
 		{
 			var policy = (IPolicyConfig)new PolicyConfigClient();
-			foreach (var role in new[] { 0, 1, 2 })
+			foreach (var role in roles)
 			{
 				if (policy.SetDefaultEndpoint(deviceId, role) != 0)
 				{
@@ -263,6 +272,173 @@ internal static class AppAudio
 		{
 			return null;
 		}
+	}
+
+	public static bool TrySetSystemSoundsMute(bool muted)
+	{
+		var matched = false;
+		try
+		{
+			var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
+			foreach (var device in EnumerateActiveRenderDevices(enumerator))
+			{
+				try
+				{
+					matched |= MuteSystemSoundsSessions(device, muted);
+				}
+				catch (COMException)
+				{
+				}
+				catch (UnauthorizedAccessException)
+				{
+				}
+			}
+		}
+		catch (COMException)
+		{
+			return false;
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return false;
+		}
+
+		return matched;
+	}
+
+	public static bool? TryGetSystemSoundsMute()
+	{
+		try
+		{
+			var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
+			foreach (var device in EnumerateActiveRenderDevices(enumerator))
+			{
+				try
+				{
+					if (ReadSystemSoundsMute(device) is bool muted)
+					{
+						return muted;
+					}
+				}
+				catch (COMException)
+				{
+				}
+				catch (UnauthorizedAccessException)
+				{
+				}
+			}
+		}
+		catch (COMException)
+		{
+		}
+		catch (UnauthorizedAccessException)
+		{
+		}
+
+		return null;
+	}
+
+	private static bool? ReadSystemSoundsMute(IMMDevice device)
+	{
+		var sessionManagerId = typeof(IAudioSessionManager2).GUID;
+		if (device.Activate(ref sessionManagerId, (int)CLSCTX.All, IntPtr.Zero, out var managerObject) != 0
+			|| managerObject is not IAudioSessionManager2 manager)
+		{
+			return null;
+		}
+
+		if (manager.GetSessionEnumerator(out var enumerator) != 0 || enumerator is null)
+		{
+			return null;
+		}
+
+		if (enumerator.GetCount(out var count) != 0)
+		{
+			return null;
+		}
+
+		for (var i = 0; i < count; i++)
+		{
+			IAudioSessionControl2? control = null;
+			try
+			{
+				if (enumerator.GetSession(i, out control) != 0 || control is null)
+				{
+					continue;
+				}
+
+				if (control.IsSystemSoundsSession() != 0)
+				{
+					continue;
+				}
+
+				if (control is ISimpleAudioVolume volume && volume.GetMute(out var muted) == 0)
+				{
+					return muted;
+				}
+			}
+			catch (Exception)
+			{
+				continue;
+			}
+		}
+
+		return null;
+	}
+
+	private static bool MuteSystemSoundsSessions(IMMDevice device, bool muted)
+	{
+		var sessionManagerId = typeof(IAudioSessionManager2).GUID;
+		if (device.Activate(ref sessionManagerId, (int)CLSCTX.All, IntPtr.Zero, out var managerObject) != 0
+			|| managerObject is not IAudioSessionManager2 manager)
+		{
+			return false;
+		}
+
+		if (manager.GetSessionEnumerator(out var enumerator) != 0 || enumerator is null)
+		{
+			return false;
+		}
+
+		if (enumerator.GetCount(out var count) != 0)
+		{
+			return false;
+		}
+
+		var matched = false;
+		for (var i = 0; i < count; i++)
+		{
+			IAudioSessionControl2? control = null;
+			try
+			{
+				if (enumerator.GetSession(i, out control) != 0 || control is null)
+				{
+					continue;
+				}
+
+				if (control.IsSystemSoundsSession() != 0)
+				{
+					continue;
+				}
+
+				if (control is not ISimpleAudioVolume volume)
+				{
+					continue;
+				}
+
+				matched = true;
+				if (volume.SetMute(muted, Guid.Empty) != 0)
+				{
+					return false;
+				}
+			}
+			catch (Exception)
+			{
+				continue;
+			}
+		}
+
+		return matched;
 	}
 
 	private static List<IMMDevice> EnumerateActiveRenderDevices(IMMDeviceEnumerator enumerator)

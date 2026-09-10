@@ -335,6 +335,22 @@ internal sealed class FakeMediaControlService : IMediaControlService
 		return Task.FromResult(TransportResult);
 	}
 
+	public bool SystemSoundsMuted { get; set; }
+
+	public Task<bool> SetSystemSoundsMuteAsync(bool muted, CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(SetSystemSoundsMuteAsync));
+		SystemSoundsMuted = muted;
+		return Task.FromResult(TransportResult);
+	}
+
+	public Task<bool> ToggleSystemSoundsMuteAsync(CancellationToken cancellationToken)
+	{
+		Calls.Add(nameof(ToggleSystemSoundsMuteAsync));
+		SystemSoundsMuted = !SystemSoundsMuted;
+		return Task.FromResult(TransportResult);
+	}
+
 	public Task<double?> GetMicPeakAsync(CancellationToken cancellationToken) =>
 		Task.FromResult(MicPeak);
 

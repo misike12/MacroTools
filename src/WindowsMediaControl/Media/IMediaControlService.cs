@@ -43,6 +43,8 @@ public interface IMediaControlService
 	Task UnmuteMicAsync(CancellationToken cancellationToken);
 	Task ToggleMicMuteAsync(CancellationToken cancellationToken);
 	Task<bool> SoloAppAsync(string app, CancellationToken cancellationToken);
+	Task<bool> SetSystemSoundsMuteAsync(bool muted, CancellationToken cancellationToken);
+	Task<bool> ToggleSystemSoundsMuteAsync(CancellationToken cancellationToken);
 	Task<double?> GetMicPeakAsync(CancellationToken cancellationToken);
 	Task<double?> GetSystemPeakAsync(CancellationToken cancellationToken);
 }

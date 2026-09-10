@@ -51,6 +51,8 @@ public sealed class NoOpMediaControlService : IMediaControlService
 	public Task UnmuteMicAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 	public Task ToggleMicMuteAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 	public Task<bool> SoloAppAsync(string app, CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task<bool> SetSystemSoundsMuteAsync(bool muted, CancellationToken cancellationToken) => Task.FromResult(false);
+	public Task<bool> ToggleSystemSoundsMuteAsync(CancellationToken cancellationToken) => Task.FromResult(false);
 	public Task<double?> GetMicPeakAsync(CancellationToken cancellationToken) => Task.FromResult<double?>(null);
 	public Task<double?> GetSystemPeakAsync(CancellationToken cancellationToken) => Task.FromResult<double?>(null);
 }

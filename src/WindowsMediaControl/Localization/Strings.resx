@@ -315,6 +315,69 @@
   <data name="Actions.CycleInputDevice.Description" xml:space="preserve">
     <value>Switch to the next available microphone.</value>
   </data>
+  <data name="Actions.SleepTimer.Name" xml:space="preserve">
+    <value>Sleep timer</value>
+  </data>
+  <data name="Actions.SleepTimer.Description" xml:space="preserve">
+    <value>Pause playback after a number of minutes. Cancelling the action cancels the timer.</value>
+  </data>
+  <data name="Actions.SleepTimer.Minutes.Label" xml:space="preserve">
+    <value>Minutes</value>
+  </data>
+  <data name="Actions.SleepTimer.Minutes.Description" xml:space="preserve">
+    <value>Minutes to wait before pausing. Zero pauses immediately, a negative value cancels a running timer.</value>
+  </data>
+  <data name="Actions.SleepTimer.Started" xml:space="preserve">
+    <value>Sleep timer started. Run again to re-arm, or with a negative value to cancel.</value>
+  </data>
+  <data name="Actions.FadeOutPause.Name" xml:space="preserve">
+    <value>Fade out and pause</value>
+  </data>
+  <data name="Actions.FadeOutPause.Description" xml:space="preserve">
+    <value>Lower the volume to silence, pause, then restore the volume.</value>
+  </data>
+  <data name="Actions.FadeOutPause.Seconds.Label" xml:space="preserve">
+    <value>Fade length</value>
+  </data>
+  <data name="Actions.FadeOutPause.Seconds.Description" xml:space="preserve">
+    <value>Seconds the fade takes. Zero pauses without fading.</value>
+  </data>
+  <data name="Actions.FadeInPlay.Name" xml:space="preserve">
+    <value>Fade in and play</value>
+  </data>
+  <data name="Actions.FadeInPlay.Description" xml:space="preserve">
+    <value>Start playback at silence and raise the volume to the target.</value>
+  </data>
+  <data name="Actions.FadeInPlay.Seconds.Label" xml:space="preserve">
+    <value>Fade length</value>
+  </data>
+  <data name="Actions.FadeInPlay.Seconds.Description" xml:space="preserve">
+    <value>Seconds the fade takes. Zero plays without fading.</value>
+  </data>
+  <data name="Actions.FadeInPlay.Target.Label" xml:space="preserve">
+    <value>Target volume</value>
+  </data>
+  <data name="Actions.FadeInPlay.Target.Description" xml:space="preserve">
+    <value>Volume to fade in to. Empty keeps the current volume.</value>
+  </data>
+  <data name="Actions.MuteSystemSounds.Name" xml:space="preserve">
+    <value>Mute system sounds</value>
+  </data>
+  <data name="Actions.MuteSystemSounds.Description" xml:space="preserve">
+    <value>Mute Windows system sounds.</value>
+  </data>
+  <data name="Actions.UnmuteSystemSounds.Name" xml:space="preserve">
+    <value>Unmute system sounds</value>
+  </data>
+  <data name="Actions.UnmuteSystemSounds.Description" xml:space="preserve">
+    <value>Unmute Windows system sounds.</value>
+  </data>
+  <data name="Actions.ToggleSystemSounds.Name" xml:space="preserve">
+    <value>Mute / unmute system sounds</value>
+  </data>
+  <data name="Actions.ToggleSystemSounds.Description" xml:space="preserve">
+    <value>Toggle Windows system sounds mute state.</value>
+  </data>
   <data name="States.Playing" xml:space="preserve">
     <value>Playing</value>
   </data>
@@ -338,6 +401,9 @@
   </data>
   <data name="Errors.AppAudioSessionNotFound" xml:space="preserve">
     <value>No audio session was found for that app.</value>
+  </data>
+  <data name="Errors.NoSystemSoundsSession" xml:space="preserve">
+    <value>No system sounds session is active right now.</value>
   </data>
   <data name="Errors.AudioDeviceNotFound" xml:space="preserve">
     <value>No audio device matches that name.</value>
@@ -381,6 +447,18 @@
   <data name="Config.Playback.FastForwardSeconds.Description" xml:space="preserve">
     <value>Seconds to skip when an app does not support fast forward or rewind natively.</value>
   </data>
+  <data name="Config.Playback.SleepMinutes.Label" xml:space="preserve">
+    <value>Default sleep timer</value>
+  </data>
+  <data name="Config.Playback.SleepMinutes.Description" xml:space="preserve">
+    <value>Minutes used by the sleep timer when no value is set on the action.</value>
+  </data>
+  <data name="Config.Playback.FadeSeconds.Label" xml:space="preserve">
+    <value>Default fade length</value>
+  </data>
+  <data name="Config.Playback.FadeSeconds.Description" xml:space="preserve">
+    <value>Seconds used by the fade actions when no length is set on the action.</value>
+  </data>
   <data name="Config.Volume.Title" xml:space="preserve">
     <value>Volume</value>
   </data>
@@ -404,6 +482,36 @@
   </data>
   <data name="Config.Volume.UnmuteOnChange.Description" xml:space="preserve">
     <value>Automatically unmute when the volume is changed while muted.</value>
+  </data>
+  <data name="Config.Volume.MicMaxLimit.Label" xml:space="preserve">
+    <value>Maximum microphone volume</value>
+  </data>
+  <data name="Config.Volume.MicMaxLimit.Description" xml:space="preserve">
+    <value>Microphone volume changes are clamped to this percent.</value>
+  </data>
+  <data name="Config.Volume.UnmuteMicOnChange.Label" xml:space="preserve">
+    <value>Unmute microphone on volume change</value>
+  </data>
+  <data name="Config.Volume.UnmuteMicOnChange.Description" xml:space="preserve">
+    <value>Automatically unmute the microphone when its volume is changed while muted.</value>
+  </data>
+  <data name="Config.Volume.DeviceRole.Label" xml:space="preserve">
+    <value>Device roles to switch</value>
+  </data>
+  <data name="Config.Volume.DeviceRole.Description" xml:space="preserve">
+    <value>Which Windows audio roles the output and input device actions switch. All covers calls and media.</value>
+  </data>
+  <data name="Config.Volume.DeviceRole.All" xml:space="preserve">
+    <value>All roles</value>
+  </data>
+  <data name="Config.Volume.DeviceRole.Multimedia" xml:space="preserve">
+    <value>Multimedia</value>
+  </data>
+  <data name="Config.Volume.DeviceRole.Console" xml:space="preserve">
+    <value>Console</value>
+  </data>
+  <data name="Config.Volume.DeviceRole.Communications" xml:space="preserve">
+    <value>Communications</value>
   </data>
   <data name="Config.Updates.Title" xml:space="preserve">
     <value>Live updates</value>
@@ -453,6 +561,12 @@
   <data name="Config.Events.Mute.Label" xml:space="preserve">
     <value>Mute changed</value>
   </data>
+  <data name="Config.Events.Toast.Label" xml:space="preserve">
+    <value>Track toast</value>
+  </data>
+  <data name="Config.Events.Toast.Description" xml:space="preserve">
+    <value>Show a notification with the new track when it changes.</value>
+  </data>
   <data name="Config.Advanced.Title" xml:space="preserve">
     <value>Advanced</value>
   </data>
@@ -482,6 +596,18 @@
   </data>
   <data name="Config.Advanced.ArtworkCache.Description" xml:space="preserve">
     <value>How many covers are kept in memory.</value>
+  </data>
+  <data name="Config.Advanced.EventDebounce.Label" xml:space="preserve">
+    <value>Event debounce</value>
+  </data>
+  <data name="Config.Advanced.EventDebounce.Description" xml:space="preserve">
+    <value>Milliseconds Windows media events are quieted before a refresh. Higher is calmer but slower.</value>
+  </data>
+  <data name="Config.Advanced.FocusUnmute.Label" xml:space="preserve">
+    <value>Focus unmutes target</value>
+  </data>
+  <data name="Config.Advanced.FocusUnmute.Description" xml:space="preserve">
+    <value>Also unmute the kept app when focusing app audio. Off mutes everything else and leaves the app as it is.</value>
   </data>
   <data name="Config.Advanced.Reset.Label" xml:space="preserve">
     <value>Reset to defaults</value>

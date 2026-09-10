@@ -43,7 +43,26 @@ public static class MediaSettingsReader
 			ButtonArtwork: await ReadBoolAsync(config, entry.Id, MediaSettings.Keys.ButtonArtwork, fallback.ButtonArtwork, timeout.Token),
 			SnapshotTimeoutSeconds: await ReadNumberAsync(config, entry.Id, MediaSettings.Keys.SnapshotTimeout, fallback.SnapshotTimeoutSeconds, timeout.Token),
 			ControlTimeoutSeconds: await ReadNumberAsync(config, entry.Id, MediaSettings.Keys.ControlTimeout, fallback.ControlTimeoutSeconds, timeout.Token),
-			ArtworkCacheSize: Math.Max(1, (int)Math.Round(await ReadNumberAsync(config, entry.Id, MediaSettings.Keys.ArtworkCache, fallback.ArtworkCacheSize, timeout.Token))));
+			ArtworkCacheSize: Math.Max(1, (int)Math.Round(await ReadNumberAsync(config, entry.Id, MediaSettings.Keys.ArtworkCache, fallback.ArtworkCacheSize, timeout.Token))),
+			SleepDefaultMinutes: await ReadNumberAsync(config, entry.Id, MediaSettings.Keys.SleepMinutes, fallback.SleepDefaultMinutes, timeout.Token),
+			FadeSeconds: await ReadNumberAsync(config, entry.Id, MediaSettings.Keys.FadeSeconds, fallback.FadeSeconds, timeout.Token),
+			MicMaxVolumeLimit: (int)Math.Round(await ReadNumberAsync(config, entry.Id, MediaSettings.Keys.MicMaxVolume, fallback.MicMaxVolumeLimit, timeout.Token)),
+			UnmuteMicOnVolumeChange: await ReadBoolAsync(config, entry.Id, MediaSettings.Keys.UnmuteMicOnVolume, fallback.UnmuteMicOnVolumeChange, timeout.Token),
+			DeviceRole: await ReadDeviceRoleAsync(config, entry.Id, fallback.DeviceRole, timeout.Token),
+			TrackToast: await ReadBoolAsync(config, entry.Id, MediaSettings.Keys.TrackToast, fallback.TrackToast, timeout.Token),
+			FocusUnmuteTarget: await ReadBoolAsync(config, entry.Id, MediaSettings.Keys.FocusUnmute, fallback.FocusUnmuteTarget, timeout.Token),
+			EventDebounceMs: await ReadNumberAsync(config, entry.Id, MediaSettings.Keys.EventDebounce, fallback.EventDebounceMs, timeout.Token));
+	}
+
+	private static async Task<string> ReadDeviceRoleAsync(IIntegrationConfig config, Guid entryId, string fallback, CancellationToken cancellationToken)
+	{
+		var raw = (await ReadTextAsync(config, entryId, MediaSettings.Keys.DeviceRole, fallback, cancellationToken)).ToLowerInvariant();
+		return raw is MediaSettings.DeviceRoles.Multimedia
+			or MediaSettings.DeviceRoles.Console
+			or MediaSettings.DeviceRoles.Communications
+			or MediaSettings.DeviceRoles.All
+			? raw
+			: fallback;
 	}
 
 	private static async Task<string> ReadTextAsync(IIntegrationConfig config, Guid entryId, string key, string fallback, CancellationToken cancellationToken)

@@ -18,7 +18,15 @@ public sealed record MediaSettings(
 	bool ButtonArtwork,
 	double SnapshotTimeoutSeconds,
 	double ControlTimeoutSeconds,
-	int ArtworkCacheSize)
+	int ArtworkCacheSize,
+	double SleepDefaultMinutes,
+	double FadeSeconds,
+	int MicMaxVolumeLimit,
+	bool UnmuteMicOnVolumeChange,
+	string DeviceRole,
+	bool TrackToast,
+	bool FocusUnmuteTarget,
+	double EventDebounceMs)
 {
 	public static MediaSettings Default { get; } = new(
 		PreferredApp: string.Empty,
@@ -38,9 +46,35 @@ public sealed record MediaSettings(
 		ButtonArtwork: true,
 		SnapshotTimeoutSeconds: 3,
 		ControlTimeoutSeconds: 6,
-		ArtworkCacheSize: 8);
+		ArtworkCacheSize: 8,
+		SleepDefaultMinutes: 30,
+		FadeSeconds: 3,
+		MicMaxVolumeLimit: 100,
+		UnmuteMicOnVolumeChange: true,
+		DeviceRole: DeviceRoles.All,
+		TrackToast: false,
+		FocusUnmuteTarget: true,
+		EventDebounceMs: 750);
 
 	public int ClampVolume(int percent) => Math.Clamp(percent, 0, MaxVolumeLimit);
+
+	public int ClampMicVolume(int percent) => Math.Clamp(percent, 0, MicMaxVolumeLimit);
+
+	public static class DeviceRoles
+	{
+		public const string All = "all";
+		public const string Multimedia = "multimedia";
+		public const string Console = "console";
+		public const string Communications = "communications";
+
+		public static int[] ToNativeRoles(string? role) => role?.ToLowerInvariant() switch
+		{
+			Multimedia => [1],
+			Console => [0],
+			Communications => [2],
+			_ => [0, 1, 2],
+		};
+	}
 
 	public static class Keys
 	{
@@ -62,6 +96,14 @@ public sealed record MediaSettings(
 		public const string SnapshotTimeout = "snapshot-timeout";
 		public const string ControlTimeout = "control-timeout";
 		public const string ArtworkCache = "artwork-cache";
+		public const string SleepMinutes = "sleep-minutes";
+		public const string FadeSeconds = "fade-seconds";
+		public const string MicMaxVolume = "mic-max-volume";
+		public const string UnmuteMicOnVolume = "unmute-mic-on-volume";
+		public const string DeviceRole = "device-role";
+		public const string TrackToast = "toast-track";
+		public const string FocusUnmute = "focus-unmute-target";
+		public const string EventDebounce = "event-debounce-ms";
 		public const string Reset = "reset-defaults";
 	}
 }

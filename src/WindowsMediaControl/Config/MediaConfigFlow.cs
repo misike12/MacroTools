@@ -71,12 +71,15 @@ public sealed class MediaConfigFlow : IConfigFlow
 	{
 		(MediaSettings.Keys.SeekSeconds, 1, 120),
 		(MediaSettings.Keys.FastForwardSeconds, 1, 60),
+		(MediaSettings.Keys.SleepMinutes, 1, 180),
+		(MediaSettings.Keys.FadeSeconds, 1, 30),
 	});
 
 	private Dictionary<string, LocalizedText> CheckVolume() => CheckNumbers(new (string Key, double Min, double Max)[]
 	{
 		(MediaSettings.Keys.VolumeStep, 1, 25),
 		(MediaSettings.Keys.MaxVolume, 10, 100),
+		(MediaSettings.Keys.MicMaxVolume, 10, 100),
 	});
 
 	private Dictionary<string, LocalizedText> CheckUpdates() => CheckNumbers(new (string Key, double Min, double Max)[]
@@ -91,6 +94,7 @@ public sealed class MediaConfigFlow : IConfigFlow
 		(MediaSettings.Keys.SnapshotTimeout, 1, 10),
 		(MediaSettings.Keys.ControlTimeout, 2, 15),
 		(MediaSettings.Keys.ArtworkCache, 1, 16),
+		(MediaSettings.Keys.EventDebounce, 100, 5000),
 	});
 
 	private Dictionary<string, LocalizedText> CheckNumbers((string Key, double Min, double Max)[] rules)
@@ -139,7 +143,15 @@ public sealed class MediaConfigFlow : IConfigFlow
 			ButtonArtwork: ReadBool(MediaSettings.Keys.ButtonArtwork) ?? fallback.ButtonArtwork,
 			SnapshotTimeoutSeconds: ReadNumber(MediaSettings.Keys.SnapshotTimeout) ?? fallback.SnapshotTimeoutSeconds,
 			ControlTimeoutSeconds: ReadNumber(MediaSettings.Keys.ControlTimeout) ?? fallback.ControlTimeoutSeconds,
-			ArtworkCacheSize: Math.Max(1, (int)Math.Round(ReadNumber(MediaSettings.Keys.ArtworkCache) ?? fallback.ArtworkCacheSize)));
+			ArtworkCacheSize: Math.Max(1, (int)Math.Round(ReadNumber(MediaSettings.Keys.ArtworkCache) ?? fallback.ArtworkCacheSize)),
+			SleepDefaultMinutes: ReadNumber(MediaSettings.Keys.SleepMinutes) ?? fallback.SleepDefaultMinutes,
+			FadeSeconds: ReadNumber(MediaSettings.Keys.FadeSeconds) ?? fallback.FadeSeconds,
+			MicMaxVolumeLimit: (int)Math.Round(ReadNumber(MediaSettings.Keys.MicMaxVolume) ?? fallback.MicMaxVolumeLimit),
+			UnmuteMicOnVolumeChange: ReadBool(MediaSettings.Keys.UnmuteMicOnVolume) ?? fallback.UnmuteMicOnVolumeChange,
+			DeviceRole: ReadDeviceRole(fallback.DeviceRole),
+			TrackToast: ReadBool(MediaSettings.Keys.TrackToast) ?? fallback.TrackToast,
+			FocusUnmuteTarget: ReadBool(MediaSettings.Keys.FocusUnmute) ?? fallback.FocusUnmuteTarget,
+			EventDebounceMs: ReadNumber(MediaSettings.Keys.EventDebounce) ?? fallback.EventDebounceMs);
 	}
 
 	private double? ReadNumber(string key) =>
@@ -151,6 +163,17 @@ public sealed class MediaConfigFlow : IConfigFlow
 	private string ReadText(string key, string fallback) =>
 		_input.TryGetValue(key, out var raw) ? raw?.ToString() ?? fallback : fallback;
 
+	private string ReadDeviceRole(string fallback)
+	{
+		var role = ReadText(MediaSettings.Keys.DeviceRole, fallback).ToLowerInvariant();
+		return role is MediaSettings.DeviceRoles.Multimedia
+			or MediaSettings.DeviceRoles.Console
+			or MediaSettings.DeviceRoles.Communications
+			or MediaSettings.DeviceRoles.All
+			? role
+			: fallback;
+	}
+
 	private static ConfigFlowStep PlaybackStepDefinition() => new()
 	{
 		StepId = PlaybackStep,
@@ -161,6 +184,8 @@ public sealed class MediaConfigFlow : IConfigFlow
 			Text(MediaSettings.Keys.PreferredApp, Strings.Config.Playback.PreferredApp.Label(), Strings.Config.Playback.PreferredApp.Description(), string.Empty),
 			Number(MediaSettings.Keys.SeekSeconds, Strings.Config.Playback.SeekSeconds.Label(), Strings.Config.Playback.SeekSeconds.Description(), 1, 120, 1, MediaSettings.Default.DefaultSeekSeconds),
 			Number(MediaSettings.Keys.FastForwardSeconds, Strings.Config.Playback.FastForwardSeconds.Label(), Strings.Config.Playback.FastForwardSeconds.Description(), 1, 60, 1, MediaSettings.Default.FastForwardSeconds),
+			Number(MediaSettings.Keys.SleepMinutes, Strings.Config.Playback.SleepMinutes.Label(), Strings.Config.Playback.SleepMinutes.Description(), 1, 180, 1, MediaSettings.Default.SleepDefaultMinutes),
+			Number(MediaSettings.Keys.FadeSeconds, Strings.Config.Playback.FadeSeconds.Label(), Strings.Config.Playback.FadeSeconds.Description(), 1, 30, 1, MediaSettings.Default.FadeSeconds),
 		],
 	};
 
@@ -174,6 +199,23 @@ public sealed class MediaConfigFlow : IConfigFlow
 			Number(MediaSettings.Keys.VolumeStep, Strings.Config.Volume.Step.Label(), Strings.Config.Volume.Step.Description(), 1, 25, 1, MediaSettings.Default.DefaultVolumeStep),
 			Number(MediaSettings.Keys.MaxVolume, Strings.Config.Volume.MaxLimit.Label(), Strings.Config.Volume.MaxLimit.Description(), 10, 100, 1, MediaSettings.Default.MaxVolumeLimit),
 			Toggle(MediaSettings.Keys.UnmuteOnVolume, Strings.Config.Volume.UnmuteOnChange.Label(), Strings.Config.Volume.UnmuteOnChange.Description(), MediaSettings.Default.UnmuteOnVolumeChange),
+			Number(MediaSettings.Keys.MicMaxVolume, Strings.Config.Volume.MicMaxLimit.Label(), Strings.Config.Volume.MicMaxLimit.Description(), 10, 100, 1, MediaSettings.Default.MicMaxVolumeLimit),
+			Toggle(MediaSettings.Keys.UnmuteMicOnVolume, Strings.Config.Volume.UnmuteMicOnChange.Label(), Strings.Config.Volume.UnmuteMicOnChange.Description(), MediaSettings.Default.UnmuteMicOnVolumeChange),
+			new ActionParameter
+			{
+				Name = MediaSettings.Keys.DeviceRole,
+				Type = ActionParameterType.Choice,
+				Label = Strings.Config.Volume.DeviceRole.Label(),
+				Description = Strings.Config.Volume.DeviceRole.Description(),
+				Options =
+				[
+					new ActionParameterOption { Value = MediaSettings.DeviceRoles.All, Label = Strings.Config.Volume.DeviceRole.All() },
+					new ActionParameterOption { Value = MediaSettings.DeviceRoles.Multimedia, Label = Strings.Config.Volume.DeviceRole.Multimedia() },
+					new ActionParameterOption { Value = MediaSettings.DeviceRoles.Console, Label = Strings.Config.Volume.DeviceRole.Console() },
+					new ActionParameterOption { Value = MediaSettings.DeviceRoles.Communications, Label = Strings.Config.Volume.DeviceRole.Communications() },
+				],
+				DefaultValue = MediaSettings.DeviceRoles.All,
+			},
 		],
 	};
 
@@ -202,6 +244,7 @@ public sealed class MediaConfigFlow : IConfigFlow
 			Toggle(MediaSettings.Keys.EventsPlayback, Strings.Config.Events.Playback.Label(), Strings.Events.PlaybackChanged.Description(), MediaSettings.Default.PlaybackEvents),
 			Toggle(MediaSettings.Keys.EventsVolume, Strings.Config.Events.Volume.Label(), Strings.Events.VolumeChanged.Description(), MediaSettings.Default.VolumeEvents),
 			Toggle(MediaSettings.Keys.EventsMute, Strings.Config.Events.Mute.Label(), Strings.Events.MuteChanged.Description(), MediaSettings.Default.MuteEvents),
+			Toggle(MediaSettings.Keys.TrackToast, Strings.Config.Events.Toast.Label(), Strings.Config.Events.Toast.Description(), MediaSettings.Default.TrackToast),
 		],
 	};
 
@@ -219,6 +262,8 @@ public sealed class MediaConfigFlow : IConfigFlow
 			Number(MediaSettings.Keys.SnapshotTimeout, Strings.Config.Advanced.SnapshotTimeout.Label(), Strings.Config.Advanced.SnapshotTimeout.Description(), 1, 10, 1, MediaSettings.Default.SnapshotTimeoutSeconds),
 			Number(MediaSettings.Keys.ControlTimeout, Strings.Config.Advanced.ControlTimeout.Label(), Strings.Config.Advanced.ControlTimeout.Description(), 2, 15, 1, MediaSettings.Default.ControlTimeoutSeconds),
 			Number(MediaSettings.Keys.ArtworkCache, Strings.Config.Advanced.ArtworkCache.Label(), Strings.Config.Advanced.ArtworkCache.Description(), 1, 16, 1, MediaSettings.Default.ArtworkCacheSize),
+			Number(MediaSettings.Keys.EventDebounce, Strings.Config.Advanced.EventDebounce.Label(), Strings.Config.Advanced.EventDebounce.Description(), 100, 5000, 50, MediaSettings.Default.EventDebounceMs),
+			Toggle(MediaSettings.Keys.FocusUnmute, Strings.Config.Advanced.FocusUnmute.Label(), Strings.Config.Advanced.FocusUnmute.Description(), MediaSettings.Default.FocusUnmuteTarget),
 			Toggle(MediaSettings.Keys.Reset, Strings.Config.Advanced.Reset.Label(), Strings.Config.Advanced.Reset.Description(), false),
 		],
 	};
@@ -256,6 +301,14 @@ internal static class MediaSettingsValues
 			[MediaSettings.Keys.SnapshotTimeout] = Plain(settings.SnapshotTimeoutSeconds),
 			[MediaSettings.Keys.ControlTimeout] = Plain(settings.ControlTimeoutSeconds),
 			[MediaSettings.Keys.ArtworkCache] = Plain(settings.ArtworkCacheSize),
+			[MediaSettings.Keys.SleepMinutes] = Plain(settings.SleepDefaultMinutes),
+			[MediaSettings.Keys.FadeSeconds] = Plain(settings.FadeSeconds),
+			[MediaSettings.Keys.MicMaxVolume] = Plain(settings.MicMaxVolumeLimit),
+			[MediaSettings.Keys.UnmuteMicOnVolume] = Plain(settings.UnmuteMicOnVolumeChange),
+			[MediaSettings.Keys.DeviceRole] = ConfigFlowValue.Plain(settings.DeviceRole),
+			[MediaSettings.Keys.TrackToast] = Plain(settings.TrackToast),
+			[MediaSettings.Keys.FocusUnmute] = Plain(settings.FocusUnmuteTarget),
+			[MediaSettings.Keys.EventDebounce] = Plain(settings.EventDebounceMs),
 		};
 
 	private static ConfigFlowValue Plain(double value) =>

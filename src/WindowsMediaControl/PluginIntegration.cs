@@ -5,6 +5,7 @@ using MacroDeck.Sdk.Events;
 using MacroDeck.Sdk.MusicPlayer;
 using MacroDeck.Sdk.ConfigFlow;
 using MacroDeck.Sdk.Identity;
+using MacroDeck.Sdk.Notifications;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
@@ -76,6 +77,12 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new UnmuteMicAction(media),
 			new ToggleMicMuteAction(media),
 			new FocusAppAction(media),
+			new MuteSystemSoundsAction(media),
+			new UnmuteSystemSoundsAction(media),
+			new ToggleSystemSoundsAction(media),
+			new SleepTimerAction(media, settings),
+			new FadeOutPauseAction(media, settings),
+			new FadeInPlayAction(media, settings),
 		];
 		Variables = MediaVariables.CreateDefinitions();
 		DeclaredVariables = Variables;
@@ -183,6 +190,11 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public Task ShutdownAsync()
 	{
 		_media.MediaChanged -= OnMediaChanged;
+		foreach (var action in Actions.OfType<SleepTimerAction>())
+		{
+			action.CancelPendingTimer();
+		}
+
 		lock (_loopGate)
 		{
 			_loopCts?.Cancel();
@@ -195,7 +207,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	{
 		var now = DateTimeOffset.UtcNow.Ticks;
 		var last = Interlocked.Read(ref _lastEventRefreshTicks);
-		if (now - last < TimeSpan.FromMilliseconds(750).Ticks)
+		if (now - last < TimeSpan.FromMilliseconds(Math.Clamp(_settings.Current.EventDebounceMs, 100, 5000)).Ticks)
 		{
 			return;
 		}
@@ -714,6 +726,11 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 			_disposed = true;
 			_media.MediaChanged -= OnMediaChanged;
+			foreach (var action in Actions.OfType<SleepTimerAction>())
+			{
+				action.CancelPendingTimer();
+			}
+
 			_loopCts?.Cancel();
 			_loopCts?.Dispose();
 		}
@@ -812,6 +829,16 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 					["artist"] = current.Artist,
 					["album"] = current.Album,
 					["app"] = current.AppId,
+				});
+			}
+
+			if (_settings.Current.TrackToast && !string.IsNullOrWhiteSpace(current.Title))
+			{
+				context.Notifications.Notify(new UserNotificationRequest
+				{
+					Title = current.Title,
+					Message = string.IsNullOrWhiteSpace(current.Artist) ? null : current.Artist,
+					Key = "now-playing",
 				});
 			}
 

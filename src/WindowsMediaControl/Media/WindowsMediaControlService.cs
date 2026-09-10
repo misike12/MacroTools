@@ -490,11 +490,16 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		}
 
 		var id = await ResolveDeviceIdAsync(device, AppAudio.GetOutputDevicesAsync);
-		return id is not null && await Task.Run(() => AppAudio.TrySetDefaultDevice(id), cancellationToken);
+		return id is not null && await Task.Run(
+			() => AppAudio.TrySetDefaultDevice(id, MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole)),
+			cancellationToken);
 	}
 
 	public Task<bool> CycleDefaultDeviceAsync(CancellationToken cancellationToken) =>
-		CycleDefaultDeviceAsync(AppAudio.GetOutputDevicesAsync, cancellationToken);
+		CycleDefaultDeviceAsync(
+			AppAudio.GetOutputDevicesAsync,
+			MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole),
+			cancellationToken);
 
 	public async Task<IReadOnlyList<AudioDevice>> GetAudioInputDevicesAsync(CancellationToken cancellationToken) =>
 		await AppAudio.GetInputDevicesAsync();
@@ -507,22 +512,27 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		}
 
 		var id = await ResolveDeviceIdAsync(device, AppAudio.GetInputDevicesAsync);
-		return id is not null && await Task.Run(() => AppAudio.TrySetDefaultDevice(id), cancellationToken);
+		return id is not null && await Task.Run(
+			() => AppAudio.TrySetDefaultDevice(id, MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole)),
+			cancellationToken);
 	}
 
 	public Task<bool> CycleDefaultInputDeviceAsync(CancellationToken cancellationToken) =>
-		CycleDefaultDeviceAsync(AppAudio.GetInputDevicesAsync, cancellationToken);
+		CycleDefaultDeviceAsync(
+			AppAudio.GetInputDevicesAsync,
+			MediaSettings.DeviceRoles.ToNativeRoles(_settings.Current.DeviceRole),
+			cancellationToken);
 
 	public Task SetMicVolumeAsync(int percent, CancellationToken cancellationToken) =>
 		Task.Run(() =>
 		{
 			var settings = _settings.Current;
-			if (settings.UnmuteOnVolumeChange)
+			if (settings.UnmuteMicOnVolumeChange)
 			{
 				SystemAudio.SetCaptureMute(false);
 			}
 
-			SystemAudio.SetCaptureVolume(settings.ClampVolume(percent));
+			SystemAudio.SetCaptureVolume(settings.ClampMicVolume(percent));
 		}, cancellationToken);
 
 	public Task MuteMicAsync(CancellationToken cancellationToken) =>
@@ -535,7 +545,16 @@ public sealed class WindowsMediaControlService : IMediaControlService
 		Task.Run(SystemAudio.ToggleCaptureMute, cancellationToken);
 
 	public Task<bool> SoloAppAsync(string app, CancellationToken cancellationToken) =>
-		Task.Run(() => AppAudio.TrySoloApp(app), cancellationToken);
+		Task.Run(() => AppAudio.TrySoloApp(app, _settings.Current.FocusUnmuteTarget), cancellationToken);
+
+	public Task<bool> SetSystemSoundsMuteAsync(bool muted, CancellationToken cancellationToken) =>
+		Task.Run(() => AppAudio.TrySetSystemSoundsMute(muted), cancellationToken);
+
+	public async Task<bool> ToggleSystemSoundsMuteAsync(CancellationToken cancellationToken)
+	{
+		var current = await Task.Run(AppAudio.TryGetSystemSoundsMute, cancellationToken);
+		return await SetSystemSoundsMuteAsync(!(current ?? false), cancellationToken);
+	}
 
 	public Task<double?> GetMicPeakAsync(CancellationToken cancellationToken) =>
 		Task.Run(() => SystemAudio.TryReadPeak(EDataFlow.Capture), cancellationToken);
@@ -545,6 +564,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 	private static async Task<bool> CycleDefaultDeviceAsync(
 		Func<Task<IReadOnlyList<AudioDevice>>> enumerate,
+		int[] roles,
 		CancellationToken cancellationToken)
 	{
 		if (!IsSupported)
@@ -560,7 +580,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 
 		var current = devices.ToList().FindIndex(d => d.IsDefault);
 		var next = devices[(current + 1) % devices.Count];
-		return await Task.Run(() => AppAudio.TrySetDefaultDevice(next.Id), cancellationToken);
+		return await Task.Run(() => AppAudio.TrySetDefaultDevice(next.Id, roles), cancellationToken);
 	}
 
 	private static async Task<string?> ResolveDeviceIdAsync(

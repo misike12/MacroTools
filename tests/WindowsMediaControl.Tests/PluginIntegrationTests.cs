@@ -316,6 +316,149 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Sleep_timer_with_zero_minutes_pauses_immediately()
+	{
+		var fake = new FakeMediaControlService();
+		var action = new SleepTimerAction(fake, new MediaSettingsProvider());
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["minutes"] = 0.0 },
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.Status, Is.EqualTo(PlaybackStatus.Paused));
+	}
+
+	[Test]
+	public async Task Sleep_timer_arms_in_the_background_and_negative_cancels()
+	{
+		var fake = new FakeMediaControlService();
+		var action = new SleepTimerAction(fake, new MediaSettingsProvider());
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var armed = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["minutes"] = 30.0 },
+			CancellationToken = ct,
+		});
+		var cancelled = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["minutes"] = -1.0 },
+			CancellationToken = ct,
+		});
+
+		Assert.That(armed.Status, Is.EqualTo(ActionResultStatus.Accepted));
+		Assert.That(cancelled.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.Status, Is.EqualTo(PlaybackStatus.Playing));
+	}
+
+	[Test]
+	public async Task Fade_out_pause_ramps_down_and_restores_volume()
+	{
+		var fake = new FakeMediaControlService();
+		var action = new FadeOutPauseAction(fake, new MediaSettingsProvider());
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["seconds"] = 0.1 },
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.Status, Is.EqualTo(PlaybackStatus.Paused));
+		Assert.That(fake.Snapshot.VolumePercent, Is.EqualTo(50));
+	}
+
+	[Test]
+	public async Task Fade_in_play_ramps_up_to_the_target()
+	{
+		var fake = new FakeMediaControlService
+		{
+			Snapshot = new FakeMediaControlService().Snapshot with { Status = PlaybackStatus.Paused },
+		};
+		var action = new FadeInPlayAction(fake, new MediaSettingsProvider());
+
+		var result = await action.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["seconds"] = 0.1, ["target"] = 30.0 },
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.Snapshot.Status, Is.EqualTo(PlaybackStatus.Playing));
+		Assert.That(fake.Snapshot.VolumePercent, Is.EqualTo(30));
+	}
+
+	[Test]
+	public async Task System_sounds_actions_flip_the_fake_flag()
+	{
+		var fake = new FakeMediaControlService();
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		var mute = await new MuteSystemSoundsAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var toggle = await new ToggleSystemSoundsAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+		var unmute = await new UnmuteSystemSoundsAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object>(),
+			CancellationToken = ct,
+		});
+
+		Assert.That(mute.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(toggle.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(unmute.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(fake.SystemSoundsMuted, Is.False);
+		Assert.That(fake.Calls, Does.Contain(nameof(FakeMediaControlService.SetSystemSoundsMuteAsync)));
+	}
+
+	[Test]
+	public async Task Track_toast_notifies_on_track_change_when_enabled()
+	{
+		var fake = new FakeMediaControlService();
+		var context = new FakeIntegrationContext();
+		var entry = context.Config.AddEntry("test");
+		context.Config.SeedString(entry, "toast-track", "true");
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(context);
+
+		fake.Snapshot = fake.Snapshot with { Title = "Toasted track" };
+		fake.RaiseMediaChanged();
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Notifications.Current.Any(n => n.Title == "Toasted track"))
+		{
+			await Task.Delay(100, TestContext.CurrentContext.CancellationToken);
+		}
+
+		var toast = context.Notifications.Current.FirstOrDefault(n => n.Title == "Toasted track");
+		Assert.That(toast, Is.Not.Null);
+		Assert.That(toast!.Message, Is.EqualTo("Kavinsky"));
+
+		fake.Snapshot = fake.Snapshot with { Title = "Second toast" };
+		fake.RaiseMediaChanged();
+
+		deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Notifications.Current.Any(n => n.Title == "Second toast"))
+		{
+			await Task.Delay(100, TestContext.CurrentContext.CancellationToken);
+		}
+
+		Assert.That(context.Notifications.Current.Count, Is.EqualTo(1));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
 	public async Task Toggle_icon_reports_the_current_artwork_version()
 	{
 		var fake = new FakeMediaControlService
@@ -1295,6 +1438,74 @@ public sealed class ConfigFlowTests
 
 		Assert.That(done.Values!["seek-seconds"].Value, Is.EqualTo("10"));
 		Assert.That(done.Values!["preferred-app"].Value, Is.Empty);
+	}
+
+	[Test]
+	public async Task New_settings_round_trip_through_the_flow()
+	{
+		var flow = CreateFlow();
+		var ct = TestContext.CurrentContext.CancellationToken;
+		var context = new FakeConfigFlowContext();
+
+		await flow.SubmitAsync("playback", new Dictionary<string, object?>
+		{
+			["preferred-app"] = "Spotify",
+			["seek-seconds"] = 10.0,
+			["ff-seconds"] = 10.0,
+			["sleep-minutes"] = 45.0,
+			["fade-seconds"] = 5.0,
+		}, context, ct);
+		await flow.SubmitAsync("volume", new Dictionary<string, object?>
+		{
+			["volume-step"] = 5.0,
+			["max-volume"] = 100.0,
+			["unmute-on-volume"] = true,
+			["mic-max-volume"] = 80.0,
+			["unmute-mic-on-volume"] = false,
+			["device-role"] = "communications",
+		}, context, ct);
+		await flow.SubmitAsync("updates", UpdatesInput(), context, ct);
+		await flow.SubmitAsync("events", new Dictionary<string, object?>
+		{
+			["events-track"] = true,
+			["events-playback"] = true,
+			["events-volume"] = true,
+			["events-mute"] = true,
+			["toast-track"] = true,
+		}, context, ct);
+		var done = await flow.SubmitAsync("advanced", new Dictionary<string, object?>
+		{
+			["button-artwork"] = true,
+			["snapshot-timeout"] = 3.0,
+			["control-timeout"] = 6.0,
+			["artwork-cache"] = 8.0,
+			["event-debounce-ms"] = 1000.0,
+			["focus-unmute-target"] = false,
+			["reset-defaults"] = false,
+		}, context, ct);
+
+		Assert.That(done.Values!["sleep-minutes"].Value, Is.EqualTo("45"));
+		Assert.That(done.Values!["fade-seconds"].Value, Is.EqualTo("5"));
+		Assert.That(done.Values!["mic-max-volume"].Value, Is.EqualTo("80"));
+		Assert.That(done.Values!["unmute-mic-on-volume"].Value, Is.EqualTo("false"));
+		Assert.That(done.Values!["device-role"].Value, Is.EqualTo("communications"));
+		Assert.That(done.Values!["toast-track"].Value, Is.EqualTo("true"));
+		Assert.That(done.Values!["event-debounce-ms"].Value, Is.EqualTo("1000"));
+		Assert.That(done.Values!["focus-unmute-target"].Value, Is.EqualTo("false"));
+	}
+
+	[Test]
+	public async Task Reader_falls_back_for_unknown_device_roles()
+	{
+		var config = new FakeIntegrationConfig();
+		var entry = config.AddEntry("test");
+		config.SeedString(entry, "device-role", "nonsense");
+		config.SeedString(entry, "sleep-minutes", "45");
+
+		var settings = await MediaSettingsReader.ReadAsync(config);
+
+		Assert.That(settings.DeviceRole, Is.EqualTo(MediaSettings.DeviceRoles.All));
+		Assert.That(settings.SleepDefaultMinutes, Is.EqualTo(45.0));
 	}
 
 	[Test]
