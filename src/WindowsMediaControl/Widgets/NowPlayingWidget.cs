@@ -289,6 +289,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 {
 	private readonly IMediaControlService _media;
 	private readonly Serilog.ILogger _logger;
+	private readonly Func<MediaSnapshot>? _snapshots;
 	private static readonly object s_registrationGate = new();
 	private static readonly WidgetTypeDescriptor s_descriptor = new(
 		"now-playing",
@@ -301,10 +302,11 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 	private static string? s_widgetTypeId;
 	private static bool s_registered;
 
-	public NowPlayingWidget(IMediaControlService media, Serilog.ILogger logger)
+	public NowPlayingWidget(IMediaControlService media, Serilog.ILogger logger, Func<MediaSnapshot>? snapshots = null)
 	{
 		_media = media;
 		_logger = logger.ForContext<NowPlayingWidget>();
+		_snapshots = snapshots;
 	}
 
 	public string ProviderName => "Windows media";
@@ -376,6 +378,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 						new UiProgressReference { PositionMs = 42000, Anchor = DateTimeOffset.UtcNow, DurationMs = 215000, Rate = 1 },
 						true, true, options, "#1DB954", "#07451B")),
 					_media,
+					snapshots: null,
 					_logger,
 					live: false);
 			}
@@ -386,6 +389,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 				surface,
 				new UiState<WidgetContent>(WidgetContent.FromSnapshot(snapshot, options, cached?.Accent ?? string.Empty, cached?.AccentDark ?? string.Empty)),
 				_media,
+				_snapshots,
 				_logger,
 				live: true);
 		}
@@ -459,6 +463,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 		private readonly UiView _view;
 		private readonly UiState<WidgetContent>? _content;
 		private readonly IMediaControlService? _media;
+		private readonly Func<MediaSnapshot>? _snapshots;
 		private readonly Serilog.ILogger? _logger;
 		private readonly CancellationTokenSource _cts = new();
 		private readonly Task? _loop;
@@ -468,11 +473,13 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 			MacroDeck.Ui.Model.Surfaces.UiSurface surface,
 			UiState<WidgetContent> content,
 			IMediaControlService media,
+			Func<MediaSnapshot>? snapshots,
 			Serilog.ILogger logger,
 			bool live)
 		{
 			_content = content;
 			_media = media;
+			_snapshots = snapshots;
 			_logger = logger;
 			Func<string, CancellationToken, Task>? command = live ? HandleCommandAsync : null;
 			_view = new UiView(surface, NowPlayingView.Build(content, command));
@@ -586,7 +593,9 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 				return;
 			}
 
-			var snapshot = await _media.GetSnapshotAsync(cancellationToken);
+			var snapshot = _snapshots is not null
+				? _snapshots()
+				: await _media.GetSnapshotAsync(cancellationToken);
 			if (!string.IsNullOrEmpty(snapshot.ArtworkId) && _media.TryGetCachedArtwork(snapshot.ArtworkId) is null)
 			{
 				try

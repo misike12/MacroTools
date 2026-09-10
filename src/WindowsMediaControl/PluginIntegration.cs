@@ -39,7 +39,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_media = media;
 		_settings = settings;
 		_logger = logger.ForContext<PluginIntegration>();
-		_widget = new NowPlayingWidget(media, logger);
+		_widget = new NowPlayingWidget(media, logger, () => _last);
 		Actions =
 		[
 			new PlayAction(media, settings),
@@ -742,6 +742,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	{
 		var interval = TimeSpan.FromSeconds(Math.Clamp(_settings.Current.PollIntervalSeconds, 1, 30));
 		using var timer = new PeriodicTimer(interval);
+		var ticks = 0;
 		while (!cancellationToken.IsCancellationRequested)
 		{
 			try
@@ -775,7 +776,12 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				PublishChanges(previous, snapshot);
 			}
 
-			await RefreshDefaultDeviceAsync(cancellationToken);
+			// Device names barely change; the WinRT enumeration behind them is the
+			// most expensive call in this loop, so it runs every fifth tick.
+			if (ticks++ % 5 == 0)
+			{
+				await RefreshDefaultDeviceAsync(cancellationToken);
+			}
 		}
 	}
 

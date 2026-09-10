@@ -6,7 +6,7 @@ using WindowsMediaControl.Media;
 
 namespace WindowsMediaControl.Actions;
 
-public sealed class SleepTimerAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition
+public sealed class SleepTimerAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition, IDisposable
 {
 	private const string MinutesParameter = "minutes";
 
@@ -43,6 +43,8 @@ public sealed class SleepTimerAction(IMediaControlService media, MediaSettingsPr
 			_pendingTimer = null;
 		}
 	}
+
+	public void Dispose() => CancelPendingTimer();
 
 	private sealed class Executor(IMediaControlService media, MediaSettingsProvider settings, SleepTimerAction owner) : IActionExecutor
 	{
