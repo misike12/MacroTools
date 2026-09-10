@@ -321,7 +321,9 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			case "playback-status":
 				reading = VariableReading.Of(StatusToken(snapshot));
 				return true;
-			case "is-playing":
+			// The host addresses this one by the id derived from its compatibility name
+			// (media_is_playing -> media-is-playing), not by the historical "is-playing".
+			case "media-is-playing":
 				reading = VariableReading.Of(snapshot is { HasSession: true, Status: PlaybackStatus.Playing });
 				return true;
 			case "has-media":

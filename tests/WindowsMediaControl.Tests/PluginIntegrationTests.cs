@@ -167,7 +167,7 @@ public sealed class PluginIntegrationTests
 		var title = await integration.ReadAsync("title");
 		var artist = await integration.ReadAsync("artist");
 		var status = await integration.ReadAsync("playback-status");
-		var isPlaying = await integration.ReadAsync("is-playing");
+		var isPlaying = await integration.ReadAsync("media-is-playing");
 		var hasMedia = await integration.ReadAsync("has-media");
 		var isMuted = await integration.ReadAsync("is-muted");
 		var progress = await integration.ReadAsync("progress-percent");
@@ -818,6 +818,23 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Variables_read_and_write_through_wire_ids()
+	{
+		var fake = new FakeMediaControlService();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		Assert.That((await integration.ReadAsync("media-is-playing")).Value, Is.EqualTo(true));
+		Assert.That((await integration.ReadAsync("volume-percent")).Value, Is.EqualTo(50.0));
+
+		var written = await integration.SetValueAsync("volume-percent", 80.0);
+
+		Assert.That(written.Status, Is.EqualTo(VariableWriteStatus.Applied));
+		Assert.That(fake.Snapshot.VolumePercent, Is.EqualTo(80));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
 	public async Task Default_input_device_is_unavailable_before_the_first_poll()
 	{
 		var integration = new PluginIntegration(new FakeMediaControlService(), new MediaSettingsProvider(), TestLogger());
@@ -1295,6 +1312,15 @@ public sealed class PluginIntegrationTests
 		});
 
 		Assert.That(result.Status, Is.EqualTo(ActionResultStatus.Failed));
+	}
+
+	[Test]
+	public void Every_eager_variable_has_a_refresh_interval()
+	{
+		foreach (var definition in MediaVariables.CreateDefinitions())
+		{
+			Assert.That(definition.RefreshInterval, Is.Not.Null, definition.Id);
+		}
 	}
 
 	[Test]
