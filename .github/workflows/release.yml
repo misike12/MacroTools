@@ -42,16 +42,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $ErrorActionPreference = "Continue"
+          Write-Output "gh: $((Get-Command gh -ErrorAction SilentlyContinue)?.Source)"
           $manifest = Get-Content -LiteralPath "src/WindowsMediaControl/manifest.json" -Raw |
             ConvertFrom-Json
           $tag = "v$($manifest.version)"
+          Write-Output "Manifest version resolves to tag $tag."
           "tag=$tag" >> $env:GITHUB_OUTPUT
-          gh release view $tag *>$null
-          if ($LASTEXITCODE -eq 0) {
+          $exists = $false
+          try {
+            $info = gh release view $tag --json tagName 2>$null | ConvertFrom-Json
+            $exists = $null -ne $info
+          }
+          catch {
+            Write-Output "Release lookup threw: $($_.Exception.Message)"
+            $exists = $false
+          }
+          if ($exists) {
             Write-Output "Release $tag already exists, nothing to do."
             "released=true" >> $env:GITHUB_OUTPUT
           }
           else {
+            Write-Output "No release $tag yet, will build and publish."
             "released=false" >> $env:GITHUB_OUTPUT
           }
 
