@@ -1,9 +1,10 @@
 name: Release plugin
 
-# Fully automatic: pushing a manifest version to master that has no release
-# yet builds, packs and publishes it. Just bump "version" in
-# src/WindowsMediaControl/manifest.json and push - pushes without a version
-# bump find the release already there and do nothing.
+# Fully automatic: pushing a manifest version to master that has no complete
+# release yet builds, packs and publishes it. Just bump "version" in
+# src/WindowsMediaControl/manifest.json and push. Every step is resumable:
+# a half-finished release (tag without assets, like v1.10.1 had) gets
+# completed instead of duplicated.
 
 on:
   push:
@@ -15,7 +16,7 @@ permissions:
   contents: write
 
 # Serialize releases: two pushes racing the same new version must not both
-# cut it. The loser sees the winner's release and skips.
+# cut it.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -42,75 +43,93 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          Write-Output "Shell: $($PSVersionTable.PSVersion) on $($PSVersionTable.OS)."
+          Write-Output "Shell: $($PSVersionTable.PSVersion)."
           $manifest = Get-Content -LiteralPath "src/WindowsMediaControl/manifest.json" -Raw |
             ConvertFrom-Json
           $tag = "v$($manifest.version)"
-          Write-Output "Manifest version resolves to tag $tag."
+          $file = "$($manifest.id)-$($manifest.version).macroDeckPlugin"
+          Write-Output "Expecting release $tag with asset $file."
           "tag=$tag" >> $env:GITHUB_OUTPUT
+          "file=$file" >> $env:GITHUB_OUTPUT
           $headers = @{
             Authorization = "Bearer $env:GH_TOKEN"
             Accept = "application/vnd.github+json"
           }
-          $exists = $false
+          $complete = $false
           try {
-            $response = Invoke-WebRequest `
+            $release = Invoke-RestMethod `
               -Uri "https://api.github.com/repos/${{ github.repository }}/releases/tags/$tag" `
               -Headers $headers -TimeoutSec 30 -UseBasicParsing
-            $exists = $response.StatusCode -eq 200
-            Write-Output "Release lookup HTTP $($response.StatusCode)."
+            $attached = @($release.assets | ForEach-Object { $_.name })
+            $complete = $attached -contains $file
+            Write-Output "Release $tag exists; expected asset attached: $complete."
           }
           catch {
-            Write-Output "Release lookup failed (treated as missing): $($_.Exception.Message)"
-            $exists = $false
+            Write-Output "No release $tag yet: $($_.Exception.Message)"
+            $complete = $false
           }
-          if ($exists) {
-            Write-Output "Release $tag already exists, nothing to do."
-            "released=true" >> $env:GITHUB_OUTPUT
-          }
-          else {
-            Write-Output "No release $tag yet, will build and publish."
-            "released=false" >> $env:GITHUB_OUTPUT
-          }
+          "complete=$complete" >> $env:GITHUB_OUTPUT
 
       - name: Run tests
         run: dotnet test --nologo
 
       - name: Build plugin artifact
-        if: steps.version.outputs.released == 'false'
+        if: steps.version.outputs.complete != 'true'
         run: macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
 
       - name: Tag and release
-        if: steps.version.outputs.released == 'false'
+        if: steps.version.outputs.complete != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
+          $file = "${{ steps.version.outputs.file }}"
           $repo = "${{ github.repository }}"
           $headers = @{
             Authorization = "Bearer $env:GH_TOKEN"
             Accept = "application/vnd.github+json"
           }
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag $tag
-          git push origin $tag
-          $payload = @{
-            tag_name = $tag
-            name = $tag
-            generate_release_notes = $true
+          $remoteTag = git ls-remote --tags origin $tag
+          if ([string]::IsNullOrWhiteSpace($remoteTag)) {
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag $tag
+            git push origin $tag
+            Write-Output "Created tag $tag."
           }
-          if ($tag -match "-") { $payload.prerelease = $true }
-          $release = Invoke-RestMethod `
-            -Uri "https://api.github.com/repos/$repo/releases" `
-            -Method Post -Headers $headers `
-            -Body ($payload | ConvertTo-Json -Compress) `
-            -ContentType "application/json"
-          Write-Output "Created release $($release.id)."
+          else {
+            Write-Output "Tag $tag already exists, reusing it."
+          }
+          $release = $null
+          try {
+            $release = Invoke-RestMethod `
+              -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" `
+              -Headers $headers -TimeoutSec 30 -UseBasicParsing
+            Write-Output "Release $($release.id) already exists."
+          }
+          catch {
+            $payload = @{
+              tag_name = $tag
+              name = $tag
+              generate_release_notes = $true
+            }
+            if ($tag -match "-") { $payload.prerelease = $true }
+            $release = Invoke-RestMethod `
+              -Uri "https://api.github.com/repos/$repo/releases" `
+              -Method Post -Headers $headers `
+              -Body ($payload | ConvertTo-Json -Compress) `
+              -ContentType "application/json"
+            Write-Output "Created release $($release.id)."
+          }
           $uploadBase = $release.upload_url -replace "\{\?name,label\}$", ""
+          $attached = @($release.assets | ForEach-Object { $_.name })
           Get-ChildItem -LiteralPath "artifacts" -Filter "*.macroDeckPlugin" | ForEach-Object {
-            $uri = "$uploadBase?name=$($_.Name)"
+            if ($attached -contains $_.Name) {
+              Write-Output "$($_.Name) already attached, skipping."
+              return
+            }
+            $uri = "${uploadBase}?name=$($_.Name)"
             $assetHeaders = @{
               Authorization = "Bearer $env:GH_TOKEN"
               "Content-Type" = "application/octet-stream"
