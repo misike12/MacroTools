@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "targets": {
+    "win-x64": {
+      "executable": "dotnet",
+      "arguments": [
+        "publish",
+        "Timers.csproj",
+        "-c",
+        "Release",
+        "-r",
+        "win-x64",
+        "--self-contained",
+        "true",
+        "-o",
+        "bin/publish/win-x64"
+      ],
+      "output": "bin/publish/win-x64"
+    }
+  }
+}

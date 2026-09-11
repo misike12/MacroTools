@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schemas.macro-deck.app/plugin-manifest-v1.schema.json",
+  "manifestVersion": 1,
+  "id": "com.misu.timers",
+  "name": "Timers",
+  "version": "1.0.0",
+  "description": "Countdowns, stopwatches and timer events for automations.",
+  "icon": "Assets/icon.svg",
+  "entrypoints": {
+    "win-x64": {
+      "executable": "runtimes/win-x64/Timers.exe"
+    }
+  },
+  "publisher": {
+    "name": "Misu"
+  },
+  "license": "MIT",
+  "compatibility": {
+    "macroDeck": ">=3.0.0-beta.3"
+  },
+  "repository": "https://github.com/misike12/MacroTools"
+}

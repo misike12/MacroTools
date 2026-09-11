@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Actions.StartCountdown.Name" xml:space="preserve">
+    <value>Start countdown</value>
+  </data>
+  <data name="Actions.StartCountdown.Description" xml:space="preserve">
+    <value>Start a countdown of the given length, replacing any running one.</value>
+  </data>
+  <data name="Actions.StartCountdown.Seconds.Label" xml:space="preserve">
+    <value>Seconds</value>
+  </data>
+  <data name="Actions.StartCountdown.Seconds.Description" xml:space="preserve">
+    <value>How long the countdown runs.</value>
+  </data>
+  <data name="Actions.StartCountdown.TimerLabel.Label" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="Actions.StartCountdown.TimerLabel.Description" xml:space="preserve">
+    <value>Optional name shown with the countdown and its finished event.</value>
+  </data>
+  <data name="Actions.PauseCountdown.Name" xml:space="preserve">
+    <value>Pause countdown</value>
+  </data>
+  <data name="Actions.PauseCountdown.Description" xml:space="preserve">
+    <value>Pause the running countdown, keeping the time left.</value>
+  </data>
+  <data name="Actions.ResumeCountdown.Name" xml:space="preserve">
+    <value>Resume countdown</value>
+  </data>
+  <data name="Actions.ResumeCountdown.Description" xml:space="preserve">
+    <value>Continue a paused countdown.</value>
+  </data>
+  <data name="Actions.CancelCountdown.Name" xml:space="preserve">
+    <value>Cancel countdown</value>
+  </data>
+  <data name="Actions.CancelCountdown.Description" xml:space="preserve">
+    <value>Stop the countdown and clear it.</value>
+  </data>
+  <data name="Actions.StartStopwatch.Name" xml:space="preserve">
+    <value>Start stopwatch</value>
+  </data>
+  <data name="Actions.StartStopwatch.Description" xml:space="preserve">
+    <value>Start or resume the stopwatch.</value>
+  </data>
+  <data name="Actions.StopStopwatch.Name" xml:space="preserve">
+    <value>Stop stopwatch</value>
+  </data>
+  <data name="Actions.StopStopwatch.Description" xml:space="preserve">
+    <value>Pause the stopwatch, keeping the elapsed time.</value>
+  </data>
+  <data name="Actions.ResetStopwatch.Name" xml:space="preserve">
+    <value>Reset stopwatch</value>
+  </data>
+  <data name="Actions.ResetStopwatch.Description" xml:space="preserve">
+    <value>Stop the stopwatch and clear it to zero.</value>
+  </data>
+  <data name="Events.CountdownFinished.Name" xml:space="preserve">
+    <value>Countdown finished</value>
+  </data>
+  <data name="Events.CountdownFinished.Description" xml:space="preserve">
+    <value>Fires when a countdown reaches zero.</value>
+  </data>
+  <data name="Events.CountdownFinished.LabelParameter.Label" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="Events.CountdownFinished.SecondsParameter.Label" xml:space="preserve">
+    <value>Seconds</value>
+  </data>
+  <data name="Variables.CountdownRemaining.DisplayName" xml:space="preserve">
+    <value>Countdown left</value>
+  </data>
+  <data name="Variables.CountdownRemaining.Description" xml:space="preserve">
+    <value>Seconds left on the countdown.</value>
+  </data>
+  <data name="Variables.CountdownText.DisplayName" xml:space="preserve">
+    <value>Countdown text</value>
+  </data>
+  <data name="Variables.CountdownText.Description" xml:space="preserve">
+    <value>Countdown time left formatted as minutes and seconds.</value>
+  </data>
+  <data name="Variables.CountdownRunning.DisplayName" xml:space="preserve">
+    <value>Countdown running</value>
+  </data>
+  <data name="Variables.CountdownRunning.Description" xml:space="preserve">
+    <value>Whether a countdown is currently running.</value>
+  </data>
+  <data name="Variables.CountdownLabel.DisplayName" xml:space="preserve">
+    <value>Countdown label</value>
+  </data>
+  <data name="Variables.CountdownLabel.Description" xml:space="preserve">
+    <value>The label of the current countdown, if any.</value>
+  </data>
+  <data name="Variables.StopwatchElapsed.DisplayName" xml:space="preserve">
+    <value>Stopwatch time</value>
+  </data>
+  <data name="Variables.StopwatchElapsed.Description" xml:space="preserve">
+    <value>Seconds on the stopwatch.</value>
+  </data>
+  <data name="Variables.StopwatchText.DisplayName" xml:space="preserve">
+    <value>Stopwatch text</value>
+  </data>
+  <data name="Variables.StopwatchText.Description" xml:space="preserve">
+    <value>Stopwatch time formatted as minutes and seconds.</value>
+  </data>
+  <data name="Variables.StopwatchRunning.DisplayName" xml:space="preserve">
+    <value>Stopwatch running</value>
+  </data>
+  <data name="Variables.StopwatchRunning.Description" xml:space="preserve">
+    <value>Whether the stopwatch is currently running.</value>
+  </data>
+  <data name="Errors.CommandFailed" xml:space="preserve">
+    <value>The command could not be completed.</value>
+  </data>
+  <data name="Errors.ReadOnlyVariable" xml:space="preserve">
+    <value>This variable is read-only.</value>
+  </data>
+</root>

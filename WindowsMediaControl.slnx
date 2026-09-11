@@ -7,8 +7,12 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/WindowsMediaControl/WindowsMediaControl.csproj" />
+    <Project Path="src/ScreenControl/ScreenControl.csproj" />
+    <Project Path="src/Timers/Timers.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WindowsMediaControl.Tests/WindowsMediaControl.Tests.csproj" />
+    <Project Path="tests/ScreenControl.Tests/ScreenControl.Tests.csproj" />
+    <Project Path="tests/Timers.Tests/Timers.Tests.csproj" />
   </Folder>
 </Solution>

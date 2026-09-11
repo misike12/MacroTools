@@ -4,11 +4,16 @@ This file must be kept up to date. When a rule here stops matching reality, or a
 work in this repository, update this file as part of that change rather than leaving it to drift.
 
 This repository started from the **Macro Deck 3 out-of-process plugin template**, but it is
-now a real plugin, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
+now three real plugins in one solution, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
 Control integration (41 actions, 40 variables plus an app-volume catalog, 4 events, a music player, a Now Playing widget type
-and a 5-step configuration flow with 26 settings). The template's example action is long gone. The orientation and
+and a 5-step configuration flow with 26 settings), `src/ScreenControl/` holds the Screen Control
+integration (11 actions, 4 variables: DDC monitor brightness/input, window and virtual-desktop control),
+and `src/Timers/` holds the Timers integration (7 actions, 7 variables, 1 event: countdowns and a stopwatch).
+The template's example action is long gone. The orientation and
 identity checklists below still apply to the mechanics (manifest, build recipe, analyzers), but do
-not "restore" the minimal shape.
+not "restore" the minimal shape. Every plugin follows the same shape (manifest, build recipe,
+`PluginIntegration`, `Actions/`, `Localization/Strings.resx`, `Assets/icon.svg`) with its own
+`com.misu.*` id, and the release workflow versions and tags them independently.
 
 Worked examples of every capability live in the
 [sample plugins repository](https://github.com/Macro-Deck-App/Macro-Deck-Sample-Plugins), not here.
@@ -34,10 +39,21 @@ src/WindowsMediaControl/
   Localization/Strings.resx   default-culture strings; Strings.<tag>.resx per language
   Assets/icon.svg        the icon the manifest declares
   Properties/launchSettings.json   the single real-host debug profile
+src/ScreenControl/       same shape: DDC monitor service (Monitors/), Win32 window/desktop service (Windows/), 11 actions, 4 variables
+src/Timers/              same shape: countdown/stopwatch service (Timing/), 7 actions, 7 variables, countdown-finished event
 tests/WindowsMediaControl.Tests/
   PluginIntegrationTests.cs   behaviour tests against FakeMediaControlService
   FakeMediaControlService.cs  controllable stand-in for SMTC/audio
+tests/ScreenControl.Tests/ + tests/Timers.Tests/
+  PluginIntegrationTests.cs   behaviour tests against in-test fakes (monitors/windows) or the real TimerService
 ```
+
+Conformance is not equally runnable everywhere: Windows Media Control runs it
+under `WINDOWS_MEDIA_CONTROL_NOOP_AUDIO=1` (side-effect free), Timers runs it
+directly (nothing leaves the process), Screen Control has no checked-in
+conformance run because the suite would drive real monitor brightness, input
+switches and window focus (see README.md). Unit tests plus
+`macrodeck-plugin build`, `validate --artifact` and `inspect` cover it instead.
 
 The template repository carries two more directories that a generated plugin does not:
 `.template.config/` (the `dotnet new` definition) and `packaging/` (the template package project, kept
@@ -312,10 +328,16 @@ macrodeck-plugin test --project src/WindowsMediaControl --report markdown --outp
 Remove-Item Env:\WINDOWS_MEDIA_CONTROL_NOOP_AUDIO
 ```
 
+```bash
+macrodeck-plugin test --project src/Timers --report markdown --output conformance-timers.md
+```
+
 The no-op gate matters: the suite invokes every declared action with default parameters,
 which on real hardware would flip volumes, mutes and default devices. `NoOp` keeps the
 run side-effect free; hardware truthfulness is covered by the `*LiveTests` fixtures and
-live verification instead.
+live verification instead. Timers needs no gate (nothing leaves the process). Never run
+the suite against `src/ScreenControl` on a machine you care about: it would set real
+monitor brightness, switch monitor inputs and move real windows.
 
 The conformance suite drives a real session: capability contracts, invocation and cancellation semantics,
 reconnect and resume, the reserved endpoints, logging limits. Exit `0` conformant, `1` the plugin is
@@ -340,6 +362,11 @@ see
 macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
 macrodeck-plugin inspect --artifact ./artifacts/<id>-<version>.macroDeckPlugin
 ```
+
+`--source` selects the plugin; every plugin packs the same way. Releases are cut
+per plugin by `.github/workflows/release.yml`: bumping one manifest's `version`
+and pushing to `master` releases just that plugin (`v<version>` for Windows Media
+Control, `<slug>-v<version>` for the others).
 
 `build` reads `macrodeck-build.json`, publishes each runtime identifier the manifest declares into its
 `runtimes/<rid>/` slot and packs the result. `--rid <rid>` builds one platform, for a CI matrix job.

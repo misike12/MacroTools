@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Params.Monitor.Label" xml:space="preserve">
+    <value>Monitor</value>
+  </data>
+  <data name="Params.Monitor.Description" xml:space="preserve">
+    <value>Monitor number from the left, starting at 1.</value>
+  </data>
+  <data name="Params.Window.Label" xml:space="preserve">
+    <value>Window</value>
+  </data>
+  <data name="Params.Window.Description" xml:space="preserve">
+    <value>Part of the window title or app name, e.g. Spotify. Empty means the focused window.</value>
+  </data>
+  <data name="Actions.SetMonitorBrightness.Name" xml:space="preserve">
+    <value>Set monitor brightness</value>
+  </data>
+  <data name="Actions.SetMonitorBrightness.Description" xml:space="preserve">
+    <value>Set a monitor's brightness in percent.</value>
+  </data>
+  <data name="Actions.SetMonitorBrightness.Brightness.Label" xml:space="preserve">
+    <value>Brightness</value>
+  </data>
+  <data name="Actions.SetMonitorBrightness.Brightness.Description" xml:space="preserve">
+    <value>Brightness in percent, from 0 to 100.</value>
+  </data>
+  <data name="Actions.AdjustMonitorBrightness.Name" xml:space="preserve">
+    <value>Adjust monitor brightness</value>
+  </data>
+  <data name="Actions.AdjustMonitorBrightness.Description" xml:space="preserve">
+    <value>Raise or lower a monitor's brightness by a step.</value>
+  </data>
+  <data name="Actions.AdjustMonitorBrightness.Delta.Label" xml:space="preserve">
+    <value>Step</value>
+  </data>
+  <data name="Actions.AdjustMonitorBrightness.Delta.Description" xml:space="preserve">
+    <value>Brightness points to add, negative to subtract.</value>
+  </data>
+  <data name="Actions.SetMonitorInput.Name" xml:space="preserve">
+    <value>Set monitor input</value>
+  </data>
+  <data name="Actions.SetMonitorInput.Description" xml:space="preserve">
+    <value>Switch a monitor to another input over DDC.</value>
+  </data>
+  <data name="Actions.SetMonitorInput.Input.Label" xml:space="preserve">
+    <value>Input</value>
+  </data>
+  <data name="Actions.SetMonitorInput.Input.Description" xml:space="preserve">
+    <value>The input to switch to.</value>
+  </data>
+  <data name="Actions.CycleMonitorInput.Name" xml:space="preserve">
+    <value>Next monitor input</value>
+  </data>
+  <data name="Actions.CycleMonitorInput.Description" xml:space="preserve">
+    <value>Switch a monitor to its next input.</value>
+  </data>
+  <data name="Actions.FocusWindow.Name" xml:space="preserve">
+    <value>Focus window</value>
+  </data>
+  <data name="Actions.FocusWindow.Description" xml:space="preserve">
+    <value>Bring a window to the front.</value>
+  </data>
+  <data name="Actions.MinimizeWindow.Name" xml:space="preserve">
+    <value>Minimize window</value>
+  </data>
+  <data name="Actions.MinimizeWindow.Description" xml:space="preserve">
+    <value>Minimize a window, or the focused one when empty.</value>
+  </data>
+  <data name="Actions.MaximizeWindow.Name" xml:space="preserve">
+    <value>Maximize window</value>
+  </data>
+  <data name="Actions.MaximizeWindow.Description" xml:space="preserve">
+    <value>Maximize a window, or the focused one when empty.</value>
+  </data>
+  <data name="Actions.RestoreWindow.Name" xml:space="preserve">
+    <value>Restore window</value>
+  </data>
+  <data name="Actions.RestoreWindow.Description" xml:space="preserve">
+    <value>Restore a minimized or maximized window to normal size.</value>
+  </data>
+  <data name="Actions.CloseWindow.Name" xml:space="preserve">
+    <value>Close window</value>
+  </data>
+  <data name="Actions.CloseWindow.Description" xml:space="preserve">
+    <value>Ask a window to close itself.</value>
+  </data>
+  <data name="Actions.NextDesktop.Name" xml:space="preserve">
+    <value>Next virtual desktop</value>
+  </data>
+  <data name="Actions.NextDesktop.Description" xml:space="preserve">
+    <value>Switch to the next virtual desktop.</value>
+  </data>
+  <data name="Actions.PreviousDesktop.Name" xml:space="preserve">
+    <value>Previous virtual desktop</value>
+  </data>
+  <data name="Actions.PreviousDesktop.Description" xml:space="preserve">
+    <value>Switch to the previous virtual desktop.</value>
+  </data>
+  <data name="Inputs.Hdmi1" xml:space="preserve">
+    <value>HDMI 1</value>
+  </data>
+  <data name="Inputs.Hdmi2" xml:space="preserve">
+    <value>HDMI 2</value>
+  </data>
+  <data name="Inputs.DisplayPort1" xml:space="preserve">
+    <value>DisplayPort 1</value>
+  </data>
+  <data name="Inputs.DisplayPort2" xml:space="preserve">
+    <value>DisplayPort 2</value>
+  </data>
+  <data name="Inputs.Dvi" xml:space="preserve">
+    <value>DVI</value>
+  </data>
+  <data name="Variables.MonitorCount.DisplayName" xml:space="preserve">
+    <value>Monitor count</value>
+  </data>
+  <data name="Variables.MonitorCount.Description" xml:space="preserve">
+    <value>How many monitors Windows sees.</value>
+  </data>
+  <data name="Variables.PrimaryBrightness.DisplayName" xml:space="preserve">
+    <value>Primary brightness</value>
+  </data>
+  <data name="Variables.PrimaryBrightness.Description" xml:space="preserve">
+    <value>The primary monitor brightness. Writing it changes the brightness.</value>
+  </data>
+  <data name="Variables.FocusedWindowTitle.DisplayName" xml:space="preserve">
+    <value>Focused window</value>
+  </data>
+  <data name="Variables.FocusedWindowTitle.Description" xml:space="preserve">
+    <value>Title of the currently focused window.</value>
+  </data>
+  <data name="Variables.FocusedWindowProcess.DisplayName" xml:space="preserve">
+    <value>Focused app</value>
+  </data>
+  <data name="Variables.FocusedWindowProcess.Description" xml:space="preserve">
+    <value>Process name of the currently focused window.</value>
+  </data>
+  <data name="Errors.CommandFailed" xml:space="preserve">
+    <value>The command could not be completed.</value>
+  </data>
+  <data name="Errors.MonitorNotAvailable" xml:space="preserve">
+    <value>No adjustable monitor was found there.</value>
+  </data>
+  <data name="Errors.WindowNotFound" xml:space="preserve">
+    <value>No matching window was found.</value>
+  </data>
+  <data name="Errors.ReadOnlyVariable" xml:space="preserve">
+    <value>This variable is read-only.</value>
+  </data>
+</root>

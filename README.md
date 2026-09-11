@@ -1,10 +1,16 @@
-# Windows Media Control for Macro Deck 3
+# Macro Deck 3 plugins
+
+Three independent Windows plugins for Macro Deck 3, built from one solution:
+
+- **Windows Media Control** (`com.misu.windows-media`) — SMTC media playback, CoreAudio volume, devices, artwork, Now Playing widget.
+- **Screen Control** (`com.misu.screen-control`) — DDC monitor brightness/input plus window and virtual-desktop control.
+- **Timers** (`com.misu.timers`) — countdowns, stopwatch and a countdown-finished event.
+
+## Windows Media Control
 
 Control Windows media playback from Macro Deck: transport keys, seeking, shuffle and repeat, system and per-app volume, output device switching, live track variables, album artwork, a Now Playing deck widget and a music player provider. Built on the Windows System Media Transport Controls (SMTC) and Core Audio, so it works with Spotify, browsers and any other SMTC-aware app.
 
-## Features
-
-### Actions (28)
+### Actions (41)
 
 All actions are Windows-only and accept an optional `App` filter (substring match on the app id, e.g. `Spotify`). Empty means the active session.
 
@@ -24,14 +30,20 @@ All actions are Windows-only and accept an optional `App` filter (substring matc
 | Set app volume / Adjust app volume | One app's volume (e.g. Spotify) without touching system volume. |
 | Mute app / Unmute app / Mute-or-unmute app | Per-app mute control. |
 | Set output device / Next output device | Switch the default audio output, e.g. headphones to speakers. |
+| Set input device / Next input device | Switch the default audio input (microphone). |
+| Set mic volume / Mute / Unmute / Mute-or-unmute mic | Microphone level and mute control. |
+| Focus app | Bring an app forward and mute everything else. |
+| Sleep timer | Pause playback after N minutes (background, re-armable; negative cancels). |
+| Fade out and pause / Fade in and play | Volume fade-out into pause, fade-in from silence (restores volume on failure). |
+| Mute / Unmute / Mute-or-unmute system sounds | Windows system-sounds mute control. |
 
 Shuffle and repeat go through real SMTC control calls and report honestly when an app refuses them. Every transport, seek, shuffle and repeat action accepts an optional `App` filter (substring match on the app id).
 
-### Variables (34)
+### Variables (40)
 
-`title`, `artist`, `album`, `album_artist`, `genres`, `track_number`, `track_count`, `subtitle`, `source_app`, `playback_status` (`playing`/`paused`/`stopped`/`no-media`), `playback_type` (`music`/`video`/`image`/`unknown`), `playback_rate`, `is_playing`, `is_live`, `has_media`, `position_seconds`, `duration_seconds`, `position_text` / `duration_text` (`m:ss`), `progress_percent`, `volume_percent`, `is_muted`, `shuffle_enabled`, `repeat_mode`, plus per-action support flags `can_play`, `can_pause`, `can_stop`, `can_next`, `can_previous`, `can_seek`, `can_shuffle`, `can_repeat`, the current `output_device` name and the cover-derived `cover_accent` hex color.
+`title`, `artist`, `album`, `album_artist`, `genres`, `track_number`, `track_count`, `subtitle`, `source_app`, `playback_status` (`playing`/`paused`/`stopped`/`no-media`), `playback_type` (`music`/`video`/`image`/`unknown`), `playback_rate`, `is_playing`, `is_live`, `has_media`, `position_seconds`, `duration_seconds`, `position_text` / `duration_text` (`m:ss`), `progress_percent`, `volume_percent`, `is_muted`, `mic_volume_percent`, `is_mic_muted`, `mic_level_percent`, `system_level_percent`, `active_apps`, `shuffle_enabled`, `repeat_mode`, plus per-action support flags `can_play`, `can_pause`, `can_stop`, `can_next`, `can_previous`, `can_seek`, `can_shuffle`, `can_repeat`, the current `default_device` and `default_input_device` names and the cover-derived `cover_accent` hex color.
 
-Writable: `volume_percent`, `is_muted`, `position_seconds` and `progress_percent` (writing seeks; progress commits on release so slider drags don't stutter playback).
+Writable: `volume_percent`, `is_muted`, `mic_volume_percent`, `is_mic_muted`, `position_seconds` and `progress_percent` (writing seeks; progress commits on release so slider drags don't stutter playback).
 
 ### App volume sliders
 
@@ -48,27 +60,66 @@ Besides the fixed variables above, the plugin offers a browsable **App volumes**
 - **Music player provider** (`system` instance) with real album artwork for the native Music widget.
 - **Album art on buttons** — the Play/Pause action supplies the current cover as its button icon, falling back to the configured icon.
 
+## Screen Control
+
+Control monitors and windows from the deck. Monitor control uses DDC/CI over `dxva2` (works on external monitors that expose brightness/input VCP codes; most laptop panels do not).
+
+### Actions (11)
+
+| Action | What it does |
+| --- | --- |
+| Set monitor brightness | Brightness to an exact value (0–100, default 80) on monitor N (default 1). |
+| Adjust monitor brightness | Raise or lower brightness by a step (default +5); zero is a no-op success. |
+| Set monitor input | Switch a monitor to HDMI 1/2, DisplayPort 1/2 or DVI over VCP `0x60`. |
+| Next monitor input | Cycle a monitor to its next input (HDMI1 → HDMI2 → DP1 → DP2 → DVI). |
+| Focus window | Bring a window to the front (substring match on title or process name). |
+| Minimize / Maximize / Restore window | Window state; empty filter means the focused window. |
+| Close window | Ask a window to close itself (`WM_CLOSE`). |
+| Next / Previous virtual desktop | Switch desktops via Win+Ctrl+Left/Right. |
+
+### Variables (4)
+
+`monitor_count` (how many monitors Windows sees), writable `primary_brightness` (writing it sets the primary monitor brightness), `focused_window_title` and `focused_window_process`.
+
+## Timers
+
+Countdowns and a stopwatch for automations. The countdown runs on a background timer: pausing keeps the time left, re-starting replaces the running one, and a zero-length start fires the event immediately.
+
+### Actions (7)
+
+Start / Pause / Resume / Cancel countdown (default 5 minutes, optional label), Start / Stop / Reset stopwatch.
+
+### Variables (7)
+
+`countdown_remaining_seconds`, `countdown_text` (`m:ss` or `h:mm:ss`), `countdown_running`, `countdown_label`, `stopwatch_elapsed_seconds`, `stopwatch_text`, `stopwatch_running` (all refresh every second, all read-only).
+
+### Events (1)
+
+`countdown-finished` (label/seconds).
+
 ## Requirements
 
 - Windows x64.
-- Macro Deck `>=3.0.0-beta.2` (host).
+- Macro Deck `>=3.0.0-beta.3` (host).
 - .NET 10 SDK (to build).
 
 ## Install
 
-Build the artifact, then install it from the Macro Deck desktop app (double-click the file or use install-from-file):
+Build the artifact(s), then install from the Macro Deck desktop app (double-click the file or use install-from-file):
 
 ```bash
 macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
+macrodeck-plugin build --source src/ScreenControl --output ./artifacts
+macrodeck-plugin build --source src/Timers --output ./artifacts
 ```
 
-The locally packed artifact is unsigned, so Macro Deck asks for an explicit confirmation on install. (Store releases are signed server-side by the Creator Portal.)
+The locally packed artifacts are unsigned, so Macro Deck asks for an explicit confirmation on install. (Store releases are signed server-side by the Creator Portal.)
 
 Headless alternative over plain HTTP on the host machine (no auth on the loopback listener; the TLS port requires login). The port lives in `%TEMP%\macro-deck-host.port`:
 
 ```powershell
 $port = Get-Content "$env:TEMP\macro-deck-host.port"
-$body = @{ path = "C:\path\to\com.misu.windows-media-1.8.1.macroDeckPlugin"; force = $false; allowUnsigned = $true } | ConvertTo-Json -Compress
+$body = @{ path = "C:\path\to\com.misu.windows-media-1.12.0.macroDeckPlugin"; force = $false; allowUnsigned = $true } | ConvertTo-Json -Compress
 Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/plugin-installation/install-path" -Method Post -ContentType "application/json" -Body $body
 ```
 
@@ -86,40 +137,57 @@ dotnet test
 $env:WINDOWS_MEDIA_CONTROL_NOOP_AUDIO = "1"
 macrodeck-plugin test --project src/WindowsMediaControl --report markdown --output conformance.md
 Remove-Item Env:\WINDOWS_MEDIA_CONTROL_NOOP_AUDIO
+macrodeck-plugin test --project src/Timers --report markdown --output conformance-timers.md
 ```
 
-Conformance runs against a no-op audio backend on purpose: the suite drives every
+Conformance for Windows Media Control runs against a no-op audio backend on purpose: the suite drives every
 action including volume and device switches, and the no-op keeps it from touching
 real hardware. Live hardware behavior is covered by the `*LiveTests` fixtures and
 manual verification instead.
+
+Timers conformance is side-effect free (countdowns and the stopwatch touch nothing
+outside the process). Screen Control has no conformance run checked in: its suite
+would drive real monitor brightness, input switches and window focus with default
+parameters, so it is verified through unit tests plus `macrodeck-plugin build`,
+`validate --artifact` and `inspect` instead.
 
 `dotnet tool install --global MacroDeck.Plugin.Cli --prerelease` provides `macrodeck-plugin`.
 
 ## Releasing
 
-Bump `"version"` in `src/WindowsMediaControl/manifest.json` and push to `master`.
+Bump `"version"` in one of `src/*/manifest.json` and push to `master`.
 `.github/workflows/release.yml` notices the version has no release yet, runs the
-tests, packs the artifact and attaches it to the GitHub release as `v<version>`.
+tests once, then packs and attaches each missing artifact to its own GitHub
+release. Tags are namespaced per plugin (`v<version>` for Windows Media Control,
+`screen-control-v<version>` and `timers-v<version>` for the others), so the
+three plugins version independently.
 Pushes without a version bump are no-ops. Versions containing `-`
 (e.g. `1.11.0-beta.1`) are published as pre-releases.
 
 ## Project layout
 
 ```
-src/WindowsMediaControl/
+src/WindowsMediaControl/   com.misu.windows-media (SMTC + CoreAudio, widget, config flow)
+src/ScreenControl/         com.misu.screen-control (DDC monitors, Win32 windows/desktops)
+src/Timers/                com.misu.timers (countdowns, stopwatch, events)
+tests/                     one test project per plugin (fakes, no hardware)
+```
+
+Each plugin has the same shape:
+
+```
   Program.cs             host builder, DI wiring
-  manifest.json          plugin identity (com.misu.windows-media) and win-x64 entrypoint
+  manifest.json          plugin identity and win-x64 entrypoint
   macrodeck-build.json   self-contained publish recipe for `macrodeck-plugin build`
-  PluginIntegration.cs   actions, variables, events, music player, widget wiring, poll loop
-  Media/                 SMTC service (WindowsMediaControlService), CoreAudio volume, snapshot model
-  Actions/               transport, seek, volume, mode, app-volume, device, mic, focus, sleep, fade and system-sounds actions plus shared parameter helpers
-  Widgets/               Now Playing widget type, sessions, configuration and previews
+  PluginIntegration.cs   capability wiring
+  Actions/               action definitions plus shared parameter helpers
   Localization/Strings.resx   every user-facing string (localized, no literals in code)
   Assets/icon.svg        plugin icon
-tests/WindowsMediaControl.Tests/
-  PluginIntegrationTests.cs   behaviour tests against a fake media service
-  FakeMediaControlService.cs  controllable stand-in for SMTC/audio
 ```
+
+Windows Media Control additionally carries `Media/` (SMTC service, CoreAudio
+volume, snapshot/artwork helpers), `Widgets/` (Now Playing widget) and `Config/`
+(settings model, config flow, settings reader).
 
 ## Notes and limits
 

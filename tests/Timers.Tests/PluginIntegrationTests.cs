@@ -1,0 +1,156 @@
+using MacroDeck.Plugin.Testing;
+using MacroDeck.Plugin.Testing.Fakes;
+using MacroDeck.Sdk.Actions;
+using MacroDeck.Sdk.Variables;
+using Microsoft.Extensions.DependencyInjection;
+using NUnit.Framework;
+using Serilog;
+using Timers.Actions;
+using Timers.Timing;
+
+namespace Timers.Tests;
+
+[TestFixture]
+public sealed class PluginIntegrationTests
+{
+	private static PluginTestHarness CreateHarness(TimerService timers) =>
+		PluginTestHarness.Create(builder =>
+		{
+			builder.Services.AddSingleton(timers);
+			builder.UseLocalization(Strings.LocalizationCatalog);
+			builder.RegisterIntegration<PluginIntegration>();
+		});
+
+	private static Serilog.Core.Logger TestLogger() => new LoggerConfiguration().CreateLogger();
+
+	[Test]
+	public async Task The_plugin_builds_and_initializes()
+	{
+		await using var harness = CreateHarness(new TimerService());
+
+		Assert.DoesNotThrowAsync(harness.InitializeIntegrationsAsync);
+	}
+
+	[Test]
+	public async Task Countdown_start_pause_resume_cancel()
+	{
+		var timers = new TimerService();
+		await using var harness = CreateHarness(timers);
+		await harness.InitializeIntegrationsAsync();
+
+		var start = await harness.Actions.ExecuteAsync(
+			"start-countdown",
+			new Dictionary<string, object?> { ["seconds"] = 60.0, ["label"] = "tea" });
+		var pause = await harness.Actions.ExecuteAsync("pause-countdown", new Dictionary<string, object?>());
+		var resume = await harness.Actions.ExecuteAsync("resume-countdown", new Dictionary<string, object?>());
+		var cancel = await harness.Actions.ExecuteAsync("cancel-countdown", new Dictionary<string, object?>());
+		var bad = await harness.Actions.ExecuteAsync(
+			"start-countdown",
+			new Dictionary<string, object?> { ["seconds"] = -5.0 });
+
+		Assert.That(start.Succeeded, Is.True);
+		Assert.That(pause.Succeeded, Is.True);
+		Assert.That(resume.Succeeded, Is.True);
+		Assert.That(cancel.Succeeded, Is.True);
+		Assert.That(bad.Succeeded, Is.False);
+		Assert.That(timers.CountdownRunning, Is.False);
+	}
+
+	[Test]
+	public async Task Countdown_finish_fires_the_event()
+	{
+		var timers = new TimerService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(timers, TestLogger());
+		await integration.InitializeAsync(context);
+
+		timers.StartCountdown(TimeSpan.FromMilliseconds(100), "quick");
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Events.Published.Any(e => e.EventId == "countdown-finished"))
+		{
+			await Task.Delay(50, TestContext.CurrentContext.CancellationToken);
+		}
+
+		var fired = context.Events.Published.FirstOrDefault(e => e.EventId == "countdown-finished");
+		Assert.That(fired, Is.Not.Null);
+		Assert.That(timers.CountdownRunning, Is.False);
+		await integration.ShutdownAsync();
+		timers.Dispose();
+	}
+
+	[Test]
+	public async Task Stopwatch_start_stop_reset()
+	{
+		var timers = new TimerService();
+		await using var harness = CreateHarness(timers);
+		await harness.InitializeIntegrationsAsync();
+
+		var start = await harness.Actions.ExecuteAsync("start-stopwatch", new Dictionary<string, object?>());
+		await Task.Delay(150, TestContext.CurrentContext.CancellationToken);
+		var stop = await harness.Actions.ExecuteAsync("stop-stopwatch", new Dictionary<string, object?>());
+		var elapsed = timers.StopwatchElapsed;
+		var reset = await harness.Actions.ExecuteAsync("reset-stopwatch", new Dictionary<string, object?>());
+
+		Assert.That(start.Succeeded, Is.True);
+		Assert.That(stop.Succeeded, Is.True);
+		Assert.That(reset.Succeeded, Is.True);
+		Assert.That(elapsed, Is.GreaterThan(TimeSpan.Zero));
+		Assert.That(timers.StopwatchElapsed, Is.EqualTo(TimeSpan.Zero));
+		Assert.That(timers.StopwatchRunning, Is.False);
+	}
+
+	[Test]
+	public async Task Variables_expose_timer_state()
+	{
+		var timers = new TimerService();
+		var integration = new PluginIntegration(timers, TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		timers.StartCountdown(TimeSpan.FromMinutes(5), "tea");
+		timers.StartStopwatch();
+
+		Assert.That((await integration.ReadAsync("countdown-running")).Value, Is.EqualTo(true));
+		Assert.That((await integration.ReadAsync("countdown-label")).Value, Is.EqualTo("tea"));
+		Assert.That((await integration.ReadAsync("stopwatch-running")).Value, Is.EqualTo(true));
+		Assert.That((await integration.ReadAsync("countdown-remaining-seconds")).Value, Is.GreaterThan(0.0));
+
+		var missing = await integration.ReadAsync("no-such-variable");
+
+		Assert.That(missing, Is.EqualTo(VariableReading.Unavailable));
+		await integration.ShutdownAsync();
+		timers.Dispose();
+	}
+
+	[Test]
+	public void Action_ids_are_unique_across_the_plugin()
+	{
+		var integration = new PluginIntegration(new TimerService(), TestLogger());
+
+		var duplicates = integration.Actions
+			.GroupBy(a => a.Id)
+			.Where(g => g.Count() > 1)
+			.Select(g => g.Key)
+			.ToList();
+
+		Assert.That(duplicates, Is.Empty);
+		Assert.That(integration.Actions.Count, Is.EqualTo(7));
+	}
+
+	[Test]
+	public void The_catalog_is_scoped_to_the_plugin_id()
+	{
+		Assert.That(Strings.LocalizationCatalog.Scope, Is.EqualTo("plugin:com.misu.timers"));
+	}
+
+	[Test]
+	public void Every_key_the_default_culture_declares_resolves_to_text()
+	{
+		foreach (var key in Strings.LocalizationCatalog.KeysOf("en"))
+		{
+			Assert.That(Strings.LocalizationCatalog.TryGetTemplate("en", key, out var text), Is.True, key);
+			Assert.That(text, Is.Not.Empty, key);
+		}
+	}
+}
