@@ -26,9 +26,12 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new PauseCountdownAction(timers),
 			new ResumeCountdownAction(timers),
 			new CancelCountdownAction(timers),
+			new ToggleCountdownAction(timers),
+			new AdjustCountdownAction(timers),
 			new StartStopwatchAction(timers),
 			new StopStopwatchAction(timers),
 			new ResetStopwatchAction(timers),
+			new ToggleStopwatchAction(timers),
 		];
 		Variables = TimerVariables.CreateDefinitions();
 		DeclaredVariables = Variables;
@@ -119,6 +122,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"countdown-text" => VariableReading.Of(FormatDuration(remaining)),
 			"countdown-running" => VariableReading.Of(_timers.CountdownRunning),
 			"countdown-label" => TextOrUnavailable(_timers.CountdownLabel),
+			"countdown-progress-percent" => VariableReading.Of(_timers.CountdownProgressPercent, 0, 100, 1),
 			"stopwatch-elapsed-seconds" => VariableReading.Of(elapsed.TotalSeconds),
 			"stopwatch-text" => VariableReading.Of(FormatDuration(elapsed)),
 			"stopwatch-running" => VariableReading.Of(_timers.StopwatchRunning),

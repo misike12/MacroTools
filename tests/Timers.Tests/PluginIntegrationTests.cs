@@ -40,13 +40,13 @@ public sealed class PluginIntegrationTests
 
 		var start = await harness.Actions.ExecuteAsync(
 			"start-countdown",
-			new Dictionary<string, object?> { ["seconds"] = 60.0, ["label"] = "tea" });
+			new Dictionary<string, object?> { ["hours"] = 0.0, ["minutes"] = 1.0, ["seconds"] = 30.0, ["label"] = "tea" });
 		var pause = await harness.Actions.ExecuteAsync("pause-countdown", new Dictionary<string, object?>());
 		var resume = await harness.Actions.ExecuteAsync("resume-countdown", new Dictionary<string, object?>());
 		var cancel = await harness.Actions.ExecuteAsync("cancel-countdown", new Dictionary<string, object?>());
 		var bad = await harness.Actions.ExecuteAsync(
 			"start-countdown",
-			new Dictionary<string, object?> { ["seconds"] = -5.0 });
+			new Dictionary<string, object?> { ["minutes"] = 70.0 });
 
 		Assert.That(start.Succeeded, Is.True);
 		Assert.That(pause.Succeeded, Is.True);
@@ -54,6 +54,37 @@ public sealed class PluginIntegrationTests
 		Assert.That(cancel.Succeeded, Is.True);
 		Assert.That(bad.Succeeded, Is.False);
 		Assert.That(timers.CountdownRunning, Is.False);
+		Assert.That(timers.CountdownRemaining, Is.EqualTo(TimeSpan.Zero));
+	}
+
+	[Test]
+	public async Task Countdown_toggle_and_adjust()
+	{
+		var timers = new TimerService();
+		await using var harness = CreateHarness(timers);
+		await harness.InitializeIntegrationsAsync();
+
+		var start = await harness.Actions.ExecuteAsync(
+			"start-countdown",
+			new Dictionary<string, object?> { ["minutes"] = 5.0 });
+		var pauseToggle = await harness.Actions.ExecuteAsync("toggle-countdown", new Dictionary<string, object?>());
+		var resumeToggle = await harness.Actions.ExecuteAsync("toggle-countdown", new Dictionary<string, object?>());
+		var extend = await harness.Actions.ExecuteAsync(
+			"adjust-countdown",
+			new Dictionary<string, object?> { ["delta"] = 60.0 });
+		var bad = await harness.Actions.ExecuteAsync(
+			"adjust-countdown",
+			new Dictionary<string, object?> { ["delta"] = 100000.0 });
+
+		Assert.That(start.Succeeded, Is.True);
+		Assert.That(pauseToggle.Succeeded, Is.True);
+		Assert.That(resumeToggle.Succeeded, Is.True);
+		Assert.That(extend.Succeeded, Is.True);
+		Assert.That(bad.Succeeded, Is.False);
+		Assert.That(timers.CountdownRunning, Is.True);
+		Assert.That(timers.CountdownRemaining, Is.GreaterThan(TimeSpan.FromMinutes(5)));
+
+		timers.CancelCountdown();
 	}
 
 	[Test]
@@ -81,6 +112,31 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Adjusting_past_zero_finishes_the_countdown()
+	{
+		var timers = new TimerService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(timers, TestLogger());
+		await integration.InitializeAsync(context);
+
+		timers.StartCountdown(TimeSpan.FromMinutes(5), "tea");
+		timers.AdjustCountdown(TimeSpan.FromMinutes(-10));
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Events.Published.Any(e => e.EventId == "countdown-finished"))
+		{
+			await Task.Delay(50, TestContext.CurrentContext.CancellationToken);
+		}
+
+		var fired = context.Events.Published.FirstOrDefault(e => e.EventId == "countdown-finished");
+		Assert.That(fired, Is.Not.Null);
+		Assert.That(timers.CountdownRunning, Is.False);
+		await integration.ShutdownAsync();
+		timers.Dispose();
+	}
+
+	[Test]
 	public async Task Stopwatch_start_stop_reset()
 	{
 		var timers = new TimerService();
@@ -89,11 +145,15 @@ public sealed class PluginIntegrationTests
 
 		var start = await harness.Actions.ExecuteAsync("start-stopwatch", new Dictionary<string, object?>());
 		await Task.Delay(150, TestContext.CurrentContext.CancellationToken);
-		var stop = await harness.Actions.ExecuteAsync("stop-stopwatch", new Dictionary<string, object?>());
+		var toggleStop = await harness.Actions.ExecuteAsync("toggle-stopwatch", new Dictionary<string, object?>());
 		var elapsed = timers.StopwatchElapsed;
+		var toggleStart = await harness.Actions.ExecuteAsync("toggle-stopwatch", new Dictionary<string, object?>());
+		var stop = await harness.Actions.ExecuteAsync("stop-stopwatch", new Dictionary<string, object?>());
 		var reset = await harness.Actions.ExecuteAsync("reset-stopwatch", new Dictionary<string, object?>());
 
 		Assert.That(start.Succeeded, Is.True);
+		Assert.That(toggleStop.Succeeded, Is.True);
+		Assert.That(toggleStart.Succeeded, Is.True);
 		Assert.That(stop.Succeeded, Is.True);
 		Assert.That(reset.Succeeded, Is.True);
 		Assert.That(elapsed, Is.GreaterThan(TimeSpan.Zero));
@@ -115,6 +175,7 @@ public sealed class PluginIntegrationTests
 		Assert.That((await integration.ReadAsync("countdown-label")).Value, Is.EqualTo("tea"));
 		Assert.That((await integration.ReadAsync("stopwatch-running")).Value, Is.EqualTo(true));
 		Assert.That((await integration.ReadAsync("countdown-remaining-seconds")).Value, Is.GreaterThan(0.0));
+		Assert.That((await integration.ReadAsync("countdown-progress-percent")).Value, Is.InRange(0.0, 100.0));
 
 		var missing = await integration.ReadAsync("no-such-variable");
 
@@ -135,7 +196,7 @@ public sealed class PluginIntegrationTests
 			.ToList();
 
 		Assert.That(duplicates, Is.Empty);
-		Assert.That(integration.Actions.Count, Is.EqualTo(7));
+		Assert.That(integration.Actions.Count, Is.EqualTo(10));
 	}
 
 	[Test]

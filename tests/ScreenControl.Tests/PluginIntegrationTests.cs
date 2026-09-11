@@ -108,6 +108,69 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Monitor_power_set_reports_honestly()
+	{
+		var monitors = new FakeMonitorService();
+		await using var harness = CreateHarness(monitors, new FakeWindowService());
+		await harness.InitializeIntegrationsAsync();
+
+		var standby = await harness.Actions.ExecuteAsync(
+			"set-monitor-power",
+			new Dictionary<string, object?> { ["monitor"] = 1.0, ["mode"] = "standby" });
+		var off = await harness.Actions.ExecuteAsync(
+			"set-monitor-power",
+			new Dictionary<string, object?> { ["monitor"] = 2.0, ["mode"] = "off" });
+		var bad = await harness.Actions.ExecuteAsync(
+			"set-monitor-power",
+			new Dictionary<string, object?> { ["monitor"] = 1.0, ["mode"] = "hibernate" });
+		var missing = await harness.Actions.ExecuteAsync(
+			"set-monitor-power",
+			new Dictionary<string, object?> { ["monitor"] = 9.0, ["mode"] = "on" });
+
+		Assert.That(standby.Succeeded, Is.True);
+		Assert.That(off.Succeeded, Is.True);
+		Assert.That(bad.Succeeded, Is.False);
+		Assert.That(missing.Succeeded, Is.False);
+		Assert.That(monitors.Powers[0], Is.EqualTo(MonitorPowerModes.Standby));
+		Assert.That(monitors.Powers[1], Is.EqualTo(MonitorPowerModes.Off));
+	}
+
+	[Test]
+	public async Task Topmost_toggle_and_snap_drive_the_fake_desktop()
+	{
+		var windows = new FakeWindowService();
+		await using var harness = CreateHarness(new FakeMonitorService(), windows);
+		await harness.InitializeIntegrationsAsync();
+
+		var pin = await harness.Actions.ExecuteAsync(
+			"toggle-always-on-top",
+			new Dictionary<string, object?> { ["window"] = "code" });
+		var snap = await harness.Actions.ExecuteAsync(
+			"snap-window",
+			new Dictionary<string, object?> { ["window"] = "code", ["side"] = "right" });
+		var badSide = await harness.Actions.ExecuteAsync(
+			"snap-window",
+			new Dictionary<string, object?> { ["side"] = "up" });
+		var unknown = await harness.Actions.ExecuteAsync(
+			"snap-window",
+			new Dictionary<string, object?> { ["window"] = "no-such-window", ["side"] = "left" });
+
+		Assert.That(pin.Succeeded, Is.True);
+		Assert.That(snap.Succeeded, Is.True);
+		Assert.That(badSide.Succeeded, Is.False);
+		Assert.That(unknown.Succeeded, Is.False);
+		Assert.That(windows.Topmost, Is.True);
+		Assert.That(windows.Snapped, Is.EqualTo("right"));
+
+		var unpin = await harness.Actions.ExecuteAsync(
+			"toggle-always-on-top",
+			new Dictionary<string, object?> { ["window"] = "code" });
+
+		Assert.That(unpin.Succeeded, Is.True);
+		Assert.That(windows.Topmost, Is.False);
+	}
+
+	[Test]
 	public async Task Desktop_switch_actions_succeed()
 	{
 		await using var harness = CreateHarness(new FakeMonitorService(), new FakeWindowService());
@@ -123,17 +186,26 @@ public sealed class PluginIntegrationTests
 	[Test]
 	public async Task Variables_expose_monitors_and_focus()
 	{
-		var integration = new PluginIntegration(new FakeMonitorService(), new FakeWindowService(), TestLogger());
+		var monitors = new FakeMonitorService();
+		var windows = new FakeWindowService();
+		var integration = new PluginIntegration(monitors, windows, TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		Assert.That((await integration.ReadAsync("monitor-count")).Value, Is.EqualTo(2.0));
 		Assert.That((await integration.ReadAsync("primary-brightness")).Value, Is.EqualTo(80.0));
+		Assert.That((await integration.ReadAsync("primary-input")).Value, Is.EqualTo("hdmi1"));
 		Assert.That((await integration.ReadAsync("focused-window-title")).Value, Is.EqualTo("Visual Studio Code"));
 		Assert.That((await integration.ReadAsync("focused-window-process")).Value, Is.EqualTo("Code"));
+		Assert.That((await integration.ReadAsync("focused-window-topmost")).Value, Is.EqualTo(false));
 
 		var written = await integration.SetValueAsync("primary-brightness", 60.0);
+		var pinned = await integration.SetValueAsync("focused-window-topmost", true);
+		var badPin = await integration.SetValueAsync("focused-window-topmost", "maybe");
 
 		Assert.That(written.Status, Is.EqualTo(VariableWriteStatus.Applied));
+		Assert.That(pinned.Status, Is.EqualTo(VariableWriteStatus.Applied));
+		Assert.That(badPin.Status, Is.EqualTo(VariableWriteStatus.InvalidValue));
+		Assert.That(windows.Topmost, Is.True);
 		await integration.ShutdownAsync();
 	}
 
@@ -149,7 +221,7 @@ public sealed class PluginIntegrationTests
 			.ToList();
 
 		Assert.That(duplicates, Is.Empty);
-		Assert.That(integration.Actions.Count, Is.EqualTo(11));
+		Assert.That(integration.Actions.Count, Is.EqualTo(14));
 	}
 
 	[Test]
@@ -173,6 +245,8 @@ public sealed class PluginIntegrationTests
 		public List<int> Levels { get; } = [80, 60];
 
 		public List<int> Inputs { get; } = [0x11, 0x11];
+
+		public List<int> Powers { get; } = [MonitorPowerModes.On, MonitorPowerModes.On];
 
 		public IReadOnlyList<MonitorInfo> GetMonitors() => Levels
 			.Select((level, index) => new MonitorInfo(index + 1, $"Display {index + 1}", index == 0, level, true))
@@ -202,6 +276,20 @@ public sealed class PluginIntegrationTests
 
 		public int? TryGetInput(int index) =>
 			index >= 1 && index <= Inputs.Count ? Inputs[index - 1] : null;
+
+		public bool TrySetPower(int index, int dpmValue)
+		{
+			if (index < 1 || index > Powers.Count)
+			{
+				return false;
+			}
+
+			Powers[index - 1] = dpmValue;
+			return true;
+		}
+
+		public int? TryGetPower(int index) =>
+			index >= 1 && index <= Powers.Count ? Powers[index - 1] : null;
 	}
 
 	private sealed class FakeWindowService : IWindowService
@@ -209,6 +297,10 @@ public sealed class PluginIntegrationTests
 		public string? Focused { get; private set; } = "Visual Studio Code";
 
 		public List<string> Minimized { get; } = [];
+
+		public bool Topmost { get; private set; }
+
+		public string? Snapped { get; private set; }
 
 		public WindowInfo? GetForeground() =>
 			Focused is null ? null : new WindowInfo(new IntPtr(1), Focused, "Code", false);
@@ -249,5 +341,19 @@ public sealed class PluginIntegrationTests
 		public bool NextDesktop() => true;
 
 		public bool PreviousDesktop() => true;
+
+		public bool IsTopmost(IntPtr handle) => Topmost;
+
+		public bool SetTopmost(IntPtr handle, bool topmost)
+		{
+			Topmost = topmost;
+			return true;
+		}
+
+		public bool Snap(IntPtr handle, bool left)
+		{
+			Snapped = left ? "left" : "right";
+			return true;
+		}
 	}
 }

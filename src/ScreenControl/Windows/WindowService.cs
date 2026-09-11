@@ -27,6 +27,12 @@ public interface IWindowService
 	bool NextDesktop();
 
 	bool PreviousDesktop();
+
+	bool IsTopmost(IntPtr handle);
+
+	bool SetTopmost(IntPtr handle, bool topmost);
+
+	bool Snap(IntPtr handle, bool left);
 }
 
 public sealed class WindowService : IWindowService
@@ -35,6 +41,16 @@ public sealed class WindowService : IWindowService
 	private const int SwMinimize = 6;
 	private const int SwMaximize = 3;
 	private const uint WmClose = 0x0010;
+	private const int GwlpExStyle = -20;
+	private const int WsExTopmost = 0x00000008;
+	private const uint SwpNoSize = 0x0001;
+	private const uint SwpNoMove = 0x0002;
+	private const uint SwpNoZOrder = 0x0004;
+	private const uint SwpNoActivate = 0x0010;
+	private const uint SwpShowWindow = 0x0040;
+	private const uint MonitorDefaultToNearest = 2;
+	private static readonly IntPtr HwndTopmost = new(-1);
+	private static readonly IntPtr HwndNoTopmost = new(-2);
 	private const byte VkControl = 0x11;
 	private const byte VkLeftWindows = 0x5B;
 	private const byte VkLeft = 0x25;
@@ -204,6 +220,85 @@ public sealed class WindowService : IWindowService
 
 	public bool PreviousDesktop() => SwitchDesktop(VkLeft);
 
+	public bool IsTopmost(IntPtr handle)
+	{
+		if (handle == IntPtr.Zero)
+		{
+			return false;
+		}
+
+		try
+		{
+			return (NativeMethods.GetWindowLong(handle, GwlpExStyle) & WsExTopmost) != 0;
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+	}
+
+	public bool SetTopmost(IntPtr handle, bool topmost)
+	{
+		if (handle == IntPtr.Zero)
+		{
+			return false;
+		}
+
+		try
+		{
+			var insertAfter = topmost ? HwndTopmost : HwndNoTopmost;
+			const uint flags = SwpNoSize | SwpNoMove | SwpNoActivate;
+			if (!NativeMethods.SetWindowPos(handle, insertAfter, 0, 0, 0, 0, flags))
+			{
+				return false;
+			}
+
+			return IsTopmost(handle) == topmost;
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+	}
+
+	public bool Snap(IntPtr handle, bool left)
+	{
+		if (handle == IntPtr.Zero)
+		{
+			return false;
+		}
+
+		try
+		{
+			if (NativeMethods.IsIconic(handle) || NativeMethods.IsZoomed(handle))
+			{
+				NativeMethods.ShowWindow(handle, SwRestore);
+			}
+
+			var monitor = NativeMethods.MonitorFromWindow(handle, MonitorDefaultToNearest);
+			var info = new NativeMethods.MonitorInfo { Size = (uint)Marshal.SizeOf<NativeMethods.MonitorInfo>() };
+			if (!NativeMethods.GetMonitorInfo(monitor, ref info))
+			{
+				return false;
+			}
+
+			var work = info.Work;
+			var half = (work.Right - work.Left) / 2;
+			if (half <= 0)
+			{
+				return false;
+			}
+
+			var x = left ? work.Left : work.Left + half;
+			const uint flags = SwpNoZOrder | SwpNoActivate | SwpShowWindow;
+			return NativeMethods.SetWindowPos(handle, IntPtr.Zero, x, work.Top, half, work.Bottom - work.Top, flags);
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+	}
+
 	private WindowInfo? Describe(IntPtr handle)
 	{
 		try
@@ -336,6 +431,24 @@ public sealed class WindowService : IWindowService
 		public delegate bool EnumWindowsProc(IntPtr handle, IntPtr data);
 
 		[StructLayout(LayoutKind.Sequential)]
+		public struct Rect
+		{
+			public int Left;
+			public int Top;
+			public int Right;
+			public int Bottom;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		public struct MonitorInfo
+		{
+			public uint Size;
+			public Rect Monitor;
+			public Rect Work;
+			public uint Flags;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
 		public struct KeyboardInput
 		{
 			public ushort VirtualKey;
@@ -404,6 +517,27 @@ public sealed class WindowService : IWindowService
 		[DllImport("user32.dll")]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern bool ShowWindow(IntPtr handle, int command);
+
+		[DllImport("user32.dll")]
+		public static extern int GetWindowLong(IntPtr handle, int index);
+
+		[DllImport("user32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern bool SetWindowPos(
+			IntPtr handle,
+			IntPtr insertAfter,
+			int x,
+			int y,
+			int width,
+			int height,
+			uint flags);
+
+		[DllImport("user32.dll")]
+		public static extern IntPtr MonitorFromWindow(IntPtr handle, uint flags);
+
+		[DllImport("user32.dll", CharSet = CharSet.Auto)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
 
 		[DllImport("user32.dll")]
 		[return: MarshalAs(UnmanagedType.Bool)]

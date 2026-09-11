@@ -215,3 +215,64 @@ public sealed class CycleMonitorInputAction(IMonitorService monitors) : IActionD
 		}
 	}
 }
+
+public sealed class SetMonitorPowerAction(IMonitorService monitors) : IActionDefinition
+{
+	public string Id => "set-monitor-power";
+	public LocalizedText Name => Strings.Actions.SetMonitorPower.Name();
+	public LocalizedText Description => Strings.Actions.SetMonitorPower.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } =
+	[
+		DisplayParameters.MonitorOption(),
+		new ActionParameter
+		{
+			Name = DisplayParameters.PowerParameter,
+			Type = ActionParameterType.Choice,
+			Label = Strings.Actions.SetMonitorPower.Mode.Label(),
+			Description = Strings.Actions.SetMonitorPower.Mode.Description(),
+			Options =
+			[
+				new ActionParameterOption { Value = "on", Label = Strings.Power.On() },
+				new ActionParameterOption { Value = "standby", Label = Strings.Power.Standby() },
+				new ActionParameterOption { Value = "off", Label = Strings.Power.Off() },
+			],
+			DefaultValue = "on",
+		},
+	];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
+	public IActionExecutor CreateExecutor() => new Executor(monitors);
+
+	private sealed class Executor(IMonitorService monitors) : IActionExecutor
+	{
+		public Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			var mode = context.Parameters.TryGetValue(DisplayParameters.PowerParameter, out var raw)
+				? raw?.ToString()?.ToLowerInvariant()
+				: "on";
+			var dpm = mode switch
+			{
+				"on" => MonitorPowerModes.On,
+				"standby" => MonitorPowerModes.Standby,
+				"off" => MonitorPowerModes.Off,
+				_ => (int?)null,
+			};
+			if (dpm is null)
+			{
+				return Task.FromResult(ActionResult.Failed(
+					ActionErrorCodes.InvalidParameter,
+					Strings.Actions.SetMonitorPower.Mode.Label()));
+			}
+
+			try
+			{
+				return Task.FromResult(monitors.TrySetPower(DisplayParameters.ReadMonitor(context.Parameters), dpm.Value)
+					? ActionResult.Success()
+					: DisplayActionResults.NoMonitor());
+			}
+			catch (Exception)
+			{
+				return Task.FromResult(DisplayActionResults.ProviderError());
+			}
+		}
+	}
+}

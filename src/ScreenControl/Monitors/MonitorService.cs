@@ -18,11 +18,23 @@ public interface IMonitorService
 	bool TrySetInput(int index, int vcpValue);
 
 	int? TryGetInput(int index);
+
+	bool TrySetPower(int index, int dpmValue);
+
+	int? TryGetPower(int index);
+}
+
+public static class MonitorPowerModes
+{
+	public const int On = 1;
+	public const int Standby = 2;
+	public const int Off = 4;
 }
 
 public sealed class MonitorService : IMonitorService
 {
 	private const byte VcpInputSelect = 0x60;
+	private const byte VcpPowerMode = 0xD6;
 
 	public IReadOnlyList<MonitorInfo> GetMonitors()
 	{
@@ -99,6 +111,39 @@ public sealed class MonitorService : IMonitorService
 			return WithPhysicalMonitor(index, handle =>
 			{
 				if (!NativeMethods.GetVCPFeature(handle, VcpInputSelect, out _, out var current, out _))
+				{
+					return (false, (int?)null);
+				}
+
+				return (true, (int?)current);
+			}, out var value) ? value : null;
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
+
+	public bool TrySetPower(int index, int dpmValue)
+	{
+		try
+		{
+			return WithPhysicalMonitor(index, handle =>
+				NativeMethods.SetVCPFeature(handle, VcpPowerMode, (uint)dpmValue));
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+	}
+
+	public int? TryGetPower(int index)
+	{
+		try
+		{
+			return WithPhysicalMonitor(index, handle =>
+			{
+				if (!NativeMethods.GetVCPFeature(handle, VcpPowerMode, out _, out var current, out _))
 				{
 					return (false, (int?)null);
 				}

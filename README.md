@@ -64,7 +64,7 @@ Besides the fixed variables above, the plugin offers a browsable **App volumes**
 
 Control monitors and windows from the deck. Monitor control uses DDC/CI over `dxva2` (works on external monitors that expose brightness/input VCP codes; most laptop panels do not).
 
-### Actions (11)
+### Actions (14)
 
 | Action | What it does |
 | --- | --- |
@@ -72,26 +72,29 @@ Control monitors and windows from the deck. Monitor control uses DDC/CI over `dx
 | Adjust monitor brightness | Raise or lower brightness by a step (default +5); zero is a no-op success. |
 | Set monitor input | Switch a monitor to HDMI 1/2, DisplayPort 1/2 or DVI over VCP `0x60`. |
 | Next monitor input | Cycle a monitor to its next input (HDMI1 → HDMI2 → DP1 → DP2 → DVI). |
+| Set monitor power | Turn a monitor on, or put it into standby/off over VCP `0xD6`. |
 | Focus window | Bring a window to the front (substring match on title or process name). |
 | Minimize / Maximize / Restore window | Window state; empty filter means the focused window. |
 | Close window | Ask a window to close itself (`WM_CLOSE`). |
+| Toggle always on top | Pin a window above all others, or unpin it again. |
+| Snap window | Move a window into the left or right half of its monitor. |
 | Next / Previous virtual desktop | Switch desktops via Win+Ctrl+Left/Right. |
 
-### Variables (4)
+### Variables (6)
 
-`monitor_count` (how many monitors Windows sees), writable `primary_brightness` (writing it sets the primary monitor brightness), `focused_window_title` and `focused_window_process`.
+`monitor_count` (how many monitors Windows sees), writable `primary_brightness` (writing it sets the primary monitor brightness), `primary_input` (the primary monitor's current input: `hdmi1`, `dp1`, `dvi`, ...), `focused_window_title`, `focused_window_process` and writable `focused_window_topmost` (writing it pins or unpins the focused window).
 
 ## Timers
 
 Countdowns and a stopwatch for automations. The countdown runs on a background timer: pausing keeps the time left, re-starting replaces the running one, and a zero-length start fires the event immediately.
 
-### Actions (7)
+### Actions (10)
 
-Start / Pause / Resume / Cancel countdown (default 5 minutes, optional label), Start / Stop / Reset stopwatch.
+Start countdown (hours/minutes/seconds, default 5 minutes, optional label) / Pause / Resume / Cancel, Pause-or-resume toggle, Adjust countdown (add or remove seconds; adjusting past zero finishes it at once), Start / Stop / Reset stopwatch, Start-or-stop toggle.
 
-### Variables (7)
+### Variables (8)
 
-`countdown_remaining_seconds`, `countdown_text` (`m:ss` or `h:mm:ss`), `countdown_running`, `countdown_label`, `stopwatch_elapsed_seconds`, `stopwatch_text`, `stopwatch_running` (all refresh every second, all read-only).
+`countdown_remaining_seconds`, `countdown_text` (`m:ss` or `h:mm:ss`), `countdown_running`, `countdown_label`, `countdown_progress_percent`, `stopwatch_elapsed_seconds`, `stopwatch_text`, `stopwatch_running` (all refresh every second, all read-only).
 
 ### Events (1)
 

@@ -26,11 +26,14 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 			new AdjustMonitorBrightnessAction(monitors),
 			new SetMonitorInputAction(monitors),
 			new CycleMonitorInputAction(monitors),
+			new SetMonitorPowerAction(monitors),
 			new FocusWindowAction(windows),
 			new MinimizeWindowAction(windows),
 			new MaximizeWindowAction(windows),
 			new RestoreWindowAction(windows),
 			new CloseWindowAction(windows),
+			new ToggleAlwaysOnTopAction(windows),
+			new SnapWindowAction(windows),
 			new NextDesktopAction(windows),
 			new PreviousDesktopAction(windows),
 		];
@@ -68,10 +71,12 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 			{
 				"monitor-count" => ValueTask.FromResult(VariableReading.Of((double)_monitors.GetMonitors().Count)),
 				"primary-brightness" => ValueTask.FromResult(ReadPrimaryBrightness()),
+				"primary-input" => ValueTask.FromResult(ReadPrimaryInput()),
 				"focused-window-title" => ValueTask.FromResult(
 					TextOrUnavailable(_windows.GetForeground()?.Title)),
 				"focused-window-process" => ValueTask.FromResult(
 					TextOrUnavailable(_windows.GetForeground()?.ProcessName)),
+				"focused-window-topmost" => ValueTask.FromResult(ReadFocusedTopmost()),
 				_ => ValueTask.FromResult(VariableReading.Unavailable),
 			};
 		}
@@ -98,6 +103,23 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 				if (primary is null || !_monitors.TrySetBrightness(primary.Index, (int)brightness))
 				{
 					return ValueTask.FromResult(VariableWriteResult.Unavailable(Strings.Errors.MonitorNotAvailable()));
+				}
+
+				return ValueTask.FromResult(VariableWriteResult.Applied());
+			}
+
+			if (localId == "focused-window-topmost")
+			{
+				var topmost = ReadBoolValue(value);
+				if (topmost is null)
+				{
+					return ValueTask.FromResult(VariableWriteResult.InvalidValue(Strings.Variables.FocusedTopmost.DisplayName()));
+				}
+
+				var focused = _windows.GetForeground();
+				if (focused is null || !_windows.SetTopmost(focused.Handle, topmost.Value))
+				{
+					return ValueTask.FromResult(VariableWriteResult.Unavailable(Strings.Errors.WindowNotFound()));
 				}
 
 				return ValueTask.FromResult(VariableWriteResult.Applied());
@@ -132,6 +154,39 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 			: VariableReading.Unavailable;
 	}
 
+	private VariableReading ReadPrimaryInput()
+	{
+		var primary = PrimaryMonitor(_monitors.GetMonitors());
+		if (primary is null)
+		{
+			return VariableReading.Unavailable;
+		}
+
+		var input = _monitors.TryGetInput(primary.Index);
+		if (input is null)
+		{
+			return VariableReading.Unavailable;
+		}
+
+		return VariableReading.Of(input.Value switch
+		{
+			0x11 => "hdmi1",
+			0x12 => "hdmi2",
+			0x0F => "dp1",
+			0x10 => "dp2",
+			0x03 => "dvi",
+			_ => "unknown",
+		});
+	}
+
+	private VariableReading ReadFocusedTopmost()
+	{
+		var focused = _windows.GetForeground();
+		return focused is null
+			? VariableReading.Unavailable
+			: VariableReading.Of(_windows.IsTopmost(focused.Handle));
+	}
+
 	private static Monitors.MonitorInfo? PrimaryMonitor(IReadOnlyList<Monitors.MonitorInfo> monitors)
 	{
 		foreach (var monitor in monitors)
@@ -147,4 +202,21 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 
 	private static VariableReading TextOrUnavailable(string? value) =>
 		string.IsNullOrWhiteSpace(value) ? VariableReading.Unavailable : VariableReading.Of(value);
+
+	private static bool? ReadBoolValue(object? value) => value switch
+	{
+		bool b => b,
+		double d when d == 0 => false,
+		double d when d == 1 => true,
+		float f when f == 0 => false,
+		float f when f == 1 => true,
+		int i when i == 0 => false,
+		int i when i == 1 => true,
+		long l when l == 0 => false,
+		long l when l == 1 => true,
+		string s when bool.TryParse(s, out var parsed) => parsed,
+		string s when s.Trim() == "0" => false,
+		string s when s.Trim() == "1" => true,
+		_ => null,
+	};
 }

@@ -12,6 +12,7 @@ internal static class TimerVariables
 		Eager("countdown-text", VariableType.Text, Strings.Variables.CountdownText.DisplayName(), Strings.Variables.CountdownText.Description(), refresh: FastRefresh),
 		Eager("countdown-running", VariableType.Boolean, Strings.Variables.CountdownRunning.DisplayName(), Strings.Variables.CountdownRunning.Description(), refresh: FastRefresh),
 		Eager("countdown-label", VariableType.Text, Strings.Variables.CountdownLabel.DisplayName(), Strings.Variables.CountdownLabel.Description(), refresh: FastRefresh),
+		Eager("countdown-progress-percent", VariableType.Numeric, Strings.Variables.CountdownProgress.DisplayName(), Strings.Variables.CountdownProgress.Description(), unit: "%", semanticKind: VariableSemanticKinds.Percentage, refresh: FastRefresh),
 		Eager("stopwatch-elapsed-seconds", VariableType.Numeric, Strings.Variables.StopwatchElapsed.DisplayName(), Strings.Variables.StopwatchElapsed.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration, refresh: FastRefresh),
 		Eager("stopwatch-text", VariableType.Text, Strings.Variables.StopwatchText.DisplayName(), Strings.Variables.StopwatchText.Description(), refresh: FastRefresh),
 		Eager("stopwatch-running", VariableType.Boolean, Strings.Variables.StopwatchRunning.DisplayName(), Strings.Variables.StopwatchRunning.Description(), refresh: FastRefresh),

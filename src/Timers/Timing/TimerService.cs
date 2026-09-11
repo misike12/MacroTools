@@ -112,6 +112,92 @@ public sealed class TimerService : IDisposable
 		}
 	}
 
+	public void ToggleCountdown()
+	{
+		if (CountdownRunning)
+		{
+			PauseCountdown();
+		}
+		else
+		{
+			ResumeCountdown();
+		}
+	}
+
+	public void AdjustCountdown(TimeSpan delta)
+	{
+		if (delta == TimeSpan.Zero)
+		{
+			return;
+		}
+
+		CancellationTokenSource? current = null;
+		TimeSpan remaining = TimeSpan.Zero;
+		string label = string.Empty;
+		double seconds = 0;
+		var restart = false;
+		CountdownFinished? finished = null;
+		lock (_gate)
+		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			var left = _countdownRunning
+				? _countdownEndsAt - DateTimeOffset.UtcNow
+				: _countdownRemaining;
+			if (left < TimeSpan.Zero)
+			{
+				left = TimeSpan.Zero;
+			}
+
+			if (!_countdownRunning && _countdownRemaining <= TimeSpan.Zero)
+			{
+				return;
+			}
+
+			var updated = left + delta;
+			if (updated <= TimeSpan.Zero)
+			{
+				_countdownCts?.Cancel();
+				_countdownCts?.Dispose();
+				_countdownCts = null;
+				_countdownRunning = false;
+				_countdownRemaining = TimeSpan.Zero;
+				finished = new CountdownFinished(_countdownLabel, _countdownSeconds);
+			}
+			else if (_countdownRunning)
+			{
+				_countdownCts?.Cancel();
+				_countdownCts?.Dispose();
+				_countdownCts = new CancellationTokenSource();
+				current = _countdownCts;
+				_countdownRemaining = updated;
+				_countdownEndsAt = DateTimeOffset.UtcNow + updated;
+				remaining = updated;
+				label = _countdownLabel;
+				seconds = _countdownSeconds;
+				restart = true;
+			}
+			else
+			{
+				_countdownRemaining = updated;
+			}
+		}
+
+		if (finished is not null)
+		{
+			QueueFinished(finished.Label, finished.Seconds);
+			return;
+		}
+
+		if (restart)
+		{
+			_ = RunCountdownAsync(remaining, label, current, seconds);
+		}
+	}
+
 	public TimeSpan CountdownRemaining
 	{
 		get
@@ -151,6 +237,46 @@ public sealed class TimerService : IDisposable
 		}
 	}
 
+	public double CountdownTotalSeconds
+	{
+		get
+		{
+			lock (_gate)
+			{
+				return _countdownSeconds;
+			}
+		}
+	}
+
+	public double CountdownProgressPercent
+	{
+		get
+		{
+			lock (_gate)
+			{
+				if (_countdownSeconds <= 0)
+				{
+					return 0;
+				}
+
+				var left = _countdownRunning
+					? _countdownEndsAt - DateTimeOffset.UtcNow
+					: _countdownRemaining;
+				if (left < TimeSpan.Zero)
+				{
+					left = TimeSpan.Zero;
+				}
+
+				if (left > TimeSpan.FromSeconds(_countdownSeconds))
+				{
+					left = TimeSpan.FromSeconds(_countdownSeconds);
+				}
+
+				return (_countdownSeconds - left.TotalSeconds) / _countdownSeconds * 100;
+			}
+		}
+	}
+
 	public void StartStopwatch()
 	{
 		lock (_gate)
@@ -173,6 +299,22 @@ public sealed class TimerService : IDisposable
 		lock (_gate)
 		{
 			_stopwatch.Reset();
+		}
+	}
+
+	public void ToggleStopwatch()
+	{
+		lock (_gate)
+		{
+			ThrowIfDisposed();
+			if (_stopwatch.IsRunning)
+			{
+				_stopwatch.Stop();
+			}
+			else
+			{
+				_stopwatch.Start();
+			}
 		}
 	}
 

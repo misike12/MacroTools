@@ -82,3 +82,29 @@ public sealed class ResetStopwatchAction(TimerService timers) : IActionDefinitio
 		}
 	}
 }
+
+public sealed class ToggleStopwatchAction(TimerService timers) : IActionDefinition
+{
+	public string Id => "toggle-stopwatch";
+	public LocalizedText Name => Strings.Actions.ToggleStopwatch.Name();
+	public LocalizedText Description => Strings.Actions.ToggleStopwatch.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.All;
+	public IActionExecutor CreateExecutor() => new Executor(timers);
+
+	private sealed class Executor(TimerService timers) : IActionExecutor
+	{
+		public Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			try
+			{
+				timers.ToggleStopwatch();
+				return Task.FromResult(ActionResult.Success());
+			}
+			catch (Exception)
+			{
+				return Task.FromResult(ActionResult.Failed(ActionErrorCodes.ProviderError, Strings.Errors.CommandFailed()));
+			}
+		}
+	}
+}

@@ -19,6 +19,17 @@ internal static class DisplayVariables
 		},
 		Eager("focused-window-title", VariableType.Text, Strings.Variables.FocusedWindowTitle.DisplayName(), Strings.Variables.FocusedWindowTitle.Description(), refresh: TimeSpan.FromSeconds(2)),
 		Eager("focused-window-process", VariableType.Text, Strings.Variables.FocusedWindowProcess.DisplayName(), Strings.Variables.FocusedWindowProcess.Description(), refresh: TimeSpan.FromSeconds(2)),
+		Eager("primary-input", VariableType.Text, Strings.Variables.PrimaryInput.DisplayName(), Strings.Variables.PrimaryInput.Description(), refresh: TimeSpan.FromSeconds(5)),
+		VariableDefinition.Eager("focused-window-topmost", VariableType.Boolean) with
+		{
+			Name = "focused_window_topmost",
+			DisplayName = Strings.Variables.FocusedTopmost.DisplayName(),
+			Description = Strings.Variables.FocusedTopmost.Description(),
+			Unit = string.Empty,
+			SemanticKind = VariableSemanticKinds.None,
+			RefreshInterval = TimeSpan.FromSeconds(2),
+			Write = new VariableWriteCapability(),
+		},
 	];
 
 	private static VariableDefinition Eager(

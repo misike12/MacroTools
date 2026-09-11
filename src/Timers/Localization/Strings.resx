@@ -16,13 +16,25 @@
     <value>Start countdown</value>
   </data>
   <data name="Actions.StartCountdown.Description" xml:space="preserve">
-    <value>Start a countdown of the given length, replacing any running one.</value>
+    <value>Start a countdown of the given length, replacing any running one. Zero starts nothing and fires the finished event at once.</value>
+  </data>
+  <data name="Actions.StartCountdown.Hours.Label" xml:space="preserve">
+    <value>Hours</value>
+  </data>
+  <data name="Actions.StartCountdown.Hours.Description" xml:space="preserve">
+    <value>Whole hours of the countdown, from 0 to 24.</value>
+  </data>
+  <data name="Actions.StartCountdown.Minutes.Label" xml:space="preserve">
+    <value>Minutes</value>
+  </data>
+  <data name="Actions.StartCountdown.Minutes.Description" xml:space="preserve">
+    <value>Minutes of the countdown, from 0 to 59.</value>
   </data>
   <data name="Actions.StartCountdown.Seconds.Label" xml:space="preserve">
     <value>Seconds</value>
   </data>
   <data name="Actions.StartCountdown.Seconds.Description" xml:space="preserve">
-    <value>How long the countdown runs.</value>
+    <value>Seconds of the countdown, from 0 to 59.</value>
   </data>
   <data name="Actions.StartCountdown.TimerLabel.Label" xml:space="preserve">
     <value>Label</value>
@@ -48,6 +60,24 @@
   <data name="Actions.CancelCountdown.Description" xml:space="preserve">
     <value>Stop the countdown and clear it.</value>
   </data>
+  <data name="Actions.ToggleCountdown.Name" xml:space="preserve">
+    <value>Pause or resume countdown</value>
+  </data>
+  <data name="Actions.ToggleCountdown.Description" xml:space="preserve">
+    <value>Pause a running countdown, or resume a paused one.</value>
+  </data>
+  <data name="Actions.AdjustCountdown.Name" xml:space="preserve">
+    <value>Adjust countdown</value>
+  </data>
+  <data name="Actions.AdjustCountdown.Description" xml:space="preserve">
+    <value>Add or remove time on the running or paused countdown. Adjusting past zero finishes it at once.</value>
+  </data>
+  <data name="Actions.AdjustCountdown.Delta.Label" xml:space="preserve">
+    <value>Seconds to add</value>
+  </data>
+  <data name="Actions.AdjustCountdown.Delta.Description" xml:space="preserve">
+    <value>Seconds to add, negative to subtract.</value>
+  </data>
   <data name="Actions.StartStopwatch.Name" xml:space="preserve">
     <value>Start stopwatch</value>
   </data>
@@ -65,6 +95,12 @@
   </data>
   <data name="Actions.ResetStopwatch.Description" xml:space="preserve">
     <value>Stop the stopwatch and clear it to zero.</value>
+  </data>
+  <data name="Actions.ToggleStopwatch.Name" xml:space="preserve">
+    <value>Start or stop stopwatch</value>
+  </data>
+  <data name="Actions.ToggleStopwatch.Description" xml:space="preserve">
+    <value>Start the stopwatch when stopped, stop it when running.</value>
   </data>
   <data name="Events.CountdownFinished.Name" xml:space="preserve">
     <value>Countdown finished</value>
@@ -101,6 +137,12 @@
   </data>
   <data name="Variables.CountdownLabel.Description" xml:space="preserve">
     <value>The label of the current countdown, if any.</value>
+  </data>
+  <data name="Variables.CountdownProgress.DisplayName" xml:space="preserve">
+    <value>Countdown progress</value>
+  </data>
+  <data name="Variables.CountdownProgress.Description" xml:space="preserve">
+    <value>How much of the countdown has elapsed, from 0 to 100.</value>
   </data>
   <data name="Variables.StopwatchElapsed.DisplayName" xml:space="preserve">
     <value>Stopwatch time</value>

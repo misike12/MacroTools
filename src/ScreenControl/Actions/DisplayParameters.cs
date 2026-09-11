@@ -8,6 +8,7 @@ internal static class DisplayParameters
 	public const string WindowParameter = "window";
 	public const string BrightnessParameter = "brightness";
 	public const string InputParameter = "input";
+	public const string PowerParameter = "mode";
 
 	public static ActionParameter MonitorOption() => new()
 	{
