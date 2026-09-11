@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 
 namespace ScreenControl.Monitors;
@@ -7,7 +8,8 @@ public sealed record MonitorInfo(
 	string Name,
 	bool IsPrimary,
 	int BrightnessPercent,
-	bool SupportsBrightness);
+	bool SupportsBrightness,
+	bool SoftwareBrightness);
 
 public interface IMonitorService
 {
@@ -22,6 +24,8 @@ public interface IMonitorService
 	bool TrySetPower(int index, int dpmValue);
 
 	int? TryGetPower(int index);
+
+	IReadOnlyList<int> GetSupportedInputs(int index);
 }
 
 public static class MonitorPowerModes
@@ -35,6 +39,9 @@ public sealed class MonitorService : IMonitorService
 {
 	private const byte VcpInputSelect = 0x60;
 	private const byte VcpPowerMode = 0xD6;
+
+	private readonly ConcurrentDictionary<string, bool> _gammaSupport = new(StringComparer.OrdinalIgnoreCase);
+	private readonly ConcurrentDictionary<string, int> _gammaLevel = new(StringComparer.OrdinalIgnoreCase);
 
 	public IReadOnlyList<MonitorInfo> GetMonitors()
 	{
@@ -63,20 +70,27 @@ public sealed class MonitorService : IMonitorService
 
 	public bool TrySetBrightness(int index, int percent)
 	{
-		var handles = HandlesFor(index);
-		if (handles is null)
+		var target = TargetFor(index);
+		if (target is null)
 		{
 			return false;
 		}
 
 		try
 		{
-			foreach (var handle in handles)
+			foreach (var handle in target.Handles)
 			{
 				if (BrightnessRange(handle) is (int min, int max))
 				{
 					return NativeMethods.SetMonitorBrightness(handle, ToNative(percent, min, max));
 				}
+			}
+
+			var clamped = Math.Clamp(percent, 0, 100);
+			if (GammaRamp.TrySet(target.DeviceName, clamped))
+			{
+				_gammaLevel[target.DeviceName] = clamped;
+				return true;
 			}
 		}
 		catch (Exception)
@@ -85,7 +99,7 @@ public sealed class MonitorService : IMonitorService
 		}
 		finally
 		{
-			ClosePhysicalMonitors(handles);
+			ClosePhysicalMonitors(target.Handles);
 		}
 
 		return false;
@@ -110,7 +124,7 @@ public sealed class MonitorService : IMonitorService
 		{
 			return WithPhysicalMonitor(index, handle =>
 			{
-				if (!NativeMethods.GetVCPFeature(handle, VcpInputSelect, out _, out var current, out _))
+				if (!NativeMethods.GetVCPFeatureAndVCPFeatureReply(handle, VcpInputSelect, IntPtr.Zero, out var current, out _))
 				{
 					return (false, (int?)null);
 				}
@@ -143,7 +157,7 @@ public sealed class MonitorService : IMonitorService
 		{
 			return WithPhysicalMonitor(index, handle =>
 			{
-				if (!NativeMethods.GetVCPFeature(handle, VcpPowerMode, out _, out var current, out _))
+				if (!NativeMethods.GetVCPFeatureAndVCPFeatureReply(handle, VcpPowerMode, IntPtr.Zero, out var current, out _))
 				{
 					return (false, (int?)null);
 				}
@@ -157,7 +171,37 @@ public sealed class MonitorService : IMonitorService
 		}
 	}
 
-	private static MonitorInfo? Describe(IntPtr hMonitor, int index)
+	public IReadOnlyList<int> GetSupportedInputs(int index)
+	{
+		var target = TargetFor(index);
+		if (target is null)
+		{
+			return [];
+		}
+
+		try
+		{
+			foreach (var handle in target.Handles)
+			{
+				if (TryReadCapabilities(handle) is string caps
+					&& ParseInputValues(caps) is { Count: > 0 } values)
+				{
+					return values;
+				}
+			}
+		}
+		catch (Exception)
+		{
+		}
+		finally
+		{
+			ClosePhysicalMonitors(target.Handles);
+		}
+
+		return [];
+	}
+
+	private MonitorInfo? Describe(IntPtr hMonitor, int index)
 	{
 		try
 		{
@@ -170,11 +214,33 @@ public sealed class MonitorService : IMonitorService
 			var name = string.IsNullOrWhiteSpace(info.DeviceName) ? $"Display {index}" : info.DeviceName;
 			var primary = (info.Flags & 1) != 0;
 			var brightness = ReadBrightness(hMonitor);
-			return new MonitorInfo(index, name, primary, brightness?.Percent ?? 0, brightness is not null);
+			if (brightness is not null)
+			{
+				return new MonitorInfo(index, name, primary, brightness.Value.Percent, true, false);
+			}
+
+			if (SupportsGamma(name))
+			{
+				return new MonitorInfo(index, name, primary, _gammaLevel.GetOrAdd(name, 100), true, true);
+			}
+
+			return new MonitorInfo(index, name, primary, 0, false, false);
 		}
 		catch (Exception)
 		{
 			return null;
+		}
+	}
+
+	private bool SupportsGamma(string deviceName)
+	{
+		try
+		{
+			return _gammaSupport.GetOrAdd(deviceName, static name => GammaRamp.IsSupported(name));
+		}
+		catch (Exception)
+		{
+			return false;
 		}
 	}
 
@@ -209,15 +275,15 @@ public sealed class MonitorService : IMonitorService
 
 	private static bool WithPhysicalMonitor(int index, Func<IntPtr, bool> use)
 	{
-		var handles = HandlesFor(index);
-		if (handles is null)
+		var target = TargetFor(index);
+		if (target is null)
 		{
 			return false;
 		}
 
 		try
 		{
-			foreach (var handle in handles)
+			foreach (var handle in target.Handles)
 			{
 				if (use(handle))
 				{
@@ -231,7 +297,7 @@ public sealed class MonitorService : IMonitorService
 		}
 		finally
 		{
-			ClosePhysicalMonitors(handles);
+			ClosePhysicalMonitors(target.Handles);
 		}
 
 		return false;
@@ -240,15 +306,15 @@ public sealed class MonitorService : IMonitorService
 	private static bool WithPhysicalMonitor(int index, Func<IntPtr, (bool Ok, int? Value)> use, out int? value)
 	{
 		value = null;
-		var handles = HandlesFor(index);
-		if (handles is null)
+		var target = TargetFor(index);
+		if (target is null)
 		{
 			return false;
 		}
 
 		try
 		{
-			foreach (var handle in handles)
+			foreach (var handle in target.Handles)
 			{
 				var (ok, current) = use(handle);
 				if (ok)
@@ -264,10 +330,75 @@ public sealed class MonitorService : IMonitorService
 		}
 		finally
 		{
-			ClosePhysicalMonitors(handles);
+			ClosePhysicalMonitors(target.Handles);
 		}
 
 		return false;
+	}
+
+	private static string? TryReadCapabilities(IntPtr handle)
+	{
+		try
+		{
+			if (!NativeMethods.GetCapabilitiesStringLength(handle, out var length) || length == 0 || length > 64000)
+			{
+				return null;
+			}
+
+			var buffer = new char[length];
+			if (!NativeMethods.CapabilitiesRequestAndCapabilitiesReply(handle, buffer, length))
+			{
+				return null;
+			}
+
+			var caps = new string(buffer).TrimEnd('\0');
+			return string.IsNullOrWhiteSpace(caps) ? null : caps;
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
+
+	private static List<int> ParseInputValues(string caps)
+	{
+		try
+		{
+			var start = caps.IndexOf("60(", StringComparison.OrdinalIgnoreCase);
+			if (start < 0)
+			{
+				return [];
+			}
+
+			var end = caps.IndexOf(')', start + 3);
+			if (end < 0)
+			{
+				return [];
+			}
+
+			var values = new List<int>();
+			foreach (var token in caps.Substring(start + 3, end - start - 3).Split(' ', StringSplitOptions.RemoveEmptyEntries))
+			{
+				if (token.Contains('('))
+				{
+					continue;
+				}
+
+				try
+				{
+					values.Add(Convert.ToInt32(token, 16));
+				}
+				catch (Exception)
+				{
+				}
+			}
+
+			return values;
+		}
+		catch (Exception)
+		{
+			return [];
+		}
 	}
 
 	private static int ToNative(int percent, int min, int max) =>
@@ -289,9 +420,11 @@ public sealed class MonitorService : IMonitorService
 		return null;
 	}
 
-	private static IntPtr[]? HandlesFor(int index)
+	private sealed record Target(IntPtr[] Handles, string DeviceName);
+
+	private static Target? TargetFor(int index)
 	{
-		IntPtr[]? target = null;
+		Target? target = null;
 		var current = 0;
 		try
 		{
@@ -300,7 +433,16 @@ public sealed class MonitorService : IMonitorService
 				current++;
 				if (current == index)
 				{
-					target = OpenPhysicalMonitors(hMonitor);
+					var handles = OpenPhysicalMonitors(hMonitor);
+					var name = DeviceNameOf(hMonitor);
+					if (handles is not null && name is not null)
+					{
+						target = new Target(handles, name);
+					}
+					else
+					{
+						ClosePhysicalMonitors(handles);
+					}
 				}
 
 				return true;
@@ -314,6 +456,24 @@ public sealed class MonitorService : IMonitorService
 		}
 
 		return target;
+	}
+
+	private static string? DeviceNameOf(IntPtr hMonitor)
+	{
+		try
+		{
+			var info = new NativeMethods.MonitorInfoEx { Size = (uint)Marshal.SizeOf<NativeMethods.MonitorInfoEx>() };
+			if (!NativeMethods.GetMonitorInfo(hMonitor, ref info))
+			{
+				return null;
+			}
+
+			return string.IsNullOrWhiteSpace(info.DeviceName) ? null : info.DeviceName;
+		}
+		catch (Exception)
+		{
+			return null;
+		}
 	}
 
 	private static IntPtr[]? OpenPhysicalMonitors(IntPtr hMonitor)
@@ -436,7 +596,18 @@ public sealed class MonitorService : IMonitorService
 
 		[DllImport("dxva2.dll")]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		public static extern bool GetVCPFeature(
-			IntPtr handle, byte code, out uint type, out uint current, out uint maximum);
+		public static extern bool GetVCPFeatureAndVCPFeatureReply(
+			IntPtr handle, byte code, IntPtr type, out uint current, out uint maximum);
+
+		[DllImport("dxva2.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern bool GetCapabilitiesStringLength(IntPtr handle, out uint length);
+
+		[DllImport("dxva2.dll", CharSet = CharSet.Ansi)]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern bool CapabilitiesRequestAndCapabilitiesReply(
+			IntPtr handle,
+			[Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] char[] capabilities,
+			uint length);
 	}
 }

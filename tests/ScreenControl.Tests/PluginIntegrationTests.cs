@@ -249,7 +249,7 @@ public sealed class PluginIntegrationTests
 		public List<int> Powers { get; } = [MonitorPowerModes.On, MonitorPowerModes.On];
 
 		public IReadOnlyList<MonitorInfo> GetMonitors() => Levels
-			.Select((level, index) => new MonitorInfo(index + 1, $"Display {index + 1}", index == 0, level, true))
+			.Select((level, index) => new MonitorInfo(index + 1, $"Display {index + 1}", index == 0, level, true, false))
 			.ToList();
 
 		public bool TrySetBrightness(int index, int percent)
@@ -290,6 +290,9 @@ public sealed class PluginIntegrationTests
 
 		public int? TryGetPower(int index) =>
 			index >= 1 && index <= Powers.Count ? Powers[index - 1] : null;
+
+		public IReadOnlyList<int> GetSupportedInputs(int index) =>
+			index >= 1 && index <= Inputs.Count ? [0x11, 0x12, 0x0F, 0x10, 0x03] : [];
 	}
 
 	private sealed class FakeWindowService : IWindowService

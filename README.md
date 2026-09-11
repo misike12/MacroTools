@@ -84,6 +84,8 @@ Control monitors and windows from the deck. Monitor control uses DDC/CI over `dx
 
 `monitor_count` (how many monitors Windows sees), writable `primary_brightness` (writing it sets the primary monitor brightness), `primary_input` (the primary monitor's current input: `hdmi1`, `dp1`, `dvi`, ...), `focused_window_title`, `focused_window_process` and writable `focused_window_topmost` (writing it pins or unpins the focused window).
 
+Brightness works on monitors without DDC/CI too (e.g. early-2000s panels that only speak VESA DDC 2B): when the backlight cannot be driven over VCP `0x10`, the plugin scales that display's GPU gamma ramp instead. Input and power switching genuinely need DDC and report honestly when the monitor has none; input cycling stays within the inputs the monitor advertises in its capabilities string.
+
 ## Timers
 
 Countdowns and a stopwatch for automations. The countdown runs on a background timer: pausing keeps the time left, re-starting replaces the running one, and a zero-length start fires the event immediately.

@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.screen-control",
   "name": "Screen Control",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Control monitors (DDC brightness/input) and windows (focus, minimize, virtual desktops).",
   "icon": "Assets/icon.svg",
   "entrypoints": {

@@ -184,7 +184,7 @@ public sealed class SetMonitorInputAction(IMonitorService monitors) : IActionDef
 
 public sealed class CycleMonitorInputAction(IMonitorService monitors) : IActionDefinition
 {
-	private static readonly int[] InputOrder = [0x11, 0x12, 0x0F, 0x10, 0x03];
+	private static readonly int[] DefaultInputOrder = [0x11, 0x12, 0x0F, 0x10, 0x03];
 
 	public string Id => "cycle-monitor-input";
 	public LocalizedText Name => Strings.Actions.CycleMonitorInput.Name();
@@ -200,10 +200,21 @@ public sealed class CycleMonitorInputAction(IMonitorService monitors) : IActionD
 			try
 			{
 				var index = DisplayParameters.ReadMonitor(context.Parameters);
+				var supported = monitors.GetSupportedInputs(index);
+				var order = supported.Count > 0 ? supported : DefaultInputOrder;
 				var current = monitors.TryGetInput(index);
-				var next = current is int known && Array.IndexOf(InputOrder, known) is int at && at >= 0
-					? InputOrder[(at + 1) % InputOrder.Length]
-					: InputOrder[0];
+				var next = order[0];
+				if (current is int known)
+				{
+					for (var i = 0; i < order.Count; i++)
+					{
+						if (order[i] == known)
+						{
+							next = order[(i + 1) % order.Count];
+							break;
+						}
+					}
+				}
 				return Task.FromResult(monitors.TrySetInput(index, next)
 					? ActionResult.Success()
 					: DisplayActionResults.NoMonitor());
