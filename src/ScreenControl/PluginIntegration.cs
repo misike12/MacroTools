@@ -49,13 +49,13 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 
 	public bool VariablesDependOnConfiguration => false;
 
-	public bool SupportsCatalog => false;
+	public bool SupportsCatalog => true;
 
 	public bool SupportsPush => false;
 
-	public bool SupportsSearch => false;
+	public bool SupportsSearch => true;
 
-	public string CatalogName => "Screens";
+	public string CatalogName => "Monitors";
 
 	public int? CatalogEntryCount => null;
 
@@ -67,6 +67,11 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 	{
 		try
 		{
+			if (DisplayVariables.TryParseMonitorBrightnessId(localId, out var catalogIndex))
+			{
+				return ValueTask.FromResult(ReadMonitorBrightness(catalogIndex));
+			}
+
 			return localId switch
 			{
 				"monitor-count" => ValueTask.FromResult(VariableReading.Of((double)_monitors.GetMonitors().Count)),
@@ -91,6 +96,19 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 	{
 		try
 		{
+			if (DisplayVariables.TryParseMonitorBrightnessId(localId, out var catalogIndex))
+			{
+				var brightness = DisplayParameters.ReadNumberValue(value);
+				if (brightness is null || brightness < 0 || brightness > 100)
+				{
+					return ValueTask.FromResult(VariableWriteResult.InvalidValue(Strings.Variables.MonitorBrightness.DisplayName(catalogIndex.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+				}
+
+				return ValueTask.FromResult(_monitors.TrySetBrightness(catalogIndex, (int)brightness)
+					? VariableWriteResult.Applied()
+					: VariableWriteResult.Unavailable(Strings.Errors.MonitorNotAvailable()));
+			}
+
 			if (localId == "primary-brightness")
 			{
 				var brightness = DisplayParameters.ReadNumberValue(value);
@@ -134,11 +152,62 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 		}
 	}
 
-	public ValueTask<VariableCatalogPage> DiscoverAsync(VariableCatalogQuery query, CancellationToken cancellationToken = default) =>
-		ValueTask.FromResult(new VariableCatalogPage { Items = [] });
+	// No CatalogChanged calls here on purpose. The host applies a refreshed variables snapshot by
+	// unregistering and re-registering the integration, which also drops this plugin's localization
+	// catalog without fetching it again, so every label renders as [[plugin:...:Key]] afterwards.
+	// The eager list is static and the monitor catalog is browsed live, so a refresh would not
+	// update anything anyway. Revisit if the host starts preserving catalogs across refreshes.
+	public ValueTask<VariableCatalogPage> DiscoverAsync(VariableCatalogQuery query, CancellationToken cancellationToken = default)
+	{
+		var items = new List<VariableDefinition>();
+		try
+		{
+			foreach (var monitor in _monitors.GetMonitors())
+			{
+				if (!string.IsNullOrWhiteSpace(query.Search)
+					&& !$"monitor {monitor.Index}".Contains(query.Search, StringComparison.OrdinalIgnoreCase)
+					&& !monitor.Name.Contains(query.Search, StringComparison.OrdinalIgnoreCase))
+				{
+					continue;
+				}
 
-	public ValueTask<VariableDefinition?> ResolveAsync(string localId, CancellationToken cancellationToken = default) =>
-		ValueTask.FromResult<VariableDefinition?>(null);
+				items.Add(DisplayVariables.MonitorBrightness(monitor.Index));
+				if (query.PageSize > 0 && items.Count >= query.PageSize)
+				{
+					break;
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Monitor discovery failed.");
+		}
+
+		return ValueTask.FromResult(new VariableCatalogPage { Items = items });
+	}
+
+	public ValueTask<VariableDefinition?> ResolveAsync(string localId, CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			if (DisplayVariables.TryParseMonitorBrightnessId(localId, out var index))
+			{
+				foreach (var monitor in _monitors.GetMonitors())
+				{
+					if (monitor.Index == index)
+					{
+						return ValueTask.FromResult<VariableDefinition?>(DisplayVariables.MonitorBrightness(index));
+					}
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Monitor resolve failed.");
+		}
+
+		return ValueTask.FromResult<VariableDefinition?>(null);
+	}
 
 	public ValueTask<IReadOnlyList<VariableValue>> SubscribeAsync(IReadOnlyCollection<string> localIds, CancellationToken cancellationToken = default) =>
 		ValueTask.FromResult<IReadOnlyList<VariableValue>>([]);
@@ -152,6 +221,28 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 		return primary is not null && primary.SupportsBrightness
 			? VariableReading.Of((double)primary.BrightnessPercent, 0, 100, 1)
 			: VariableReading.Unavailable;
+	}
+
+	private VariableReading ReadMonitorBrightness(int index)
+	{
+		try
+		{
+			foreach (var monitor in _monitors.GetMonitors())
+			{
+				if (monitor.Index == index)
+				{
+					return monitor.SupportsBrightness
+						? VariableReading.Of((double)monitor.BrightnessPercent, 0, 100, 1)
+						: VariableReading.Unavailable;
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Monitor brightness read failed.");
+		}
+
+		return VariableReading.Unavailable;
 	}
 
 	private VariableReading ReadPrimaryInput()

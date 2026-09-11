@@ -210,6 +210,62 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Monitor_brightness_catalog_round_trips()
+	{
+		var monitors = new FakeMonitorService();
+		var integration = new PluginIntegration(monitors, new FakeWindowService(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var page = await integration.DiscoverAsync(new VariableCatalogQuery());
+		var ids = page.Items.Select(i => i.Id).ToList();
+		var resolved = await integration.ResolveAsync("monitor-2-brightness");
+		var missing = await integration.ResolveAsync("monitor-9-brightness");
+		var read = await integration.ReadAsync("monitor-2-brightness");
+		var write = await integration.SetValueAsync("monitor-2-brightness", 30.0);
+		var badWrite = await integration.SetValueAsync("monitor-2-brightness", 140.0);
+		var missingWrite = await integration.SetValueAsync("monitor-9-brightness", 30.0);
+
+		Assert.That(ids.Count, Is.EqualTo(2));
+		Assert.That(ids[0], Is.EqualTo("monitor-1-brightness"));
+		Assert.That(ids[1], Is.EqualTo("monitor-2-brightness"));
+		Assert.That(resolved, Is.Not.Null);
+		Assert.That(missing, Is.Null);
+		Assert.That(read.Value, Is.EqualTo(60.0));
+		Assert.That(write.Status, Is.EqualTo(VariableWriteStatus.Applied));
+		Assert.That(badWrite.Status, Is.EqualTo(VariableWriteStatus.InvalidValue));
+		Assert.That(missingWrite.Status, Is.EqualTo(VariableWriteStatus.Unavailable));
+		Assert.That(monitors.Levels[1], Is.EqualTo(30));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Monitor_discovery_honors_search()
+	{
+		var integration = new PluginIntegration(new FakeMonitorService(), new FakeWindowService(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var page = await integration.DiscoverAsync(new VariableCatalogQuery { Search = "Display 2" });
+
+		Assert.That(page.Items.Count, Is.EqualTo(1));
+		Assert.That(page.Items[0].Id, Is.EqualTo("monitor-2-brightness"));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Unknown_catalog_ids_stay_unavailable()
+	{
+		var integration = new PluginIntegration(new FakeMonitorService(), new FakeWindowService(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var read = await integration.ReadAsync("monitor-9-brightness");
+		var notCatalog = await integration.ReadAsync("monitor-counts");
+
+		Assert.That(read, Is.EqualTo(VariableReading.Unavailable));
+		Assert.That(notCatalog, Is.EqualTo(VariableReading.Unavailable));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
 	public void Action_ids_are_unique_across_the_plugin()
 	{
 		var integration = new PluginIntegration(new FakeMonitorService(), new FakeWindowService(), TestLogger());

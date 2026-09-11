@@ -180,6 +180,12 @@
   <data name="Variables.PrimaryBrightness.Description" xml:space="preserve">
     <value>The primary monitor brightness. Writing it changes the brightness.</value>
   </data>
+  <data name="Variables.MonitorBrightness.DisplayName" xml:space="preserve">
+    <value>Monitor {index} brightness</value>
+  </data>
+  <data name="Variables.MonitorBrightness.Description" xml:space="preserve">
+    <value>Brightness of monitor {index} in percent. Writing it changes the brightness.</value>
+  </data>
   <data name="Variables.FocusedWindowTitle.DisplayName" xml:space="preserve">
     <value>Focused window</value>
   </data>

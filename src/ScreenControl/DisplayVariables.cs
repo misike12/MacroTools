@@ -47,4 +47,39 @@ internal static class DisplayVariables
 			SemanticKind = VariableSemanticKinds.None,
 			RefreshInterval = refresh,
 		};
+
+	public static string MonitorBrightnessId(int index) => $"monitor-{index}-brightness";
+
+	public static VariableDefinition MonitorBrightness(int index)
+	{
+		var number = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+		return VariableDefinition.OnDemand(MonitorBrightnessId(index), VariableType.Numeric) with
+		{
+			Name = $"monitor_{index}_brightness",
+			DisplayName = Strings.Variables.MonitorBrightness.DisplayName(number),
+			Description = Strings.Variables.MonitorBrightness.Description(number),
+			Unit = "%",
+			SemanticKind = VariableSemanticKinds.Percentage,
+			RefreshInterval = TimeSpan.FromSeconds(5),
+			IsBindable = true,
+			IsContainer = false,
+			Write = new VariableWriteCapability(),
+		};
+	}
+
+	public static bool TryParseMonitorBrightnessId(string localId, out int index)
+	{
+		index = 0;
+		const string prefix = "monitor-";
+		const string suffix = "-brightness";
+		if (!localId.StartsWith(prefix, StringComparison.Ordinal)
+			|| !localId.EndsWith(suffix, StringComparison.Ordinal))
+		{
+			return false;
+		}
+
+		var middle = localId.Substring(prefix.Length, localId.Length - prefix.Length - suffix.Length);
+		return int.TryParse(middle, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out index)
+			&& index >= 1 && index <= 9;
+	}
 }

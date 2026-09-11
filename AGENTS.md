@@ -7,7 +7,7 @@ This repository started from the **Macro Deck 3 out-of-process plugin template**
 now three real plugins in one solution, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
 Control integration (41 actions, 40 variables plus an app-volume catalog, 4 events, a music player, a Now Playing widget type
 and a 5-step configuration flow with 26 settings), `src/ScreenControl/` holds the Screen Control
-integration (14 actions, 6 variables: DDC monitor brightness/input/power, window state, topmost, snap and virtual-desktop control),
+integration (14 actions, 6 variables plus a monitor-brightness catalog: DDC monitor brightness/input/power, window state, topmost, snap and virtual-desktop control),
 and `src/Timers/` holds the Timers integration (10 actions, 8 variables, 1 event: countdowns with adjust/toggle/progress and a stopwatch).
 The template's example action is long gone. The orientation and
 identity checklists below still apply to the mechanics (manifest, build recipe, analyzers), but do
@@ -39,7 +39,7 @@ src/WindowsMediaControl/
   Localization/Strings.resx   default-culture strings; Strings.<tag>.resx per language
   Assets/icon.svg        the icon the manifest declares
   Properties/launchSettings.json   the single real-host debug profile
-src/ScreenControl/       same shape: DDC monitor service (Monitors/, with gamma-ramp software brightness and caps-aware input cycling), Win32 window/desktop service (Windows/), 14 actions, 6 variables
+src/ScreenControl/       same shape: DDC monitor service (Monitors/, with gamma-ramp software brightness and caps-aware input cycling), Win32 window/desktop service (Windows/), 14 actions, 6 variables plus a monitor-brightness catalog
 src/Timers/              same shape: countdown/stopwatch service (Timing/), 10 actions, 8 variables, countdown-finished event
 tests/WindowsMediaControl.Tests/
   PluginIntegrationTests.cs   behaviour tests against FakeMediaControlService
