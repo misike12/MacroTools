@@ -155,7 +155,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		{
 			_context?.Events.Publish("pomodoro-phase-changed", new Dictionary<string, object?>
 			{
-				["phase"] = PhaseToken(changed.Phase),
+				["phase"] = FocusTimerWidget.PhaseToken(changed.Phase),
 				["round"] = (double)changed.Round,
 				["label"] = changed.Label,
 			});
@@ -165,14 +165,6 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			_logger.Debug(ex, "Pomodoro phase publish failed.");
 		}
 	}
-
-	internal static string PhaseToken(PomodoroPhase phase) => phase switch
-	{
-		PomodoroPhase.Focus => "focus",
-		PomodoroPhase.ShortBreak => "short-break",
-		PomodoroPhase.LongBreak => "long-break",
-		_ => "idle",
-	};
 
 	public ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)
 	{
@@ -189,7 +181,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"stopwatch-elapsed-seconds" => VariableReading.Of(elapsed.TotalSeconds),
 			"stopwatch-text" => VariableReading.Of(FormatDuration(elapsed)),
 			"stopwatch-running" => VariableReading.Of(_timers.StopwatchRunning),
-			"pomodoro-phase" => VariableReading.Of(PhaseToken(pomo.Phase)),
+			"pomodoro-phase" => VariableReading.Of(FocusTimerWidget.PhaseToken(pomo.Phase)),
 			"pomodoro-remaining-seconds" => VariableReading.Of(pomo.Remaining.TotalSeconds),			"pomodoro-phase-text" => VariableReading.Of(FormatDuration(pomo.Remaining)),
 			"pomodoro-label" => TextOrUnavailable(pomo.Label),
 			"pomodoro-round" => VariableReading.Of((double)pomo.Round),

@@ -255,6 +255,13 @@ capture a default before the config read finishes.
   broken plural family, key/group collision). Fix them; do not suppress them.
 - Dropping `UseLocalization(Strings.LocalizationCatalog)` from `Program.cs` does not fail the build. It
   fails at runtime, quietly, with every label rendering as `[[plugin:<id>:Key]]`.
+- Never call `.ToString()` on a `LocalizedString`/`LocalizedText` to display it: outside the owning
+  process that renders the raw key (`plugin:<id>:Key`). Pass it lazily instead - `UiText.FromLocalized`
+  in widget views, `LocalizedText` action/variable/event metadata everywhere else - so the host resolves
+  it in the reader's language. Widget view structure has the same trap in reverse: anything decided
+  with `content.Peek()` at `Build` time is frozen for the session, so dynamic state (running/paused,
+  has-session, current values) belongs in `UiWhen` conditions and `UiValue.From`/`UiText.From*`
+  bindings, never in build-time branches.
 - The full reference is <https://docs.macro-deck.app/sdk/localization/>.
 
 ### Logging

@@ -114,11 +114,12 @@ public sealed record FocusTimerOptions(
 
 public sealed record FocusTimerContent(
 	string Mode,
-	string Caption,
+	string PhaseToken,
+	string Label,
 	string Hero,
-	string Subtitle,
 	string Dots,
 	int Round,
+	int TotalRounds,
 	UiProgressReference Progress,
 	bool HasTotal,
 	bool Running,
@@ -127,8 +128,8 @@ public sealed record FocusTimerContent(
 	string Accent)
 {
 	public static FocusTimerContent Empty { get; } = new(
-		"pomodoro", string.Empty, "25:00", string.Empty, string.Empty,
-		0, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow },
+		"pomodoro", "idle", string.Empty, "25:00", string.Empty,
+		0, 0, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow },
 		false, false, false, FocusTimerOptions.Default, string.Empty);
 
 	public static string FormatRemaining(TimeSpan remaining)
@@ -151,6 +152,7 @@ internal static class FocusTimerView
 		Func<string, CancellationToken, Task>? command)
 	{
 		var options = content.Peek().Options;
+		var mode = options.Mode;
 		var body = new List<UiElement>();
 
 		if (options.ShowLabel)
@@ -158,7 +160,7 @@ internal static class FocusTimerView
 			body.Add(new UiTextRun
 			{
 				Key = "caption",
-				Text = UiText.From(() => content.Value.Caption),
+				Text = UiText.FromLocalized(() => CaptionFor(content.Value)),
 				Size = options.Compact ? UiSize.Capped(0.09, 10) : UiSize.Capped(0.1, 12),
 				Weight = UiComponentTextWeights.Medium,
 				Role = UiComponentTextRoles.Muted,
@@ -175,55 +177,69 @@ internal static class FocusTimerView
 			Align = UiComponentAlignments.Center,
 		});
 
-		if (!options.Compact && !string.IsNullOrEmpty(content.Peek().Dots))
+		if (mode == "pomodoro" && !options.Compact)
 		{
-			body.Add(new UiTextRun
+			body.Add(new UiWhen
 			{
-				Key = "rounds",
-				Text = UiText.From(() => content.Value.Dots),
-				Size = UiSize.Capped(0.09, 11),
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
-			});
-		}
-
-		if (options.ShowProgress && content.Peek().HasTotal)
-		{
-			var anchor = content.Peek().Progress;
-			var span = anchor.DurationMs is { } total && total > 0
-				? Math.Clamp((double)anchor.PositionMs / total, 0, 1)
-				: 0;
-			body.Add(new UiProgressBar
-			{
-				Key = "progress",
-				Value = UiValue.From(() => content.Value.Progress),
-				StartColor = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.Accent)
-					? UiValue.None<string>()
-					: UiValue.Of(content.Value.Accent)),
-				EndColor = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.Accent)
-					? UiValue.None<string>()
-					: UiValue.Of(content.Value.Accent)),
-				Thickness = 0.04,
-				Fallback = new UiRangeBar
+				Key = "rounds-when",
+				Condition = () => !string.IsNullOrEmpty(content.Value.Dots),
+				Content = () => new UiTextRun
 				{
-					Key = "progress-fallback",
-					Start = UiValue.Of(0.0),
-					End = UiValue.Of(span),
-					Thickness = 0.04,
+					Key = "rounds",
+					Text = UiText.From(() => content.Value.Dots),
+					Size = UiSize.Capped(0.09, 11),
+					Role = UiComponentTextRoles.Muted,
+					Align = UiComponentAlignments.Center,
 				},
 			});
 		}
 
-		if (!options.Compact && !string.IsNullOrEmpty(content.Peek().Subtitle))
+		if (options.ShowProgress)
 		{
-			body.Add(new UiTextRun
+			body.Add(new UiWhen
 			{
-				Key = "subtitle",
-				Text = UiText.From(() => content.Value.Subtitle),
-				Size = UiSize.Capped(0.08, 10),
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
+				Key = "progress-when",
+				Condition = () => content.Value.HasTotal,
+				Content = () => ProgressBar(content),
 			});
+		}
+
+		if (!options.Compact)
+		{
+			if (mode == "pomodoro")
+			{
+				body.Add(new UiWhen
+				{
+					Key = "subtitle-when",
+					Condition = () => content.Value.HasSession,
+					Content = () => new UiTextRun
+					{
+						Key = "subtitle",
+						Text = UiText.FromLocalized(() => Strings.Widget.RoundOf(
+							content.Value.Round.ToString(System.Globalization.CultureInfo.InvariantCulture),
+							content.Value.TotalRounds.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+						Size = UiSize.Capped(0.08, 10),
+						Role = UiComponentTextRoles.Muted,
+						Align = UiComponentAlignments.Center,
+					},
+				});
+			}
+			else if (mode == "countdown")
+			{
+				body.Add(new UiWhen
+				{
+					Key = "subtitle-when",
+					Condition = () => content.Value.HasSession && !string.IsNullOrWhiteSpace(content.Value.Label),
+					Content = () => new UiTextRun
+					{
+						Key = "subtitle",
+						Text = UiText.From(() => content.Value.Label),
+						Size = UiSize.Capped(0.08, 10),
+						Role = UiComponentTextRoles.Muted,
+						Align = UiComponentAlignments.Center,
+					},
+				});
+			}
 		}
 
 		if (options.ShowControls)
@@ -240,22 +256,67 @@ internal static class FocusTimerView
 		};
 	}
 
+	private static UiProgressBar ProgressBar(UiState<FocusTimerContent> content)
+	{
+		var anchor = content.Peek().Progress;
+		var span = anchor.DurationMs is { } total && total > 0
+			? Math.Clamp((double)anchor.PositionMs / total, 0, 1)
+			: 0;
+		return new UiProgressBar
+		{
+			Key = "progress",
+			Value = UiValue.From(() => content.Value.Progress),
+			StartColor = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.Accent)
+				? UiValue.None<string>()
+				: UiValue.Of(content.Value.Accent)),
+			EndColor = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.Accent)
+				? UiValue.None<string>()
+				: UiValue.Of(content.Value.Accent)),
+			Thickness = 0.04,
+			Fallback = new UiRangeBar
+			{
+				Key = "progress-fallback",
+				Start = UiValue.Of(0.0),
+				End = UiValue.Of(span),
+				Thickness = 0.04,
+			},
+		};
+	}
+
+	private static MacroDeck.Localization.LocalizedString CaptionFor(FocusTimerContent snapshot) => snapshot.Mode switch
+	{
+		"stopwatch" => Strings.Widget.StopwatchCaption(),
+		"countdown" => Strings.Widget.CountdownFallback(),
+		_ => snapshot.PhaseToken switch
+		{
+			"focus" => Strings.Widget.Phases.Focus(),
+			"short-break" => Strings.Widget.Phases.ShortBreak(),
+			"long-break" => Strings.Widget.Phases.LongBreak(),
+			_ => Strings.Widget.Phases.Idle(),
+		},
+	};
+
 	private static UiStack ControlRow(
 		UiState<FocusTimerContent> content,
 		Func<string, CancellationToken, Task>? command)
 	{
-		var snapshot = content.Peek();
+		var mode = content.Peek().Mode;
 		var children = new List<UiElement>
 		{
-			ControlButton("reset", Strings.Widget.Symbols.Reset(), "reset", side: true, command),
+			ControlButton("reset", static _ => Strings.Widget.Symbols.Reset(), "reset", side: true, content, command),
 		};
 
-		if (snapshot is { Mode: "pomodoro", HasSession: true })
+		if (mode == "pomodoro")
 		{
-			children.Add(ControlButton("skip", Strings.Widget.Symbols.Skip(), "skip", side: true, command));
+			children.Add(new UiWhen
+			{
+				Key = "skip-when",
+				Condition = () => content.Value.HasSession,
+				Content = () => ControlButton("skip", static _ => Strings.Widget.Symbols.Skip(), "skip", side: true, content, command),
+			});
 		}
 
-		children.Add(ControlButton("primary", PrimaryGlyph(snapshot), "primary", side: false, command));
+		children.Add(ControlButton("primary", static snapshot => snapshot.Running ? Strings.Widget.Symbols.Pause() : Strings.Widget.Symbols.Play(), "primary", side: false, content, command));
 
 		return new UiStack
 		{
@@ -267,14 +328,12 @@ internal static class FocusTimerView
 		};
 	}
 
-	private static MacroDeck.Localization.LocalizedString PrimaryGlyph(FocusTimerContent snapshot) =>
-		snapshot.Running ? Strings.Widget.Symbols.Pause() : Strings.Widget.Symbols.Play();
-
 	private static UiButton ControlButton(
 		string key,
-		MacroDeck.Localization.LocalizedString label,
+		Func<FocusTimerContent, MacroDeck.Localization.LocalizedString> glyph,
 		string command,
 		bool side,
+		UiState<FocusTimerContent> content,
 		Func<string, CancellationToken, Task>? handler)
 	{
 		var button = new UiButton
@@ -289,7 +348,7 @@ internal static class FocusTimerView
 				new UiTextRun
 				{
 					Key = key + "-label",
-					Text = UiText.FromLocalized(() => label),
+					Text = UiText.FromLocalized(() => glyph(content.Value)),
 					Size = 0.14,
 					Align = UiComponentAlignments.Center,
 				},
@@ -312,7 +371,7 @@ public static class FocusTimerPreviews
 	[UiPreview("Pomodoro focus", View = "FocusTimer", Profile = UiPreviewProfiles.Widget)]
 	public static UiElement PomodoroFocus() => FocusTimerView.Build(
 		new UiState<FocusTimerContent>(new FocusTimerContent(
-			"pomodoro", "Focus", "24:59", "Round 1 of 4", "◉ ○ ○ ○", 1,
+			"pomodoro", "focus", string.Empty, "24:59", "◉ ○ ○ ○", 1, 4,
 			new UiProgressReference { PositionMs = 1000, Anchor = DateTimeOffset.UtcNow, DurationMs = 1500000, Rate = 1 },
 			true, true, true, FocusTimerOptions.Default, "#F59E0B")),
 		null);
@@ -320,7 +379,7 @@ public static class FocusTimerPreviews
 	[UiPreview("Short break", View = "FocusTimer", Profile = UiPreviewProfiles.Widget)]
 	public static UiElement ShortBreak() => FocusTimerView.Build(
 		new UiState<FocusTimerContent>(new FocusTimerContent(
-			"pomodoro", "Short break", "4:12", "Round 1 of 4", "◉ ○ ○ ○", 1,
+			"pomodoro", "short-break", string.Empty, "4:12", "● ○ ○ ○", 1, 4,
 			new UiProgressReference { PositionMs = 48000, Anchor = DateTimeOffset.UtcNow, DurationMs = 300000, Rate = 0 },
 			true, false, true, FocusTimerOptions.Default with { AccentColor = "#22C55E" }, "#22C55E")),
 		null);
@@ -417,17 +476,17 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 			var options = FocusTimerOptions.FromData(ReadElement(surface, UiWidgetSurfaceAttributes.Data));
 			if (ReadBool(surface, UiWidgetSurfaceAttributes.Sample) == true)
 			{
-				return new FocusTimerSession(
-					surface,
-					new UiState<FocusTimerContent>(new FocusTimerContent(
-						"pomodoro", "Focus", "24:59", "Round 1 of 4", "◉ ○ ○ ○", 1,
-						new UiProgressReference { PositionMs = 1000, Anchor = DateTimeOffset.UtcNow, DurationMs = 1500000, Rate = 1 },
-						true, true, true, options, "#F59E0B")),
-					this,
-					_timers,
-					_pomodoro,
-					_logger,
-					live: false);
+			return new FocusTimerSession(
+				surface,
+				new UiState<FocusTimerContent>(new FocusTimerContent(
+					"pomodoro", "focus", string.Empty, "24:59", "◉ ○ ○ ○", 1, 4,
+					new UiProgressReference { PositionMs = 1000, Anchor = DateTimeOffset.UtcNow, DurationMs = 1500000, Rate = 1 },
+					true, true, true, options, "#F59E0B")),
+				this,
+				_timers,
+				_pomodoro,
+				_logger,
+				live: false);
 			}
 
 			return new FocusTimerSession(
@@ -477,9 +536,9 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 		var label = _timers.CountdownLabel;
 		return new FocusTimerContent(
 			"countdown",
-			string.IsNullOrWhiteSpace(label) ? Strings.Widget.CountdownFallback().ToString() : label,
+			string.Empty,
 			hasSession ? FocusTimerContent.FormatRemaining(remaining) : FocusTimerContent.FormatRemaining(TimeSpan.FromMinutes(options.CountdownMinutes)),
-			string.Empty, string.Empty, 0,
+			label, string.Empty, 0, 0,
 			new UiProgressReference
 			{
 				PositionMs = (long)Math.Clamp(elapsed.TotalMilliseconds, 0, double.MaxValue),
@@ -497,9 +556,9 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 		var hasSession = running || elapsed > TimeSpan.Zero;
 		return new FocusTimerContent(
 			"stopwatch",
-			Strings.Widget.StopwatchCaption().ToString(),
+			string.Empty,
 			FocusTimerContent.FormatRemaining(elapsed),
-			string.Empty, string.Empty, 0,
+			string.Empty, string.Empty, 0, 0,
 			new UiProgressReference
 			{
 				PositionMs = (long)Math.Clamp(elapsed.TotalMilliseconds, 0, double.MaxValue),
@@ -526,13 +585,14 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 			: string.Join(" ", Enumerable.Range(1, totalRounds).Select(round => round < snapshot.Round ? "●" : round == snapshot.Round ? "◉" : "○"));
 		return new FocusTimerContent(
 			"pomodoro",
-			PhaseCaption(snapshot.Phase),
+			PhaseToken(snapshot.Phase),
+			string.Empty,
 			hasSession
 				? FocusTimerContent.FormatRemaining(snapshot.Remaining)
 				: FocusTimerContent.FormatRemaining(TimeSpan.FromMinutes(options.WorkMinutes)),
-			hasSession ? RoundSubtitle(snapshot) : string.Empty,
 			dots,
 			snapshot.Round,
+			totalRounds,
 			new UiProgressReference
 			{
 				PositionMs = (long)Math.Clamp(elapsed.TotalMilliseconds, 0, double.MaxValue),
@@ -543,18 +603,13 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 			hasSession, snapshot.Running, hasSession, options, accent);
 	}
 
-	internal static string PhaseCaption(PomodoroPhase phase) => phase switch
+	internal static string PhaseToken(PomodoroPhase phase) => phase switch
 	{
-		PomodoroPhase.Focus => Strings.Widget.Phases.Focus().ToString(),
-		PomodoroPhase.ShortBreak => Strings.Widget.Phases.ShortBreak().ToString(),
-		PomodoroPhase.LongBreak => Strings.Widget.Phases.LongBreak().ToString(),
-		_ => Strings.Widget.Phases.Idle().ToString(),
+		PomodoroPhase.Focus => "focus",
+		PomodoroPhase.ShortBreak => "short-break",
+		PomodoroPhase.LongBreak => "long-break",
+		_ => "idle",
 	};
-
-	internal static string RoundSubtitle(PomodoroSnapshot snapshot) =>
-		Strings.Widget.RoundOf(
-			snapshot.Round.ToString(System.Globalization.CultureInfo.InvariantCulture),
-			snapshot.TotalRounds.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToString();
 
 	private static string DefaultAccent(string mode) => mode switch
 	{
@@ -966,10 +1021,11 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 		private static bool NeedsRefresh(FocusTimerContent current, FocusTimerContent next)
 		{
 			if (current.Mode != next.Mode
-				|| current.Caption != next.Caption
+				|| current.PhaseToken != next.PhaseToken
+				|| current.Label != next.Label
 				|| current.Hero != next.Hero
-				|| current.Subtitle != next.Subtitle
 				|| current.Round != next.Round
+				|| current.TotalRounds != next.TotalRounds
 				|| current.Running != next.Running
 				|| current.HasSession != next.HasSession
 				|| current.HasTotal != next.HasTotal
