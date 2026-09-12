@@ -17,6 +17,7 @@ public sealed class PluginIntegrationTests
 		PluginTestHarness.Create(builder =>
 		{
 			builder.Services.AddSingleton(timers);
+			builder.Services.AddSingleton(new PomodoroService());
 			builder.UseLocalization(Strings.LocalizationCatalog);
 			builder.RegisterIntegration<PluginIntegration>();
 		});
@@ -92,7 +93,7 @@ public sealed class PluginIntegrationTests
 	{
 		var timers = new TimerService();
 		var context = new FakeIntegrationContext();
-		var integration = new PluginIntegration(timers, TestLogger());
+		var integration = new PluginIntegration(timers, new PomodoroService(), TestLogger());
 		await integration.InitializeAsync(context);
 
 		timers.StartCountdown(TimeSpan.FromMilliseconds(100), "quick");
@@ -142,7 +143,7 @@ public sealed class PluginIntegrationTests
 	{
 		var timers = new TimerService();
 		var context = new FakeIntegrationContext();
-		var integration = new PluginIntegration(timers, TestLogger());
+		var integration = new PluginIntegration(timers, new PomodoroService(), TestLogger());
 		await integration.InitializeAsync(context);
 
 		timers.StartCountdown(TimeSpan.FromMinutes(5), "tea");
@@ -191,7 +192,7 @@ public sealed class PluginIntegrationTests
 	public async Task Variables_expose_timer_state()
 	{
 		var timers = new TimerService();
-		var integration = new PluginIntegration(timers, TestLogger());
+		var integration = new PluginIntegration(timers, new PomodoroService(), TestLogger());
 		await integration.InitializeAsync(new FakeIntegrationContext());
 
 		timers.StartCountdown(TimeSpan.FromMinutes(5), "tea");
@@ -211,9 +212,92 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Pomodoro_actions_drive_a_cycle()
+	{
+		var timers = new TimerService();
+		await using var harness = CreateHarness(timers);
+		await harness.InitializeIntegrationsAsync();
+
+		var start = await harness.Actions.ExecuteAsync(
+			"start-pomodoro",
+			new Dictionary<string, object?> { ["work-minutes"] = 25.0, ["rounds"] = 4.0 });
+		var toggle = await harness.Actions.ExecuteAsync("toggle-pomodoro", new Dictionary<string, object?>());
+		var resume = await harness.Actions.ExecuteAsync("toggle-pomodoro", new Dictionary<string, object?>());
+		var skip = await harness.Actions.ExecuteAsync("skip-pomodoro-phase", new Dictionary<string, object?>());
+		var stop = await harness.Actions.ExecuteAsync("stop-pomodoro", new Dictionary<string, object?>());
+		var bad = await harness.Actions.ExecuteAsync(
+			"start-pomodoro",
+			new Dictionary<string, object?> { ["work-minutes"] = 500.0 });
+
+		Assert.That(start.Succeeded, Is.True);
+		Assert.That(toggle.Succeeded, Is.True);
+		Assert.That(resume.Succeeded, Is.True);
+		Assert.That(skip.Succeeded, Is.True);
+		Assert.That(stop.Succeeded, Is.True);
+		Assert.That(bad.Succeeded, Is.False);
+	}
+
+	[Test]
+	public async Task Pomodoro_variables_expose_phase_state()
+	{
+		var timers = new TimerService();
+		var pomodoro = new PomodoroService();
+		var integration = new PluginIntegration(timers, pomodoro, TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		pomodoro.Start(new PomodoroSettings(25, 5, 15, 4, true));
+
+		Assert.That((await integration.ReadAsync("pomodoro-phase")).Value, Is.EqualTo("focus"));
+		Assert.That((await integration.ReadAsync("pomodoro-round")).Value, Is.EqualTo(1.0));
+		Assert.That((await integration.ReadAsync("pomodoro-running")).Value, Is.EqualTo(true));
+		Assert.That((await integration.ReadAsync("pomodoro-label")).Value, Is.EqualTo("Focus 1"));
+		Assert.That((await integration.ReadAsync("pomodoro-remaining-seconds")).Value, Is.GreaterThan(0.0));
+
+		pomodoro.Stop();
+		Assert.That((await integration.ReadAsync("pomodoro-phase")).Value, Is.EqualTo("idle"));
+		await integration.ShutdownAsync();
+		pomodoro.Dispose();
+	}
+
+	[Test]
+	public async Task Pomodoro_phase_change_fires_the_event()
+	{
+		var timers = new TimerService();
+		var pomodoro = new PomodoroService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(timers, pomodoro, TestLogger());
+		await integration.InitializeAsync(context);
+
+		pomodoro.Start(new PomodoroSettings(25, 5, 15, 4, true));
+		pomodoro.Skip();
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Events.Published.Any(e => e.EventId == "pomodoro-phase-changed"))
+		{
+			await Task.Delay(50, TestContext.CurrentContext.CancellationToken);
+		}
+
+		var fired = context.Events.Published.FirstOrDefault(e => e.EventId == "pomodoro-phase-changed");
+		Assert.That(fired, Is.Not.Null);
+		await integration.ShutdownAsync();
+		pomodoro.Dispose();
+	}
+
+	[Test]
+	public void The_widget_registers_one_focus_timer_type()
+	{
+		var integration = new PluginIntegration(new TimerService(), new PomodoroService(), TestLogger());
+
+		Assert.That(integration.GetWidgetTypes().Count, Is.EqualTo(1));
+		Assert.That(integration.GetWidgetTypes()[0].Id, Is.EqualTo("focus-timer"));
+		Assert.That(integration.Surfaces.Count, Is.EqualTo(3));
+	}
+
+	[Test]
 	public void Action_ids_are_unique_across_the_plugin()
 	{
-		var integration = new PluginIntegration(new TimerService(), TestLogger());
+		var integration = new PluginIntegration(new TimerService(), new PomodoroService(), TestLogger());
 
 		var duplicates = integration.Actions
 			.GroupBy(a => a.Id)
@@ -222,7 +306,7 @@ public sealed class PluginIntegrationTests
 			.ToList();
 
 		Assert.That(duplicates, Is.Empty);
-		Assert.That(integration.Actions.Count, Is.EqualTo(10));
+		Assert.That(integration.Actions.Count, Is.EqualTo(14));
 	}
 
 	[Test]
@@ -241,3 +325,4 @@ public sealed class PluginIntegrationTests
 		}
 	}
 }
+

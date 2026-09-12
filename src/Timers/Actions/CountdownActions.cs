@@ -41,6 +41,29 @@ internal static class TimerParameters
 		var text = raw?.ToString();
 		return string.IsNullOrWhiteSpace(text) ? string.Empty : text.Trim();
 	}
+
+	public static bool? ReadBool(IReadOnlyDictionary<string, object> parameters, string name, bool fallback)
+	{
+		if (!parameters.TryGetValue(name, out var raw) || raw is null)
+		{
+			return fallback;
+		}
+
+		if (raw is string text && string.IsNullOrWhiteSpace(text))
+		{
+			return fallback;
+		}
+
+		bool? value = raw switch
+		{
+			bool b => b,
+			string s when bool.TryParse(s, out var parsed) => parsed,
+			double d when d == 0 => false,
+			double d when d == 1 => true,
+			_ => null,
+		};
+		return value;
+	}
 }
 
 public sealed class StartCountdownAction(TimerService timers) : IActionDefinition

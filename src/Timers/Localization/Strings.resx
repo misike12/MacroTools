@@ -102,6 +102,231 @@
   <data name="Actions.ToggleStopwatch.Description" xml:space="preserve">
     <value>Start the stopwatch when stopped, stop it when running.</value>
   </data>
+  <data name="Actions.StartPomodoro.Name" xml:space="preserve">
+    <value>Start Pomodoro</value>
+  </data>
+  <data name="Actions.StartPomodoro.Description" xml:space="preserve">
+    <value>Start a Pomodoro cycle of focus and breaks, replacing any running one.</value>
+  </data>
+  <data name="Actions.StartPomodoro.WorkMinutes.Label" xml:space="preserve">
+    <value>Focus minutes</value>
+  </data>
+  <data name="Actions.StartPomodoro.WorkMinutes.Description" xml:space="preserve">
+    <value>Length of one focus session, from 1 to 180.</value>
+  </data>
+  <data name="Actions.StartPomodoro.ShortBreak.Label" xml:space="preserve">
+    <value>Short break minutes</value>
+  </data>
+  <data name="Actions.StartPomodoro.ShortBreak.Description" xml:space="preserve">
+    <value>Length of a short break, from 1 to 60.</value>
+  </data>
+  <data name="Actions.StartPomodoro.LongBreak.Label" xml:space="preserve">
+    <value>Long break minutes</value>
+  </data>
+  <data name="Actions.StartPomodoro.LongBreak.Description" xml:space="preserve">
+    <value>Length of the long break, from 1 to 90.</value>
+  </data>
+  <data name="Actions.StartPomodoro.Rounds.Label" xml:space="preserve">
+    <value>Focus rounds</value>
+  </data>
+  <data name="Actions.StartPomodoro.Rounds.Description" xml:space="preserve">
+    <value>Focus sessions before the long break, from 1 to 12.</value>
+  </data>
+  <data name="Actions.StartPomodoro.AutoAdvance.Label" xml:space="preserve">
+    <value>Auto-advance</value>
+  </data>
+  <data name="Actions.StartPomodoro.AutoAdvance.Description" xml:space="preserve">
+    <value>Move to the next phase automatically when one finishes.</value>
+  </data>
+  <data name="Actions.StopPomodoro.Name" xml:space="preserve">
+    <value>Stop Pomodoro</value>
+  </data>
+  <data name="Actions.StopPomodoro.Description" xml:space="preserve">
+    <value>Stop the Pomodoro cycle and go back to idle.</value>
+  </data>
+  <data name="Actions.SkipPomodoroPhase.Name" xml:space="preserve">
+    <value>Skip Pomodoro phase</value>
+  </data>
+  <data name="Actions.SkipPomodoroPhase.Description" xml:space="preserve">
+    <value>Finish the current Pomodoro phase at once and move on.</value>
+  </data>
+  <data name="Actions.TogglePomodoro.Name" xml:space="preserve">
+    <value>Pause or resume Pomodoro</value>
+  </data>
+  <data name="Actions.TogglePomodoro.Description" xml:space="preserve">
+    <value>Pause a running Pomodoro phase, or resume a paused one.</value>
+  </data>
+  <data name="Events.PomodoroPhaseChanged.Name" xml:space="preserve">
+    <value>Pomodoro phase changed</value>
+  </data>
+  <data name="Events.PomodoroPhaseChanged.Description" xml:space="preserve">
+    <value>Fires when the Pomodoro cycle moves to another phase.</value>
+  </data>
+  <data name="Events.PomodoroPhaseChanged.PhaseParameter.Label" xml:space="preserve">
+    <value>Phase</value>
+  </data>
+  <data name="Events.PomodoroPhaseChanged.RoundParameter.Label" xml:space="preserve">
+    <value>Round</value>
+  </data>
+  <data name="Events.PomodoroPhaseChanged.LabelParameter.Label" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="Variables.PomodoroPhase.DisplayName" xml:space="preserve">
+    <value>Pomodoro phase</value>
+  </data>
+  <data name="Variables.PomodoroPhase.Description" xml:space="preserve">
+    <value>Current Pomodoro phase: idle, focus, short-break or long-break.</value>
+  </data>
+  <data name="Variables.PomodoroRemaining.DisplayName" xml:space="preserve">
+    <value>Pomodoro left</value>
+  </data>
+  <data name="Variables.PomodoroRemaining.Description" xml:space="preserve">
+    <value>Seconds left in the current Pomodoro phase.</value>
+  </data>
+  <data name="Variables.PomodoroPhaseText.DisplayName" xml:space="preserve">
+    <value>Pomodoro time</value>
+  </data>
+  <data name="Variables.PomodoroPhaseText.Description" xml:space="preserve">
+    <value>Time left in the current Pomodoro phase, formatted as minutes and seconds.</value>
+  </data>
+  <data name="Variables.PomodoroLabel.DisplayName" xml:space="preserve">
+    <value>Pomodoro label</value>
+  </data>
+  <data name="Variables.PomodoroLabel.Description" xml:space="preserve">
+    <value>The label of the current Pomodoro phase, if any.</value>
+  </data>
+  <data name="Variables.PomodoroRound.DisplayName" xml:space="preserve">
+    <value>Pomodoro round</value>
+  </data>
+  <data name="Variables.PomodoroRound.Description" xml:space="preserve">
+    <value>The current focus round, starting at 1.</value>
+  </data>
+  <data name="Variables.PomodoroRunning.DisplayName" xml:space="preserve">
+    <value>Pomodoro running</value>
+  </data>
+  <data name="Variables.PomodoroRunning.Description" xml:space="preserve">
+    <value>Whether a Pomodoro phase is currently running.</value>
+  </data>
+  <data name="Variables.PomodoroProgress.DisplayName" xml:space="preserve">
+    <value>Pomodoro progress</value>
+  </data>
+  <data name="Variables.PomodoroProgress.Description" xml:space="preserve">
+    <value>How much of the current Pomodoro phase has elapsed, from 0 to 100.</value>
+  </data>
+  <data name="Widget.FocusTimer.Name" xml:space="preserve">
+    <value>Focus timer</value>
+  </data>
+  <data name="Widget.FocusTimer.Description" xml:space="preserve">
+    <value>Countdown, stopwatch or Pomodoro with progress and controls.</value>
+  </data>
+  <data name="Widget.CountdownFallback" xml:space="preserve">
+    <value>Countdown</value>
+  </data>
+  <data name="Widget.StopwatchCaption" xml:space="preserve">
+    <value>Stopwatch</value>
+  </data>
+  <data name="Widget.Phases.Focus" xml:space="preserve">
+    <value>Focus</value>
+  </data>
+  <data name="Widget.Phases.ShortBreak" xml:space="preserve">
+    <value>Short break</value>
+  </data>
+  <data name="Widget.Phases.LongBreak" xml:space="preserve">
+    <value>Long break</value>
+  </data>
+  <data name="Widget.Phases.Idle" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Widget.RoundOf" xml:space="preserve">
+    <value>Round {round} of {total}</value>
+  </data>
+  <data name="Widget.Symbols.Play" xml:space="preserve">
+    <value>&#9654;</value>
+  </data>
+  <data name="Widget.Symbols.Pause" xml:space="preserve">
+    <value>&#10074;&#10074;</value>
+  </data>
+  <data name="Widget.Symbols.Reset" xml:space="preserve">
+    <value>&#8635;</value>
+  </data>
+  <data name="Widget.Symbols.Skip" xml:space="preserve">
+    <value>&#9197;</value>
+  </data>
+  <data name="Widget.Config.TimerHeading" xml:space="preserve">
+    <value>Timer</value>
+  </data>
+  <data name="Widget.Config.Mode" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="Widget.Config.ModeDescription" xml:space="preserve">
+    <value>What this widget runs and shows.</value>
+  </data>
+  <data name="Widget.Config.ModeCountdown" xml:space="preserve">
+    <value>Countdown</value>
+  </data>
+  <data name="Widget.Config.ModeStopwatch" xml:space="preserve">
+    <value>Stopwatch</value>
+  </data>
+  <data name="Widget.Config.ModePomodoro" xml:space="preserve">
+    <value>Pomodoro</value>
+  </data>
+  <data name="Widget.Config.CountdownMinutes" xml:space="preserve">
+    <value>Countdown minutes</value>
+  </data>
+  <data name="Widget.Config.CountdownMinutesDescription" xml:space="preserve">
+    <value>Length started by the widget button in countdown mode.</value>
+  </data>
+  <data name="Widget.Config.WorkMinutes" xml:space="preserve">
+    <value>Focus minutes</value>
+  </data>
+  <data name="Widget.Config.WorkMinutesDescription" xml:space="preserve">
+    <value>Length of one focus session in Pomodoro mode.</value>
+  </data>
+  <data name="Widget.Config.ShortBreakMinutes" xml:space="preserve">
+    <value>Short break minutes</value>
+  </data>
+  <data name="Widget.Config.ShortBreakMinutesDescription" xml:space="preserve">
+    <value>Length of a short break in Pomodoro mode.</value>
+  </data>
+  <data name="Widget.Config.LongBreakMinutes" xml:space="preserve">
+    <value>Long break minutes</value>
+  </data>
+  <data name="Widget.Config.LongBreakMinutesDescription" xml:space="preserve">
+    <value>Length of the long break in Pomodoro mode.</value>
+  </data>
+  <data name="Widget.Config.Rounds" xml:space="preserve">
+    <value>Focus rounds</value>
+  </data>
+  <data name="Widget.Config.RoundsDescription" xml:space="preserve">
+    <value>Focus sessions before the long break.</value>
+  </data>
+  <data name="Widget.Config.AutoAdvance" xml:space="preserve">
+    <value>Auto-advance phases</value>
+  </data>
+  <data name="Widget.Config.AutoAdvanceDescription" xml:space="preserve">
+    <value>Move to the next phase automatically when one finishes.</value>
+  </data>
+  <data name="Widget.Config.LookHeading" xml:space="preserve">
+    <value>Look</value>
+  </data>
+  <data name="Widget.Config.ShowLabel" xml:space="preserve">
+    <value>Show caption</value>
+  </data>
+  <data name="Widget.Config.ShowProgress" xml:space="preserve">
+    <value>Show progress</value>
+  </data>
+  <data name="Widget.Config.ShowControls" xml:space="preserve">
+    <value>Show controls</value>
+  </data>
+  <data name="Widget.Config.CompactMode" xml:space="preserve">
+    <value>Compact mode</value>
+  </data>
+  <data name="Widget.Config.AccentColor" xml:space="preserve">
+    <value>Accent color</value>
+  </data>
+  <data name="Widget.Config.AccentColorDescription" xml:space="preserve">
+    <value>Progress color as a hex value. Empty uses the deck default.</value>
+  </data>
   <data name="Events.CountdownFinished.Name" xml:space="preserve">
     <value>Countdown finished</value>
   </data>

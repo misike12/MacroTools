@@ -9,6 +9,7 @@ using Timers.Timing;
 // below resolve in the user's language rather than falling back to its key.
 var builder = MacroDeckPlugin.CreatePlugin(args);
 builder.Services.AddSingleton<TimerService>();
+builder.Services.AddSingleton<PomodoroService>();
 var plugin = builder
 	.UseMacroDeckLogging()
 	.UseLocalization(Strings.LocalizationCatalog)

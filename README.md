@@ -92,19 +92,27 @@ Brightness works on monitors without DDC/CI too (e.g. early-2000s panels that on
 
 Countdowns and a stopwatch for automations. The countdown runs on a background timer: pausing keeps the time left, re-starting replaces the running one, and a zero-length start fires the event immediately.
 
-### Actions (10)
+### Actions (14)
 
-Start countdown (hours/minutes/seconds, default 5 minutes, optional label) / Pause / Resume / Cancel, Pause-or-resume toggle, Adjust countdown (add or remove seconds; adjusting past zero finishes it at once), Start / Stop / Reset stopwatch, Start-or-stop toggle.
+Start countdown (hours/minutes/seconds, default 5 minutes, optional label) / Pause / Resume / Cancel, Pause-or-resume toggle, Adjust countdown (add or remove seconds; adjusting past zero finishes it at once), Start / Stop / Reset stopwatch, Start-or-stop toggle, Start Pomodoro (focus/short-break/long-break lengths, rounds, auto-advance) / Stop Pomodoro / Skip phase / Pause-or-resume toggle.
 
 Leaving a number field blank keeps its default (blank minutes means 5, not 0): type an explicit `0` for a seconds-only timer.
 
-### Variables (8)
+### Variables (15)
 
-`countdown_remaining_seconds`, `countdown_text` (`m:ss` or `h:mm:ss`), `countdown_running`, `countdown_label`, `countdown_progress_percent`, `stopwatch_elapsed_seconds`, `stopwatch_text`, `stopwatch_running` (all refresh every second, all read-only).
+`countdown_remaining_seconds`, `countdown_text` (`m:ss` or `h:mm:ss`), `countdown_running`, `countdown_label`, `countdown_progress_percent`, `stopwatch_elapsed_seconds`, `stopwatch_text`, `stopwatch_running`, `pomodoro_phase` (`idle`/`focus`/`short-break`/`long-break`), `pomodoro_remaining_seconds`, `pomodoro_phase_text`, `pomodoro_label`, `pomodoro_round`, `pomodoro_running`, `pomodoro_progress_percent` (all refresh every second, all read-only).
 
-### Events (1)
+### Events (2)
 
-`countdown-finished` (label/seconds).
+`countdown-finished` (label/seconds), `pomodoro-phase-changed` (phase/round/label).
+
+### Focus timer widget
+
+A deck widget with a big remaining-time hero, phase caption, round dots, a live progress bar and start/pause/resume/skip/reset controls. Its configuration page picks the mode (countdown, stopwatch or Pomodoro), the Pomodoro lengths/rounds/auto-advance, which parts show, compact mode and the accent color. The widget buttons drive the timers directly, so it works standalone with no extra buttons.
+
+### Pomodoro mode
+
+A full focus cycle on its own isolated timer, so it never disturbs a manually started countdown: N focus rounds, short breaks between them, a long break every Nth round, then back to idle. With auto-advance on, phases flow into each other and `pomodoro-phase-changed` fires each time (wire it to a notification automation for the classic ring). With it off, each phase waits paused at full length until resumed or skipped.
 
 ## Requirements
 

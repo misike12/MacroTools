@@ -16,6 +16,13 @@ internal static class TimerVariables
 		Eager("stopwatch-elapsed-seconds", VariableType.Numeric, Strings.Variables.StopwatchElapsed.DisplayName(), Strings.Variables.StopwatchElapsed.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration, refresh: FastRefresh),
 		Eager("stopwatch-text", VariableType.Text, Strings.Variables.StopwatchText.DisplayName(), Strings.Variables.StopwatchText.Description(), refresh: FastRefresh),
 		Eager("stopwatch-running", VariableType.Boolean, Strings.Variables.StopwatchRunning.DisplayName(), Strings.Variables.StopwatchRunning.Description(), refresh: FastRefresh),
+		Eager("pomodoro-phase", VariableType.Text, Strings.Variables.PomodoroPhase.DisplayName(), Strings.Variables.PomodoroPhase.Description(), refresh: FastRefresh),
+		Eager("pomodoro-remaining-seconds", VariableType.Numeric, Strings.Variables.PomodoroRemaining.DisplayName(), Strings.Variables.PomodoroRemaining.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration, refresh: FastRefresh),
+		Eager("pomodoro-phase-text", VariableType.Text, Strings.Variables.PomodoroPhaseText.DisplayName(), Strings.Variables.PomodoroPhaseText.Description(), refresh: FastRefresh),
+		Eager("pomodoro-label", VariableType.Text, Strings.Variables.PomodoroLabel.DisplayName(), Strings.Variables.PomodoroLabel.Description(), refresh: FastRefresh),
+		Eager("pomodoro-round", VariableType.Numeric, Strings.Variables.PomodoroRound.DisplayName(), Strings.Variables.PomodoroRound.Description(), refresh: FastRefresh),
+		Eager("pomodoro-running", VariableType.Boolean, Strings.Variables.PomodoroRunning.DisplayName(), Strings.Variables.PomodoroRunning.Description(), refresh: FastRefresh),
+		Eager("pomodoro-progress-percent", VariableType.Numeric, Strings.Variables.PomodoroProgress.DisplayName(), Strings.Variables.PomodoroProgress.Description(), unit: "%", semanticKind: VariableSemanticKinds.Percentage, refresh: FastRefresh),
 	];
 
 	private static VariableDefinition Eager(

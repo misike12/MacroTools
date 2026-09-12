@@ -8,7 +8,7 @@ now three real plugins in one solution, not a template checkout: `src/WindowsMed
 Control integration (41 actions, 40 variables plus an app-volume catalog, 4 events, a music player, a Now Playing widget type
 and a 5-step configuration flow with 26 settings), `src/ScreenControl/` holds the Screen Control
 integration (14 actions, 6 variables plus a monitor-brightness catalog: DDC monitor brightness/input/power, window state, topmost, snap and virtual-desktop control),
-and `src/Timers/` holds the Timers integration (10 actions, 8 variables, 1 event: countdowns with adjust/toggle/progress and a stopwatch).
+and `src/Timers/` holds the Timers integration (14 actions, 15 variables, 2 events: countdowns with adjust/toggle/progress, a stopwatch, an isolated Pomodoro cycle, and a Focus Timer widget type with configuration).
 The template's example action is long gone. The orientation and
 identity checklists below still apply to the mechanics (manifest, build recipe, analyzers), but do
 not "restore" the minimal shape. Every plugin follows the same shape (manifest, build recipe,
@@ -40,7 +40,7 @@ src/WindowsMediaControl/
   Assets/icon.svg        the icon the manifest declares
   Properties/launchSettings.json   the single real-host debug profile
 src/ScreenControl/       same shape: DDC monitor service (Monitors/, with gamma-ramp software brightness plus a click-through dimmer veil below the driver floor, and caps-aware input cycling), Win32 window/desktop service (Windows/), 14 actions, 6 variables plus a monitor-brightness catalog
-src/Timers/              same shape: countdown/stopwatch service (Timing/), 10 actions, 8 variables, countdown-finished event
+src/Timers/              same shape: countdown/stopwatch service (Timing/), 10 actions, 8 variables, countdown-finished event, plus an isolated PomodoroService and a Focus Timer widget type (Widgets/, IWidgetTypeProvider+IUiProvider wired through the integration like NowPlayingWidget)
 tests/WindowsMediaControl.Tests/
   PluginIntegrationTests.cs   behaviour tests against FakeMediaControlService
   FakeMediaControlService.cs  controllable stand-in for SMTC/audio
