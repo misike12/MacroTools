@@ -98,7 +98,8 @@ public sealed record GsiPlayer(
 	[property: JsonPropertyName("state")] GsiPlayerState? State,
 	[property: JsonPropertyName("weapons")] Dictionary<string, GsiWeapon>? Weapons,
 	[property: JsonPropertyName("match_stats")] GsiMatchStats? MatchStats,
-	[property: JsonPropertyName("spectarget")] string? SpectateTarget);
+	[property: JsonPropertyName("spectarget")] string? SpectateTarget,
+	[property: JsonPropertyName("position")] string? Position);
 
 public sealed record GsiPhaseCountdowns(
 	[property: JsonPropertyName("phase")] string? Phase,

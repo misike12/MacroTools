@@ -193,6 +193,82 @@ public sealed class GsiTests
 	}
 
 	[Test]
+	public async Task Position_bomb_and_carrier_surface()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+
+		var response = await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },
+			round = new { phase = "live" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				position = "100.5, -200.25, 64",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+			allplayers = new Dictionary<string, object>
+			{
+				["76561198000000001"] = new { name = "Carrier", team = "T" },
+			},
+			bomb = new { state = "carried", player = "76561198000000001", countdown = "35.0" },
+		}), TestContext.CurrentContext.CancellationToken);
+
+		Assert.That((int)response.StatusCode, Is.EqualTo(200));
+		var snapshot = await WaitForAsync(
+			() => gsi.Snapshot().HasPosition,
+			TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(snapshot, Is.True);
+		var state = gsi.Snapshot();
+		Assert.That(state.PosX, Is.EqualTo(100.5));
+		Assert.That(state.PosY, Is.EqualTo(-200.25));
+		Assert.That(state.PosZ, Is.EqualTo(64.0));
+		Assert.That(state.BombCountdown, Is.EqualTo(35.0));
+		Assert.That(state.BombCarrier, Is.EqualTo("Carrier"));
+	}
+
+	[Test]
+	public async Task Malformed_position_stays_unavailable()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { name = "de_mirage", phase = "live" },
+			player = new { steamid = "1", name = "Me", position = "somewhere" },
+		}), TestContext.CurrentContext.CancellationToken);
+
+		await Task.Delay(500, TestContext.CurrentContext.CancellationToken);
+		Assert.That(gsi.Snapshot().HasPosition, Is.False);
+	}
+
+	private static async Task<bool> WaitForAsync(Func<bool> condition, CancellationToken cancellationToken)
+	{
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+		while (DateTimeOffset.UtcNow < deadline)
+		{
+			if (condition())
+			{
+				return true;
+			}
+
+			await Task.Delay(50, cancellationToken);
+		}
+
+		return condition();
+	}
+
+	[Test]
 	public async Task Wrong_auth_token_is_ignored()
 	{
 		using var gsi = new GsiService(TestLogger());

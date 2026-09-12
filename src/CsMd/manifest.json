@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.csmd",
   "name": "CS:MD",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Counter-Strike 2 live match state over GSI: scores, players, rounds, bomb, grenades and match events.",
   "icon": "Assets/icon.svg",
   "entrypoints": {

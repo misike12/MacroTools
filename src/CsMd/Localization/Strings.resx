@@ -231,6 +231,36 @@
   <data name="Variables.FireActive.Description" xml:space="preserve">
     <value>How many molotov fires are currently burning.</value>
   </data>
+  <data name="Variables.PosX.DisplayName" xml:space="preserve">
+    <value>Position X</value>
+  </data>
+  <data name="Variables.PosX.Description" xml:space="preserve">
+    <value>X coordinate of the followed player on the map.</value>
+  </data>
+  <data name="Variables.PosY.DisplayName" xml:space="preserve">
+    <value>Position Y</value>
+  </data>
+  <data name="Variables.PosY.Description" xml:space="preserve">
+    <value>Y coordinate of the followed player on the map.</value>
+  </data>
+  <data name="Variables.PosZ.DisplayName" xml:space="preserve">
+    <value>Position Z</value>
+  </data>
+  <data name="Variables.PosZ.Description" xml:space="preserve">
+    <value>Height of the followed player on the map.</value>
+  </data>
+  <data name="Variables.BombCountdown.DisplayName" xml:space="preserve">
+    <value>Bomb countdown</value>
+  </data>
+  <data name="Variables.BombCountdown.Description" xml:space="preserve">
+    <value>Seconds until the planted bomb explodes.</value>
+  </data>
+  <data name="Variables.BombCarrier.DisplayName" xml:space="preserve">
+    <value>Bomb carrier</value>
+  </data>
+  <data name="Variables.BombCarrier.Description" xml:space="preserve">
+    <value>Who currently carries the bomb, if known.</value>
+  </data>
   <data name="Variables.SessionKills.DisplayName" xml:space="preserve">
     <value>Session kills</value>
   </data>
@@ -324,6 +354,15 @@
   <data name="Events.PlayerDied.PlayerParameter.Label" xml:space="preserve">
     <value>Player</value>
   </data>
+  <data name="Events.PlayerDied.PosXParameter.Label" xml:space="preserve">
+    <value>X</value>
+  </data>
+  <data name="Events.PlayerDied.PosYParameter.Label" xml:space="preserve">
+    <value>Y</value>
+  </data>
+  <data name="Events.PlayerDied.PosZParameter.Label" xml:space="preserve">
+    <value>Z</value>
+  </data>
   <data name="Events.PlayerKill.Name" xml:space="preserve">
     <value>Player kill</value>
   </data>
@@ -335,6 +374,15 @@
   </data>
   <data name="Events.PlayerKill.WeaponParameter.Label" xml:space="preserve">
     <value>Weapon</value>
+  </data>
+  <data name="Events.PlayerKill.PosXParameter.Label" xml:space="preserve">
+    <value>X</value>
+  </data>
+  <data name="Events.PlayerKill.PosYParameter.Label" xml:space="preserve">
+    <value>Y</value>
+  </data>
+  <data name="Events.PlayerKill.PosZParameter.Label" xml:space="preserve">
+    <value>Z</value>
   </data>
   <data name="Events.MatchStarted.Name" xml:space="preserve">
     <value>Match started</value>

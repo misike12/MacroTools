@@ -58,7 +58,13 @@ public sealed record GsiSnapshot(
 	int FireActive,
 	int SessionKills,
 	int SessionDeaths,
-	double SessionKd);
+	double SessionKd,
+	double PosX,
+	double PosY,
+	double PosZ,
+	bool HasPosition,
+	double? BombCountdown,
+	string? BombCarrier);
 
 public sealed class GsiService : IDisposable
 {
@@ -740,6 +746,7 @@ public sealed class GsiService : IDisposable
 		var previousFocus = previous is not null ? FocusedPlayer(previous, null) : null;
 		if (focus is not null)
 		{
+			var position = ParsePosition(focus.Position);
 			var deaths = focus.MatchStats?.Deaths ?? 0;
 			var previousDeaths = previousFocus?.MatchStats?.Deaths ?? 0;
 			if (previous is not null && deaths > previousDeaths)
@@ -747,6 +754,9 @@ public sealed class GsiService : IDisposable
 				events.Add(new GsiMatchEvent(GsiEventIds.PlayerDied, new Dictionary<string, object?>
 				{
 					["player"] = focus.Name ?? string.Empty,
+					["pos-x"] = position?.X ?? 0.0,
+					["pos-y"] = position?.Y ?? 0.0,
+					["pos-z"] = position?.Z ?? 0.0,
 				}));
 			}
 
@@ -762,6 +772,9 @@ public sealed class GsiService : IDisposable
 					{
 						["player"] = focus.Name ?? string.Empty,
 						["weapon"] = weapon,
+						["pos-x"] = position?.X ?? 0.0,
+						["pos-y"] = position?.Y ?? 0.0,
+						["pos-z"] = position?.Z ?? 0.0,
 					}));
 				}
 
@@ -844,6 +857,46 @@ public sealed class GsiService : IDisposable
 	private static string? MapNameOf(GsiPayload? payload) =>
 		string.IsNullOrWhiteSpace(payload?.Map?.Name) ? null : payload.Map.Name;
 
+	private static (double X, double Y, double Z)? ParsePosition(string? position)
+	{
+		if (string.IsNullOrWhiteSpace(position))
+		{
+			return null;
+		}
+
+		var parts = position.Split(',', StringSplitOptions.TrimEntries);
+		if (parts.Length != 3
+			|| !double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x)
+			|| !double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y)
+			|| !double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z))
+		{
+			return null;
+		}
+
+		return (x, y, z);
+	}
+
+	private static string? ResolveBombCarrier(GsiPayload payload, GsiPlayer? focus)
+	{
+		var carrier = payload.Bomb?.Player;
+		if (string.IsNullOrWhiteSpace(carrier))
+		{
+			return null;
+		}
+
+		if (string.Equals(focus?.SteamId, carrier, StringComparison.Ordinal))
+		{
+			return focus?.Name;
+		}
+
+		if (payload.AllPlayers is not null && payload.AllPlayers.TryGetValue(carrier, out var holder))
+		{
+			return holder.Name;
+		}
+
+		return null;
+	}
+
 	private static string ActiveWeaponName(GsiPlayer player)
 	{
 		if (player.Weapons is null)
@@ -877,7 +930,8 @@ public sealed class GsiService : IDisposable
 	private static GsiSnapshot EmptySnapshot(bool connected) => new(
 		connected, null, null, null, 0, 0, 0, null, null, null, null, null,
 		false, null, null, false, 0, 0, false, false, 0, null, -1, -1,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0);
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
+		0, 0, 0, false, null, null);
 
 	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected)
 	{
@@ -920,6 +974,8 @@ public sealed class GsiService : IDisposable
 		}
 
 		double? phaseEndsIn = payload.PhaseCountdowns?.PhaseEndsIn;
+		var position = ParsePosition(focus?.Position);
+		var bombCarrier = ResolveBombCarrier(payload, focus);
 		return new GsiSnapshot(
 			connected,
 			payload.Map?.Name, payload.Map?.Mode, payload.Map?.Phase, payload.Map?.Round ?? 0,
@@ -935,7 +991,9 @@ public sealed class GsiService : IDisposable
 			stats?.Kills ?? 0, stats?.Deaths ?? 0, stats?.Assists ?? 0, stats?.Mvps ?? 0, stats?.Score ?? 0,
 			smokes, fire,
 			_sessionKills, _sessionDeaths,
-			_sessionDeaths > 0 ? (double)_sessionKills / _sessionDeaths : _sessionKills);
+			_sessionDeaths > 0 ? (double)_sessionKills / _sessionDeaths : _sessionKills,
+			position?.X ?? 0, position?.Y ?? 0, position?.Z ?? 0, position is not null,
+			payload.Bomb?.Countdown, bombCarrier);
 	}
 
 	private static GsiPayload TestPayload() => new(
@@ -951,7 +1009,7 @@ public sealed class GsiService : IDisposable
 				["weapon_0"] = new("weapon_ak47", "default", "Rifle", "active", 30, 30, 90),
 				["weapon_1"] = new("weapon_knife_karambit", null, "Knife", "holstered", null, null, null),
 			},
-			new GsiMatchStats(4, 1, 2, 0, 10), null),
+			new GsiMatchStats(4, 1, 2, 0, 10), null, null),
 		AllPlayers: null,
 		PhaseCountdowns: new GsiPhaseCountdowns("live", 95.5),
 		Grenades: null,
