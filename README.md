@@ -47,7 +47,7 @@ Writable: `volume_percent`, `is_muted`, `mic_volume_percent`, `is_mic_muted`, `p
 
 ### App volume sliders
 
-Besides the fixed variables above, the plugin offers a browsable **App volumes** catalog: every app currently in the Windows volume mixer appears as its own writable 0–100 variable. To put a Spotify slider on your deck, add a **Slider** widget, bind it to a variable, browse to App volumes and pick the app. Both `Spotify` and `Spotify.exe` spellings resolve to the same app, and the binding survives app restarts (it simply reads unavailable while the app has no audio session).
+Besides the fixed variables above, the plugin offers a browsable **App volumes** catalog: every app currently in the Windows volume mixer appears as its own writable 0–100 variable. To put a Spotify slider on your deck, add a **Slider** widget, bind it to a variable, browse to App volumes and pick the app. Both `Spotify` and `Spotify.exe` spellings resolve to the same app, and the binding survives app restarts (it simply reads unavailable while the app has no audio session). The list refreshes live as apps come and go (needs host beta.4 or newer).
 
 ### Events (4)
 
@@ -84,7 +84,7 @@ Control monitors and windows from the deck. Monitor control uses DDC/CI over `dx
 
 `monitor_count` (how many monitors Windows sees), writable `primary_brightness` (writing it sets the primary monitor brightness), `primary_input` (the primary monitor's current input: `hdmi1`, `dp1`, `dvi`, ...), `focused_window_title`, `focused_window_process` and writable `focused_window_topmost` (writing it pins or unpins the focused window).
 
-Besides the fixed variables, the plugin offers a browsable **Monitors** catalog: every monitor Windows sees appears as its own writable 0–100 brightness variable (`monitor-1-brightness`, `monitor-2-brightness`, ...). To put a slider for the second monitor on your deck, add a **Slider** widget, bind it to a variable, browse to Monitors and pick it. This is how non-primary monitors get sliders; the binding reads unavailable while that monitor is unplugged.
+Besides the fixed variables, the plugin offers a browsable **Monitors** catalog: every monitor Windows sees appears as its own writable 0–100 brightness variable (`monitor-1-brightness`, `monitor-2-brightness`, ...). To put a slider for the second monitor on your deck, add a **Slider** widget, bind it to a variable, browse to Monitors and pick it. This is how non-primary monitors get sliders; the binding reads unavailable while that monitor is unplugged. The list refreshes live when monitors are plugged or unplugged (needs host beta.4 or newer).
 
 Brightness works on monitors without DDC/CI too (e.g. early-2000s panels that only speak VESA DDC 2B): when the backlight cannot be driven over VCP `0x10`, the plugin scales that display's GPU gamma ramp instead. Some GPU drivers (notably NVIDIA) reject gamma ramps darker than 50%, so below that a click-through black veil covers the display the rest of the way down to black; the veil never takes focus, passes input through, and hides at full brightness. Input and power switching genuinely need DDC and report honestly when the monitor has none; input cycling stays within the inputs the monitor advertises in its capabilities string.
 
@@ -117,7 +117,7 @@ A full focus cycle on its own isolated timer, so it never disturbs a manually st
 ## Requirements
 
 - Windows x64.
-- Macro Deck `>=3.0.0-beta.3` (host).
+- Macro Deck `>=3.0.0-beta.4` (host).
 - .NET 10 SDK (to build).
 
 ## Install

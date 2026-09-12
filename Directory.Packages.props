@@ -3,12 +3,12 @@
     <PropertyGroup>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
         <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
-        <!-- The Macro Deck packages float to the newest published version, so no release version is
-             pinned anywhere in this repository. -->
+        <!-- The Macro Deck packages are pinned to the host line in use, so every build
+             resolves the same SDK the host runs. -->
         <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
         <!-- One knob for every Macro Deck package, so a build against a locally packed SDK is
              `dotnet build -p:MacroDeckSdkVersion=<version>` and nothing else - see README.md. -->
-        <MacroDeckSdkVersion Condition="'$(MacroDeckSdkVersion)' == ''">3.0.0-*</MacroDeckSdkVersion>
+        <MacroDeckSdkVersion Condition="'$(MacroDeckSdkVersion)' == ''">3.0.0-beta.4</MacroDeckSdkVersion>
     </PropertyGroup>
 
     <ItemGroup>

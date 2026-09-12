@@ -16,7 +16,7 @@
   },
   "license": "MIT",
   "compatibility": {
-    "macroDeck": ">=3.0.0-beta.3"
+    "macroDeck": ">=3.0.0-beta.4"
   },
   "repository": "https://github.com/misike12/MacroTools"
 }

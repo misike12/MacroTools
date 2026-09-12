@@ -281,6 +281,39 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public void Monitor_catalog_watcher_reports_membership_changes()
+	{
+		var watcher = new MonitorCatalogWatcher();
+		var pair = new List<MonitorInfo>
+		{
+			new(1, "\\\\.\\DISPLAY1", true, 80, true, false),
+			new(2, "\\\\.\\DISPLAY2", false, 60, true, true),
+		};
+
+		Assert.That(watcher.CheckForChanges(pair), Is.False, "first check sets the baseline");
+		Assert.That(watcher.CheckForChanges(pair), Is.False, "stable set stays silent");
+
+		var solo = new List<MonitorInfo> { new(1, "\\\\.\\DISPLAY1", true, 80, true, false) };
+		Assert.That(watcher.CheckForChanges(solo), Is.True, "unplug reports");
+		Assert.That(watcher.CheckForChanges(solo), Is.False, "second sighting is the new baseline");
+		Assert.That(watcher.CheckForChanges(pair), Is.True, "replug reports");
+
+		watcher.Reset();
+		Assert.That(watcher.CheckForChanges(pair), Is.False, "reset re-baselines silently");
+	}
+
+	[Test]
+	public async Task Catalog_watch_lifecycle_starts_and_stops_cleanly()
+	{
+		var integration = new PluginIntegration(new FakeMonitorService(), new FakeWindowService(), TestLogger());
+
+		await integration.InitializeAsync(new FakeIntegrationContext());
+		await integration.ShutdownAsync();
+		await integration.InitializeAsync(new FakeIntegrationContext());
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
 	public void Action_ids_are_unique_across_the_plugin()
 	{
 		var integration = new PluginIntegration(new FakeMonitorService(), new FakeWindowService(), TestLogger());

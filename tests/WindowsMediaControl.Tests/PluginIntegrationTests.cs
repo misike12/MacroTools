@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MacroDeck.Plugin.Hosting.Integrations.HostApis;
 using MacroDeck.Plugin.Testing;
 using MacroDeck.Plugin.Testing.Fakes;
 using MacroDeck.Sdk.Actions;
@@ -1192,6 +1193,54 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Audio_app_arrival_notifies_the_catalog_once()
+	{
+		var fake = new FakeMediaControlService();
+		var settings = new MediaSettingsProvider();
+		settings.Update(MediaSettings.Default with { PollIntervalSeconds = 1 });
+		var catalogs = new FakeCatalogNotifier();
+		await using var harness = PluginTestHarness.Create(builder =>
+		{
+			builder.Services.AddSingleton<IMediaControlService>(fake);
+			builder.Services.AddSingleton(settings);
+			builder.Services.AddSingleton<IPluginCatalogNotifier>(catalogs);
+			builder.UseLocalization(Strings.LocalizationCatalog);
+			builder.RegisterIntegration<PluginIntegration>();
+		});
+		await harness.InitializeIntegrationsAsync();
+
+		// Note: InitializeAsync re-reads settings from the host config, so the loop runs
+		// on the default 2 s interval and checks the app set every fifth tick. The waits
+		// below are sized so at least one check lands on each side of the mutation.
+		// (The fake starts with Spotify already present, so arrival means a new name.)
+		await Task.Delay(TimeSpan.FromSeconds(5), TestContext.CurrentContext.CancellationToken);
+		Assert.That(catalogs.Calls, Is.Empty, "baseline poll must stay silent");
+
+		fake.AppVolumes["Firefox"] = (50, false);
+
+		var started = DateTimeOffset.UtcNow;
+		var deadline = started.AddSeconds(30);
+		while (DateTimeOffset.UtcNow < deadline && catalogs.Calls.Count == 0)
+		{
+			await Task.Delay(250, TestContext.CurrentContext.CancellationToken);
+		}
+
+		Assert.That(catalogs.Calls.Count, Is.GreaterThanOrEqualTo(1));
+		Assert.That(catalogs.Calls[0].Kind, Is.EqualTo("variables"));
+
+		fake.AppVolumes.Remove("Spotify");
+		fake.AppVolumes.Remove("Firefox");
+
+		deadline = DateTimeOffset.UtcNow.AddSeconds(30);
+		while (DateTimeOffset.UtcNow < deadline && catalogs.Calls.Count < 2)
+		{
+			await Task.Delay(250, TestContext.CurrentContext.CancellationToken);
+		}
+
+		Assert.That(catalogs.Calls.Count, Is.GreaterThanOrEqualTo(2), "departure notifies too");
+	}
+
+	[Test]
 	public async Task Mic_actions_drive_the_fake_microphone()
 	{
 		var fake = new FakeMediaControlService();
@@ -1448,6 +1497,14 @@ public sealed class PluginIntegrationTests
 		Assert.That(Strings.LocalizationCatalog.TryGetTemplate("en", "Variables.AppVolume.DisplayName", out var template), Is.True);
 		Assert.That(template, Is.EqualTo("{name} volume"));
 		Assert.That(MediaVariables.AppVolume("Spotify").Name, Is.EqualTo("app_Spotify"));
+	}
+
+	private sealed class FakeCatalogNotifier : IPluginCatalogNotifier
+	{
+		public List<(string Kind, string? LocalId, string? Reason)> Calls { get; } = [];
+
+		public void CatalogChanged(string kind, string? localId = null, string? reason = null) =>
+			Calls.Add((kind, localId, reason));
 	}
 }
 

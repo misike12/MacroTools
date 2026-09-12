@@ -1,4 +1,5 @@
 using MacroDeck.Localization;
+using MacroDeck.Plugin.Hosting.Integrations.HostApis;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.Events;
@@ -22,6 +23,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private readonly IMediaControlService _media;
 	private readonly MediaSettingsProvider _settings;
 	private readonly ILogger _logger;
+	private readonly IPluginCatalogNotifier? _catalogs;
 	private readonly NowPlayingWidget _widget;
 	private readonly object _loopGate = new();
 	private readonly object _snapshotGate = new();
@@ -31,14 +33,16 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private MediaSnapshot _last = MediaSnapshot.Empty;
 	private string _defaultDeviceName = string.Empty;
 	private string _defaultInputDeviceName = string.Empty;
+	private string? _lastAudioApps;
 	private long _lastEventRefreshTicks;
 	private bool _disposed;
 
-	public PluginIntegration(IMediaControlService media, MediaSettingsProvider settings, ILogger logger)
+	public PluginIntegration(IMediaControlService media, MediaSettingsProvider settings, ILogger logger, IPluginCatalogNotifier? catalogs = null)
 	{
 		_media = media;
 		_settings = settings;
 		_logger = logger.ForContext<PluginIntegration>();
+		_catalogs = catalogs;
 		_widget = new NowPlayingWidget(media, logger, () => _last);
 		Actions =
 		[
@@ -636,11 +640,8 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		}
 	}
 
-	// No CatalogChanged calls here on purpose. The host applies a refreshed variables snapshot by
-	// unregistering and re-registering the integration, which also drops this plugin's localization
-	// catalog without fetching it again, so every label renders as [[plugin:...:Key]] afterwards.
-	// The eager catalog below is static and the app catalog is browsed live, so a refresh would not
-	// update anything anyway. Revisit if the host starts preserving catalogs across refreshes.
+	// The audio-app set is watched by the poll loop, which calls CatalogChanged when apps
+	// come or go (safe since beta.4 keeps the localization catalog across re-describes).
 	public ValueTask<VariableCatalogPage> DiscoverAsync(VariableCatalogQuery query, CancellationToken cancellationToken = default) =>
 		DiscoverAppVolumesAsync(query, cancellationToken);
 
@@ -776,14 +777,49 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				PublishChanges(previous, snapshot);
 			}
 
-			// Device names barely change; the WinRT enumeration behind them is the
-			// most expensive call in this loop, so it runs every fifth tick.
-			if (ticks++ % 5 == 0)
-			{
-				await RefreshDefaultDeviceAsync(cancellationToken);
-			}
+		// Device names barely change; the WinRT enumeration behind them is the
+		// most expensive call in this loop, so it runs every fifth tick.
+		if (ticks++ % 5 == 0)
+		{
+			await RefreshDefaultDeviceAsync(cancellationToken);
+			await RefreshAudioAppsAsync(cancellationToken);
 		}
 	}
+}
+
+private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
+{
+	IReadOnlyList<AudioAppSession> apps;
+	try
+	{
+		apps = await _media.GetAudioAppsAsync(cancellationToken);
+	}
+	catch (OperationCanceledException)
+	{
+		return;
+	}
+	catch (Exception ex)
+	{
+		_logger.Debug(ex, "Audio app refresh failed.");
+		return;
+	}
+
+	var signature = string.Join("\n", apps
+		.Select(app => app.ProcessName)
+		.Where(name => !string.IsNullOrWhiteSpace(name))
+		.OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
+	bool changed;
+	lock (_snapshotGate)
+	{
+		changed = _lastAudioApps is not null && !string.Equals(_lastAudioApps, signature, StringComparison.Ordinal);
+		_lastAudioApps = signature;
+	}
+
+	if (changed)
+	{
+		_catalogs?.CatalogChanged("variables", reason: "audio-apps-changed");
+	}
+}
 
 	private async Task RefreshDefaultDeviceAsync(CancellationToken cancellationToken)
 	{

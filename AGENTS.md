@@ -353,7 +353,8 @@ it after any change to capability shape, cancellation handling or the manifest, 
 check going from pass to fail as a blocking regression. Most checks `SKIP` until the plugin declares
 capabilities.
 
-The Macro Deck packages float to the newest published version, so the commands above need no version
+The Macro Deck packages are pinned to the host line in use (`MacroDeckSdkVersion` in
+`Directory.Packages.props`, currently `3.0.0-beta.4`), so the commands above need no version
 argument. Only to test against SDK surface that is not published yet, pack it into `local-feed/` and
 pass `-p:MacroDeckSdkVersion=<version>` - see "Building against a local SDK build" in
 [README.md](README.md).

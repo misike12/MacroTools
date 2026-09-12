@@ -1,4 +1,5 @@
 using MacroDeck.Localization;
+using MacroDeck.Plugin.Hosting.Integrations.HostApis;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.Variables;
@@ -9,17 +10,26 @@ using Serilog;
 
 namespace ScreenControl;
 
-public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
+public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IDisposable
 {
+	private static readonly TimeSpan CatalogWatchInterval = TimeSpan.FromSeconds(30);
+
 	private readonly IMonitorService _monitors;
 	private readonly IWindowService _windows;
 	private readonly ILogger _logger;
+	private readonly IPluginCatalogNotifier? _catalogs;
+	private readonly MonitorCatalogWatcher _watcher = new();
+	private readonly object _loopGate = new();
+	private CancellationTokenSource? _loopCts;
+	private Task? _loopTask;
+	private bool _disposed;
 
-	public PluginIntegration(IMonitorService monitors, IWindowService windows, ILogger logger)
+	public PluginIntegration(IMonitorService monitors, IWindowService windows, ILogger logger, IPluginCatalogNotifier? catalogs = null)
 	{
 		_monitors = monitors;
 		_windows = windows;
 		_logger = logger.ForContext<PluginIntegration>();
+		_catalogs = catalogs;
 		Actions =
 		[
 			new SetMonitorBrightnessAction(monitors),
@@ -59,7 +69,24 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 
 	public int? CatalogEntryCount => null;
 
-	public Task InitializeAsync(IIntegrationContext context) => Task.CompletedTask;
+	public Task InitializeAsync(IIntegrationContext context)
+	{
+		lock (_loopGate)
+		{
+			if (_disposed)
+			{
+				return Task.CompletedTask;
+			}
+
+			_watcher.Reset();
+			_loopCts?.Cancel();
+			_loopCts?.Dispose();
+			_loopCts = new CancellationTokenSource();
+			_loopTask = RunCatalogWatchAsync(_loopCts.Token);
+		}
+
+		return Task.CompletedTask;
+	}
 
 	public Task ShutdownAsync()
 	{
@@ -72,7 +99,59 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 			_logger.Debug(ex, "Overlay hide failed.");
 		}
 
+		lock (_loopGate)
+		{
+			_loopCts?.Cancel();
+		}
+
 		return Task.CompletedTask;
+	}
+
+	public void Dispose()
+	{
+		lock (_loopGate)
+		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			_disposed = true;
+			_loopCts?.Cancel();
+			_loopCts?.Dispose();
+		}
+	}
+
+	private async Task RunCatalogWatchAsync(CancellationToken cancellationToken)
+	{
+		using var timer = new PeriodicTimer(CatalogWatchInterval);
+		while (!cancellationToken.IsCancellationRequested)
+		{
+			try
+			{
+				await timer.WaitForNextTickAsync(cancellationToken);
+			}
+			catch (OperationCanceledException)
+			{
+				break;
+			}
+
+			try
+			{
+				if (_watcher.CheckForChanges(_monitors.GetMonitors()))
+				{
+					_catalogs?.CatalogChanged("variables", reason: "monitors-changed");
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				break;
+			}
+			catch (Exception ex)
+			{
+				_logger.Debug(ex, "Monitor catalog watch failed.");
+			}
+		}
 	}
 
 	public ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)
@@ -164,11 +243,8 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 		}
 	}
 
-	// No CatalogChanged calls here on purpose. The host applies a refreshed variables snapshot by
-	// unregistering and re-registering the integration, which also drops this plugin's localization
-	// catalog without fetching it again, so every label renders as [[plugin:...:Key]] afterwards.
-	// The eager list is static and the monitor catalog is browsed live, so a refresh would not
-	// update anything anyway. Revisit if the host starts preserving catalogs across refreshes.
+	// The monitor set is watched by the catalog loop, which calls CatalogChanged when monitors
+	// come or go (safe since beta.4 keeps the localization catalog across re-describes).
 	public ValueTask<VariableCatalogPage> DiscoverAsync(VariableCatalogQuery query, CancellationToken cancellationToken = default)
 	{
 		var items = new List<VariableDefinition>();
