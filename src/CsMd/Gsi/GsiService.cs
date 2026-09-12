@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using CsMd.Places;
 using Serilog;
 
 namespace CsMd.Gsi;
@@ -63,6 +64,7 @@ public sealed record GsiSnapshot(
 	double PosY,
 	double PosZ,
 	bool HasPosition,
+	string? PlaceName,
 	double? BombCountdown,
 	string? BombCarrier);
 
@@ -76,6 +78,7 @@ public sealed class GsiService : IDisposable
 	private readonly ILogger _logger;
 	private readonly object _gate = new();
 	private readonly SemaphoreSlim _handlers = new(MaxConnections, MaxConnections);
+	private readonly PlaceStore _places;
 	private TcpListener? _listener;
 	private CancellationTokenSource? _cts;
 	private Task? _acceptTask;
@@ -95,6 +98,13 @@ public sealed class GsiService : IDisposable
 	public GsiService(ILogger logger)
 	{
 		_logger = logger.ForContext<GsiService>();
+		_places = new PlaceStore(logger);
+	}
+
+	public GsiService(ILogger logger, PlaceStore places)
+	{
+		_logger = logger.ForContext<GsiService>();
+		_places = places;
 	}
 
 	public event EventHandler<GsiMatchEvent>? MatchEvent;
@@ -747,6 +757,9 @@ public sealed class GsiService : IDisposable
 		if (focus is not null)
 		{
 			var position = ParsePosition(focus.Position);
+			var place = position is not null
+				? SafeFindPlace(current.Map?.Name, position.Value.X, position.Value.Y, position.Value.Z)
+				: null;
 			var deaths = focus.MatchStats?.Deaths ?? 0;
 			var previousDeaths = previousFocus?.MatchStats?.Deaths ?? 0;
 			if (previous is not null && deaths > previousDeaths)
@@ -757,6 +770,7 @@ public sealed class GsiService : IDisposable
 					["pos-x"] = position?.X ?? 0.0,
 					["pos-y"] = position?.Y ?? 0.0,
 					["pos-z"] = position?.Z ?? 0.0,
+					["place"] = place ?? string.Empty,
 				}));
 			}
 
@@ -775,6 +789,7 @@ public sealed class GsiService : IDisposable
 						["pos-x"] = position?.X ?? 0.0,
 						["pos-y"] = position?.Y ?? 0.0,
 						["pos-z"] = position?.Z ?? 0.0,
+						["place"] = place ?? string.Empty,
 					}));
 				}
 
@@ -854,6 +869,19 @@ public sealed class GsiService : IDisposable
 		_ => string.Empty,
 	};
 
+	private string? SafeFindPlace(string? mapName, double x, double y, double z)
+	{
+		try
+		{
+			return _places.FindPlace(mapName, x, y, z);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Place lookup failed.");
+			return null;
+		}
+	}
+
 	private static string? MapNameOf(GsiPayload? payload) =>
 		string.IsNullOrWhiteSpace(payload?.Map?.Name) ? null : payload.Map.Name;
 
@@ -931,7 +959,7 @@ public sealed class GsiService : IDisposable
 		connected, null, null, null, 0, 0, 0, null, null, null, null, null,
 		false, null, null, false, 0, 0, false, false, 0, null, -1, -1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
-		0, 0, 0, false, null, null);
+		0, 0, 0, false, null, null, null);
 
 	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected)
 	{
@@ -976,6 +1004,9 @@ public sealed class GsiService : IDisposable
 		double? phaseEndsIn = payload.PhaseCountdowns?.PhaseEndsIn;
 		var position = ParsePosition(focus?.Position);
 		var bombCarrier = ResolveBombCarrier(payload, focus);
+		var placeName = position is not null
+			? SafeFindPlace(payload.Map?.Name, position.Value.X, position.Value.Y, position.Value.Z)
+			: null;
 		return new GsiSnapshot(
 			connected,
 			payload.Map?.Name, payload.Map?.Mode, payload.Map?.Phase, payload.Map?.Round ?? 0,
@@ -993,7 +1024,7 @@ public sealed class GsiService : IDisposable
 			_sessionKills, _sessionDeaths,
 			_sessionDeaths > 0 ? (double)_sessionKills / _sessionDeaths : _sessionKills,
 			position?.X ?? 0, position?.Y ?? 0, position?.Z ?? 0, position is not null,
-			payload.Bomb?.Countdown, bombCarrier);
+			placeName, payload.Bomb?.Countdown, bombCarrier);
 	}
 
 	private static GsiPayload TestPayload() => new(

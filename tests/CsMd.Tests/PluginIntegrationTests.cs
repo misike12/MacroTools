@@ -120,7 +120,7 @@ public sealed class PluginIntegrationTests
 		Assert.That(duplicates, Is.Empty);
 		Assert.That(integration.Actions.Count, Is.EqualTo(3));
 		Assert.That(integration.EventDefinitions.Count, Is.EqualTo(11));
-		Assert.That(integration.Variables.Count, Is.EqualTo(38));
+		Assert.That(integration.Variables.Count, Is.EqualTo(39));
 	}
 
 	[Test]

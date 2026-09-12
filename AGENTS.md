@@ -9,7 +9,7 @@ Control integration (41 actions, 40 variables plus an app-volume catalog, 4 even
 and a 5-step configuration flow with 26 settings), `src/ScreenControl/` holds the Screen Control
 integration (14 actions, 6 variables plus a monitor-brightness catalog: DDC monitor brightness/input/power, window state, topmost, snap and virtual-desktop control),
 `src/Timers/` holds the Timers integration (14 actions, 15 variables, 2 events: countdowns with adjust/toggle/progress, a stopwatch, an isolated Pomodoro cycle, and a Focus Timer widget type with configuration),
-and `src/CsMd/` holds the CS:MD integration (`com.misu.csmd`: 3 actions, 38 variables, 11 events, 3-step config flow; live Counter-Strike 2 state over a loopback GSI listener with Steam discovery plus a one-click cfg installer).
+and `src/CsMd/` holds the CS:MD integration (`com.misu.csmd`: 3 actions, 39 variables, 11 events, 3-step config flow; live Counter-Strike 2 state over a loopback GSI listener with Steam discovery, map place names out of the game's own VPKs, plus a one-click cfg installer).
 The template's example action is long gone. The orientation and
 identity checklists below still apply to the mechanics (manifest, build recipe, analyzers), but do
 not "restore" the minimal shape. Every plugin follows the same shape (manifest, build recipe,

@@ -26,6 +26,9 @@
         <PackageReference Include="MacroDeck.Plugin.Hosting" />
         <PackageReference Include="MacroDeck.Plugin.Serilog" />
         <PackageReference Include="MacroDeck.Sdk" />
+        <!-- Map place lookup reads env_cs_place volumes out of the game's own VPKs. -->
+        <PackageReference Include="ValvePak" />
+        <PackageReference Include="ValveResourceFormat" />
     </ItemGroup>
 
     <!-- The SDK reads the manifest from the content root at startup and resolves the icon path against

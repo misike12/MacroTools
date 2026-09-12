@@ -27,6 +27,9 @@
         <PackageVersion Include="NUnit.Analyzers" Version="4.7.0" />
         <PackageVersion Include="NUnit3TestAdapter" Version="5.0.0" />
         <PackageVersion Include="System.Drawing.Common" Version="9.0.0" />
+        <!-- Third-party game-data libraries for CS:MD place lookup (both MIT). -->
+        <PackageVersion Include="ValvePak" Version="6.0.0.182" />
+        <PackageVersion Include="ValveResourceFormat" Version="20.0.6980" />
     </ItemGroup>
 
 </Project>

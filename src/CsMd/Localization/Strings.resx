@@ -261,6 +261,12 @@
   <data name="Variables.BombCarrier.Description" xml:space="preserve">
     <value>Who currently carries the bomb, if known.</value>
   </data>
+  <data name="Variables.PlaceName.DisplayName" xml:space="preserve">
+    <value>Place</value>
+  </data>
+  <data name="Variables.PlaceName.Description" xml:space="preserve">
+    <value>Named map area of the followed player, e.g. Mid or Bombsite A.</value>
+  </data>
   <data name="Variables.SessionKills.DisplayName" xml:space="preserve">
     <value>Session kills</value>
   </data>
@@ -363,6 +369,9 @@
   <data name="Events.PlayerDied.PosZParameter.Label" xml:space="preserve">
     <value>Z</value>
   </data>
+  <data name="Events.PlayerDied.PlaceParameter.Label" xml:space="preserve">
+    <value>Place</value>
+  </data>
   <data name="Events.PlayerKill.Name" xml:space="preserve">
     <value>Player kill</value>
   </data>
@@ -383,6 +392,9 @@
   </data>
   <data name="Events.PlayerKill.PosZParameter.Label" xml:space="preserve">
     <value>Z</value>
+  </data>
+  <data name="Events.PlayerKill.PlaceParameter.Label" xml:space="preserve">
+    <value>Place</value>
   </data>
   <data name="Events.MatchStarted.Name" xml:space="preserve">
     <value>Match started</value>

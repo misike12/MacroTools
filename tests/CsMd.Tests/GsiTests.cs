@@ -1,7 +1,10 @@
 using System.Net.Http.Json;
+using System.Numerics;
 using System.Text.Json;
 using CsMd.Gsi;
+using CsMd.Places;
 using NUnit.Framework;
+using Serilog;
 
 namespace CsMd.Tests;
 
@@ -344,8 +347,106 @@ public sealed class GsiTests
 		Assert.That(GsiConfig.ParseLibraryPaths("garbage {{{").ToList(), Is.Empty);
 	}
 
-	private static Serilog.Core.Logger TestLogger() => new Serilog.LoggerConfiguration().CreateLogger();
+	[Test]
+	public void Place_tokens_prettify()
+	{
+		Assert.That(PlaceStore.Prettify("BombsiteA"), Is.EqualTo("Bombsite A"));
+		Assert.That(PlaceStore.Prettify("CTSpawn"), Is.EqualTo("CT Spawn"));
+		Assert.That(PlaceStore.Prettify("TRamp"), Is.EqualTo("T Ramp"));
+		Assert.That(PlaceStore.Prettify("TopofMid"), Is.EqualTo("Top of Mid"));
+		Assert.That(PlaceStore.Prettify("Middle"), Is.EqualTo("Middle"));
+		Assert.That(PlaceStore.Prettify(""), Is.Empty);
+	}
 
+	[Test]
+	public void Place_lookup_prefers_smallest_container_then_nearest()
+	{
+		var store = new StubPlaces(new Dictionary<string, IReadOnlyList<PlaceVolume>>
+		{
+			["de_test"] = [
+				new PlaceVolume("BigZone", "BigZone", new Vector3(0, 0, 0), new Vector3(100, 100, 100)),
+				new PlaceVolume("Site", "Site", new Vector3(10, 10, 0), new Vector3(20, 20, 50)),
+			],
+		});
+
+		Assert.That(store.FindPlace("de_test", 15, 15, 10), Is.EqualTo("Site"));
+		Assert.That(store.FindPlace("de_test", 70, 70, 10), Is.EqualTo("BigZone"));
+		Assert.That(store.FindPlace("de_test", 5000, 5000, 0), Is.Null);
+		Assert.That(store.FindPlace(null, 15, 15, 10), Is.Null);
+		Assert.That(store.FindPlace("de_missing", 15, 15, 10), Is.Null);
+	}
+
+	private sealed class StubPlaces(Dictionary<string, IReadOnlyList<PlaceVolume>> maps) : PlaceStore(new LoggerConfiguration().CreateLogger())
+	{
+		public override IReadOnlyList<PlaceVolume> GetPlaces(string? mapName) =>
+			mapName is not null && maps.TryGetValue(mapName, out var places) ? places : [];
+	}
+
+	[Test]
+	public async Task Kill_event_carries_the_resolved_place()
+	{
+		var maps = new Dictionary<string, IReadOnlyList<PlaceVolume>>
+		{
+			["de_test"] = [
+				new PlaceVolume("Middle", "Middle", new Vector3(-100, -100, -50), new Vector3(100, 100, 50)),
+			],
+		};
+		using var gsi = new GsiService(TestLogger(), new StubPlaces(maps));
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var seen = new List<GsiMatchEvent>();
+		gsi.MatchEvent += (_, e) =>
+		{
+			lock (seen)
+			{
+				seen.Add(e);
+			}
+		};
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		Task<HttpResponseMessage> Post(object body) => http.PostAsync(uri, JsonContent.Create(body), ct);
+		await Post(new
+		{
+			map = new { name = "de_test", phase = "live" },
+			player = new
+			{
+				steamid = "1",
+				name = "Me",
+				position = "0, 0, 0",
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		});
+		await Post(new
+		{
+			map = new { name = "de_test", phase = "live" },
+			player = new
+			{
+				steamid = "1",
+				name = "Me",
+				position = "0, 0, 0",
+				match_stats = new { kills = 1, assists = 0, deaths = 0, mvps = 0, score = 2 },
+			},
+		});
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		GsiMatchEvent? kill = null;
+		while (DateTimeOffset.UtcNow < deadline && kill is null)
+		{
+			lock (seen)
+			{
+				kill = seen.FirstOrDefault(e => e.EventId == GsiEventIds.PlayerKill);
+			}
+
+			await Task.Delay(50, ct);
+		}
+
+		Assert.That(kill, Is.Not.Null);
+		Assert.That(kill!.Payload["place"], Is.EqualTo("Middle"));
+		Assert.That(gsi.Snapshot().PlaceName, Is.EqualTo("Middle"));
+	}
+
+	private static Serilog.Core.Logger TestLogger() => new Serilog.LoggerConfiguration().CreateLogger();
 	private static object BaseState(int health, int kills, int deaths, string bomb) => new
 	{
 		map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },

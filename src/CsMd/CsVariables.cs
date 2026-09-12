@@ -44,6 +44,7 @@ internal static class CsVariables
 		Eager("pos-z", VariableType.Numeric, Strings.Variables.PosZ.DisplayName(), Strings.Variables.PosZ.Description(), refresh: FastRefresh),
 		Eager("bomb-countdown", VariableType.Numeric, Strings.Variables.BombCountdown.DisplayName(), Strings.Variables.BombCountdown.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration, refresh: FastRefresh),
 		Eager("bomb-carrier", VariableType.Text, Strings.Variables.BombCarrier.DisplayName(), Strings.Variables.BombCarrier.Description(), refresh: TimeSpan.FromSeconds(2)),
+		Eager("place-name", VariableType.Text, Strings.Variables.PlaceName.DisplayName(), Strings.Variables.PlaceName.Description(), refresh: FastRefresh),
 		Eager("session-kills", VariableType.Numeric, Strings.Variables.SessionKills.DisplayName(), Strings.Variables.SessionKills.Description(), refresh: FastRefresh),
 		Eager("session-deaths", VariableType.Numeric, Strings.Variables.SessionDeaths.DisplayName(), Strings.Variables.SessionDeaths.Description(), refresh: FastRefresh),
 		Eager("session-kd", VariableType.Numeric, Strings.Variables.SessionKd.DisplayName(), Strings.Variables.SessionKd.Description(), refresh: FastRefresh),
