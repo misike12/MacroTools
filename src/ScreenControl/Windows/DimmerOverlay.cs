@@ -146,6 +146,18 @@ public sealed class DimmerOverlay : IDisposable
 			_ready.Set();
 			while (NativeMethods.GetMessage(out var message, IntPtr.Zero, 0, 0) > 0)
 			{
+				// Thread messages (posted with PostThreadMessage) carry no HWND, so
+				// DispatchMessage would drop them on the floor. Handle them inline.
+				if (message.Handle == IntPtr.Zero)
+				{
+					if (message.Id == WmAppWork)
+					{
+						DrainQueue();
+					}
+
+					continue;
+				}
+
 				NativeMethods.TranslateMessage(ref message);
 				NativeMethods.DispatchMessage(ref message);
 			}
@@ -290,22 +302,6 @@ public sealed class DimmerOverlay : IDisposable
 	{
 		try
 		{
-			if (message == WmAppWork)
-			{
-				while (_pending.TryDequeue(out var work))
-				{
-					try
-					{
-						work();
-					}
-					catch (Exception)
-					{
-					}
-				}
-
-				return IntPtr.Zero;
-			}
-
 			if (message == WmDisplaychange)
 			{
 				Resync();
@@ -317,6 +313,26 @@ public sealed class DimmerOverlay : IDisposable
 		}
 
 		return NativeMethods.DefWindowProc(handle, message, wParam, lParam);
+	}
+
+	private void DrainQueue()
+	{
+		try
+		{
+			while (_pending.TryDequeue(out var work))
+			{
+				try
+				{
+					work();
+				}
+				catch (Exception)
+				{
+				}
+			}
+		}
+		catch (Exception)
+		{
+		}
 	}
 
 	private static ushort RegisterClass()
@@ -475,7 +491,7 @@ public sealed class DimmerOverlay : IDisposable
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern bool PostThreadMessage(uint threadId, uint message, IntPtr wParam, IntPtr lParam);
 
-		[DllImport("user32.dll")]
+		[DllImport("kernel32.dll")]
 		public static extern uint GetCurrentThreadId();
 
 		[DllImport("user32.dll")]
@@ -505,3 +521,5 @@ public sealed class DimmerOverlay : IDisposable
 		public static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfoEx info);
 	}
 }
+
+
