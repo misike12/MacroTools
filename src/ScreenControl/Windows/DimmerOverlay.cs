@@ -199,6 +199,7 @@ public sealed class DimmerOverlay : IDisposable
 				handle, HwndTopmost, request.Left, request.Top, width, height,
 				SwpNoactivate | SwpShowwindow);
 			NativeMethods.SetLayeredWindowAttributes(handle, 0, request.Alpha, LwaAlpha);
+			NativeMethods.InvalidateRect(handle, IntPtr.Zero, true);
 		}
 		catch (Exception)
 		{
@@ -344,7 +345,7 @@ public sealed class DimmerOverlay : IDisposable
 				Size = (uint)Marshal.SizeOf<NativeMethods.WndClassEx>(),
 				WndProc = StaticProc,
 				Cursor = NativeMethods.LoadCursor(IntPtr.Zero, 32512),
-				Background = IntPtr.Zero,
+				Background = NativeMethods.GetStockObject(NativeMethods.BlackBrush),
 				ClassName = "ScreenControlDimmer",
 			};
 			return NativeMethods.RegisterClassEx(ref definition);
@@ -481,6 +482,10 @@ public sealed class DimmerOverlay : IDisposable
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern bool SetLayeredWindowAttributes(IntPtr handle, uint key, byte alpha, uint flags);
 
+		[DllImport("user32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern bool InvalidateRect(IntPtr handle, IntPtr rect, [MarshalAs(UnmanagedType.Bool)] bool erase);
+
 		[DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
 		public static extern IntPtr SetWindowLongPtr(IntPtr handle, int index, IntPtr value);
 
@@ -510,6 +515,11 @@ public sealed class DimmerOverlay : IDisposable
 
 		[DllImport("user32.dll")]
 		public static extern IntPtr LoadCursor(IntPtr instance, int cursorId);
+
+		[DllImport("gdi32.dll")]
+		public static extern IntPtr GetStockObject(int brush);
+
+		public const int BlackBrush = 4;
 
 		[DllImport("user32.dll")]
 		[return: MarshalAs(UnmanagedType.Bool)]
