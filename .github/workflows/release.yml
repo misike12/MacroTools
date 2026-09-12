@@ -48,12 +48,15 @@ jobs:
         include:
           - source: src/WindowsMediaControl
             slug: windows-media
+            name: Windows Media Control
             tagPrefix: ""
           - source: src/ScreenControl
             slug: screen-control
+            name: Screen Control
             tagPrefix: "screen-control-"
           - source: src/Timers
             slug: timers
+            name: Timers
             tagPrefix: "timers-"
     steps:
       - name: Checkout
@@ -78,9 +81,11 @@ jobs:
             ConvertFrom-Json
           $tag = "${{ matrix.tagPrefix }}v$($manifest.version)"
           $file = "$($manifest.id)-$($manifest.version).macroDeckPlugin"
-          Write-Output "Expecting release $tag with asset $file."
+          $releaseName = "${{ matrix.name }} $($manifest.version)"
+          Write-Output "Expecting release $tag ($releaseName) with asset $file."
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "file=$file" >> $env:GITHUB_OUTPUT
+          "name=$releaseName" >> $env:GITHUB_OUTPUT
           "prerelease=$($manifest.version -match '-')" >> $env:GITHUB_OUTPUT
           $headers = @{
             Authorization = "Bearer $env:GH_TOKEN"
@@ -113,6 +118,7 @@ jobs:
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
           $file = "${{ steps.version.outputs.file }}"
+          $releaseName = "${{ steps.version.outputs.name }}"
           $repo = "${{ github.repository }}"
           $headers = @{
             Authorization = "Bearer $env:GH_TOKEN"
@@ -139,7 +145,7 @@ jobs:
           catch {
             $payload = @{
               tag_name = $tag
-              name = $tag
+              name = $releaseName
               generate_release_notes = $true
             }
             if ("${{ steps.version.outputs.prerelease }}" -eq "True") { $payload.prerelease = $true }
