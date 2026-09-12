@@ -133,7 +133,7 @@ Install GSI config / Reset session stats / Simulate a match (injects fake live d
 
 Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`), round (`round_phase`, `bomb_state`, `phase_ends_in`), player (`my_team`, `player_name`, `alive`, `health`, `armor`, `helmet`, `flashed`, `money`, `weapon`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `smokes_active`, `fire_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
 
-Place names (`Mid`, `Bombsite A`, …) come from the map's own `env_cs_place` volumes, read out of the game files the same way community tools do it. Kills and deaths carry their place too.
+Place names (`Mid`, `Bombsite A`, …) come from the map's own `env_cs_place` volumes, read out of the game files the same way community tools do it — every tagged official map is covered, workshop maps too when their mapper tagged them. Kills and deaths carry their place too.
 
 ### Events (11)
 
