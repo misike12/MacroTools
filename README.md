@@ -1,10 +1,11 @@
 # Macro Deck 3 plugins
 
-Three independent Windows plugins for Macro Deck 3, built from one solution:
+Four independent Windows plugins for Macro Deck 3, built from one solution:
 
 - **Windows Media Control** (`com.misu.windows-media`) — SMTC media playback, CoreAudio volume, devices, artwork, Now Playing widget.
-- **Screen Control** (`com.misu.screen-control`) — DDC monitor brightness/input plus window and virtual-desktop control.
-- **Timers** (`com.misu.timers`) — countdowns, stopwatch and a countdown-finished event.
+- **Screen Control** (`com.misu.screen-control`) — DDC monitor brightness/input/power plus window and virtual-desktop control.
+- **Timers** (`com.misu.timers`) — countdowns, stopwatch, Pomodoro cycles and a Focus Timer widget.
+- **CS:MD** (`com.misu.csmd`) — Counter-Strike 2 live match state over Game State Integration.
 
 ## Windows Media Control
 
@@ -114,6 +115,30 @@ A deck widget with a big remaining-time hero, phase caption, round dots, a live 
 
 A full focus cycle on its own isolated timer, so it never disturbs a manually started countdown: N focus rounds, short breaks between them, a long break every Nth round, then back to idle. With auto-advance on, phases flow into each other and `pomodoro-phase-changed` fires each time (wire it to a notification automation for the classic ring). With it off, each phase waits paused at full length until resumed or skipped.
 
+## CS:MD
+
+Live Counter-Strike 2 match state on your deck via Game State Integration: the game pushes every change over HTTP, the plugin turns it into variables and events. No memory reading, nothing VAC-risky.
+
+### Setup
+
+1. Open the CS:MD integration in Macro Deck and walk through its one-time setup (connection port, optional auth token, optional Steam ID to follow, event toggles).
+2. Run the **Install GSI config** action once. It finds your CS2 install through Steam and writes `gamestate_integration_csmacrodeck.cfg` (backing up any same-named file first). If it cannot find the game, copy the file by hand into `...\Counter-Strike Global Offensive\game\csgo\cfg\`.
+3. Play. `game-connected` flips true on the first push.
+
+### Actions (3)
+
+Install GSI config / Reset session stats / Simulate a match (injects fake live data so the deck can be arranged without running the game).
+
+### Variables (33)
+
+Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`), round (`round_phase`, `bomb_state`, `phase_ends_in`), player (`my_team`, `player_name`, `alive`, `health`, `armor`, `helmet`, `flashed`, `money`, `weapon`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `smokes_active`, `fire_active`) and session (`session_kills`, `session_deaths`, `session_kd`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
+
+### Events (11)
+
+`round-started`, `round-ended`, `round-won` / `round-lost` (only when your team is known), `bomb-planted` (site), `bomb-defused`, `bomb-exploded`, `player-died`, `player-kill` (player, weapon), `match-started`, `match-ended` (winner, scores). Each group can be toggled in setup.
+
+Deliberately out of scope: Steam Web API history (needs an API key and offers no live data; GSI is the live API) and sending commands into the game (CS2 exposes no such channel).
+
 ## Requirements
 
 - Windows x64.
@@ -128,6 +153,7 @@ Build the artifact(s), then install from the Macro Deck desktop app (double-clic
 macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
 macrodeck-plugin build --source src/ScreenControl --output ./artifacts
 macrodeck-plugin build --source src/Timers --output ./artifacts
+macrodeck-plugin build --source src/CsMd --output ./artifacts
 ```
 
 The locally packed artifacts are unsigned, so Macro Deck asks for an explicit confirmation on install. (Store releases are signed server-side by the Creator Portal.)
@@ -155,6 +181,7 @@ $env:WINDOWS_MEDIA_CONTROL_NOOP_AUDIO = "1"
 macrodeck-plugin test --project src/WindowsMediaControl --report markdown --output conformance.md
 Remove-Item Env:\WINDOWS_MEDIA_CONTROL_NOOP_AUDIO
 macrodeck-plugin test --project src/Timers --report markdown --output conformance-timers.md
+macrodeck-plugin test --project src/CsMd --report markdown --output conformance-csmd.md
 ```
 
 Conformance for Windows Media Control runs against a no-op audio backend on purpose: the suite drives every
@@ -163,7 +190,9 @@ real hardware. Live hardware behavior is covered by the `*LiveTests` fixtures an
 manual verification instead.
 
 Timers conformance is side-effect free (countdowns and the stopwatch touch nothing
-outside the process). Screen Control has no conformance run checked in: its suite
+outside the process). CS:MD conformance is side-effect free too, except the Install
+action writes the game config when it finds a CS2 install (its documented purpose;
+without one it fails honestly). Screen Control has no conformance run checked in: its suite
 would drive real monitor brightness, input switches and window focus with default
 parameters, so it is verified through unit tests plus `macrodeck-plugin build`,
 `validate --artifact` and `inspect` instead.

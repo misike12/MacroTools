@@ -4,11 +4,12 @@ This file must be kept up to date. When a rule here stops matching reality, or a
 work in this repository, update this file as part of that change rather than leaving it to drift.
 
 This repository started from the **Macro Deck 3 out-of-process plugin template**, but it is
-now three real plugins in one solution, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
+now four real plugins in one solution, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
 Control integration (41 actions, 40 variables plus an app-volume catalog, 4 events, a music player, a Now Playing widget type
 and a 5-step configuration flow with 26 settings), `src/ScreenControl/` holds the Screen Control
 integration (14 actions, 6 variables plus a monitor-brightness catalog: DDC monitor brightness/input/power, window state, topmost, snap and virtual-desktop control),
-and `src/Timers/` holds the Timers integration (14 actions, 15 variables, 2 events: countdowns with adjust/toggle/progress, a stopwatch, an isolated Pomodoro cycle, and a Focus Timer widget type with configuration).
+`src/Timers/` holds the Timers integration (14 actions, 15 variables, 2 events: countdowns with adjust/toggle/progress, a stopwatch, an isolated Pomodoro cycle, and a Focus Timer widget type with configuration),
+and `src/CsMd/` holds the CS:MD integration (`com.misu.csmd`: 3 actions, 33 variables, 11 events, 3-step config flow; live Counter-Strike 2 state over a loopback GSI listener with Steam discovery plus a one-click cfg installer).
 The template's example action is long gone. The orientation and
 identity checklists below still apply to the mechanics (manifest, build recipe, analyzers), but do
 not "restore" the minimal shape. Every plugin follows the same shape (manifest, build recipe,
@@ -41,6 +42,7 @@ src/WindowsMediaControl/
   Properties/launchSettings.json   the single real-host debug profile
 src/ScreenControl/       same shape: DDC monitor service (Monitors/, with gamma-ramp software brightness plus a click-through dimmer veil below the driver floor, and caps-aware input cycling), Win32 window/desktop service (Windows/), 14 actions, 6 variables plus a monitor-brightness catalog
 src/Timers/              same shape: countdown/stopwatch service (Timing/), 10 actions, 8 variables, countdown-finished event, plus an isolated PomodoroService and a Focus Timer widget type (Widgets/, IWidgetTypeProvider+IUiProvider wired through the integration like NowPlayingWidget)
+src/CsMd/                same shape plus Config/: loopback GSI listener service (Gsi/, raw TcpListener so the game gets a stable port, ordered channel dispatch, tolerant DTOs), Steam discovery + cfg installer, 3 actions, 33 variables, 11 derived events, 3-step config flow (IConfigFlowProvider)
 tests/WindowsMediaControl.Tests/
   PluginIntegrationTests.cs   behaviour tests against FakeMediaControlService
   FakeMediaControlService.cs  controllable stand-in for SMTC/audio
@@ -52,7 +54,9 @@ Conformance is not equally runnable everywhere: Windows Media Control runs it
 under `WINDOWS_MEDIA_CONTROL_NOOP_AUDIO=1` (side-effect free), Timers runs it
 directly (nothing leaves the process), Screen Control has no checked-in
 conformance run because the suite would drive real monitor brightness, input
-switches and window focus (see README.md). Unit tests plus
+switches and window focus (see README.md). CS:MD runs it directly too (loopback
+listener plus in-process simulate/reset; the Install action only writes when it
+finds a real CS2 install). Unit tests plus
 `macrodeck-plugin build`, `validate --artifact` and `inspect` cover it instead.
 
 The template repository carries two more directories that a generated plugin does not:
@@ -339,10 +343,16 @@ Remove-Item Env:\WINDOWS_MEDIA_CONTROL_NOOP_AUDIO
 macrodeck-plugin test --project src/Timers --report markdown --output conformance-timers.md
 ```
 
+```bash
+macrodeck-plugin test --project src/CsMd --report markdown --output conformance-csmd.md
+```
+
 The no-op gate matters: the suite invokes every declared action with default parameters,
 which on real hardware would flip volumes, mutes and default devices. `NoOp` keeps the
 run side-effect free; hardware truthfulness is covered by the `*LiveTests` fixtures and
-live verification instead. Timers needs no gate (nothing leaves the process). Never run
+live verification instead. Timers needs no gate (nothing leaves the process). CS:MD needs
+none either, except its Install action writes the game config when it finds a CS2 install
+(its documented purpose; without one it fails honestly). Never run
 the suite against `src/ScreenControl` on a machine you care about: it would set real
 monitor brightness, switch monitor inputs and move real windows.
 

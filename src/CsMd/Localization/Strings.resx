@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Actions.InstallGsiConfig.Name" xml:space="preserve">
+    <value>Install GSI config</value>
+  </data>
+  <data name="Actions.InstallGsiConfig.Description" xml:space="preserve">
+    <value>Find Counter-Strike 2 and write the Game State Integration file so the game pushes live data here. Restarts the listener.</value>
+  </data>
+  <data name="Actions.ResetSessionStats.Name" xml:space="preserve">
+    <value>Reset session stats</value>
+  </data>
+  <data name="Actions.ResetSessionStats.Description" xml:space="preserve">
+    <value>Clear the kills, deaths and KD tracked since the match started.</value>
+  </data>
+  <data name="Actions.SimulateMatch.Name" xml:space="preserve">
+    <value>Simulate a match</value>
+  </data>
+  <data name="Actions.SimulateMatch.Description" xml:space="preserve">
+    <value>Inject fake live match data for testing the deck without running the game.</value>
+  </data>
+  <data name="Errors.CommandFailed" xml:space="preserve">
+    <value>The command could not be completed.</value>
+  </data>
+  <data name="Errors.ReadOnlyVariable" xml:space="preserve">
+    <value>This variable is read-only.</value>
+  </data>
+  <data name="Errors.ListenerNotRunning" xml:space="preserve">
+    <value>The GSI listener is not running.</value>
+  </data>
+  <data name="Errors.CsNotFound" xml:space="preserve">
+    <value>Counter-Strike 2 was not found. Install Steam and CS2, then try again, or copy the file by hand.</value>
+  </data>
+  <data name="Errors.ConfigWriteFailed" xml:space="preserve">
+    <value>The config file could not be written. Copy it by hand instead.</value>
+  </data>
+  <data name="Errors.InvalidSettings" xml:space="preserve">
+    <value>Some settings are invalid.</value>
+  </data>
+  <data name="Errors.FieldInvalid" xml:space="preserve">
+    <value>Check this value.</value>
+  </data>
+  <data name="Variables.GsiConnected.DisplayName" xml:space="preserve">
+    <value>Game connected</value>
+  </data>
+  <data name="Variables.GsiConnected.Description" xml:space="preserve">
+    <value>Whether match data arrived in the last 30 seconds.</value>
+  </data>
+  <data name="Variables.MapName.DisplayName" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Variables.MapName.Description" xml:space="preserve">
+    <value>Current map, e.g. de_mirage.</value>
+  </data>
+  <data name="Variables.MapMode.DisplayName" xml:space="preserve">
+    <value>Game mode</value>
+  </data>
+  <data name="Variables.MapMode.Description" xml:space="preserve">
+    <value>Current game mode, e.g. competitive.</value>
+  </data>
+  <data name="Variables.MapPhase.DisplayName" xml:space="preserve">
+    <value>Match phase</value>
+  </data>
+  <data name="Variables.MapPhase.Description" xml:space="preserve">
+    <value>Match phase: warmup, live, intermission or gameover.</value>
+  </data>
+  <data name="Variables.MapRound.DisplayName" xml:space="preserve">
+    <value>Round number</value>
+  </data>
+  <data name="Variables.MapRound.Description" xml:space="preserve">
+    <value>The current round number.</value>
+  </data>
+  <data name="Variables.CtScore.DisplayName" xml:space="preserve">
+    <value>CT score</value>
+  </data>
+  <data name="Variables.CtScore.Description" xml:space="preserve">
+    <value>Rounds won by the Counter-Terrorists.</value>
+  </data>
+  <data name="Variables.TScore.DisplayName" xml:space="preserve">
+    <value>T score</value>
+  </data>
+  <data name="Variables.TScore.Description" xml:space="preserve">
+    <value>Rounds won by the Terrorists.</value>
+  </data>
+  <data name="Variables.CtName.DisplayName" xml:space="preserve">
+    <value>CT name</value>
+  </data>
+  <data name="Variables.CtName.Description" xml:space="preserve">
+    <value>Name of the Counter-Terrorist team.</value>
+  </data>
+  <data name="Variables.TName.DisplayName" xml:space="preserve">
+    <value>T name</value>
+  </data>
+  <data name="Variables.TName.Description" xml:space="preserve">
+    <value>Name of the Terrorist team.</value>
+  </data>
+  <data name="Variables.RoundPhase.DisplayName" xml:space="preserve">
+    <value>Round phase</value>
+  </data>
+  <data name="Variables.RoundPhase.Description" xml:space="preserve">
+    <value>Round phase: freezetime, live, bomb, defuse or over.</value>
+  </data>
+  <data name="Variables.BombState.DisplayName" xml:space="preserve">
+    <value>Bomb state</value>
+  </data>
+  <data name="Variables.BombState.Description" xml:space="preserve">
+    <value>Bomb state: carried, dropped, planting, planted, defusing, defused or exploded.</value>
+  </data>
+  <data name="Variables.PhaseEndsIn.DisplayName" xml:space="preserve">
+    <value>Phase ends in</value>
+  </data>
+  <data name="Variables.PhaseEndsIn.Description" xml:space="preserve">
+    <value>Seconds left in the current phase.</value>
+  </data>
+  <data name="Variables.MyTeam.DisplayName" xml:space="preserve">
+    <value>My team</value>
+  </data>
+  <data name="Variables.MyTeam.Description" xml:space="preserve">
+    <value>The followed player's team: CT or T.</value>
+  </data>
+  <data name="Variables.PlayerName.DisplayName" xml:space="preserve">
+    <value>Player</value>
+  </data>
+  <data name="Variables.PlayerName.Description" xml:space="preserve">
+    <value>Name of the followed player.</value>
+  </data>
+  <data name="Variables.Alive.DisplayName" xml:space="preserve">
+    <value>Alive</value>
+  </data>
+  <data name="Variables.Alive.Description" xml:space="preserve">
+    <value>Whether the followed player is alive.</value>
+  </data>
+  <data name="Variables.Health.DisplayName" xml:space="preserve">
+    <value>Health</value>
+  </data>
+  <data name="Variables.Health.Description" xml:space="preserve">
+    <value>Health of the followed player.</value>
+  </data>
+  <data name="Variables.Armor.DisplayName" xml:space="preserve">
+    <value>Armor</value>
+  </data>
+  <data name="Variables.Armor.Description" xml:space="preserve">
+    <value>Armor of the followed player.</value>
+  </data>
+  <data name="Variables.Helmet.DisplayName" xml:space="preserve">
+    <value>Helmet</value>
+  </data>
+  <data name="Variables.Helmet.Description" xml:space="preserve">
+    <value>Whether the followed player wears a helmet.</value>
+  </data>
+  <data name="Variables.Flashed.DisplayName" xml:space="preserve">
+    <value>Flashed</value>
+  </data>
+  <data name="Variables.Flashed.Description" xml:space="preserve">
+    <value>Whether the followed player is flashed right now.</value>
+  </data>
+  <data name="Variables.Money.DisplayName" xml:space="preserve">
+    <value>Money</value>
+  </data>
+  <data name="Variables.Money.Description" xml:space="preserve">
+    <value>Money of the followed player.</value>
+  </data>
+  <data name="Variables.Weapon.DisplayName" xml:space="preserve">
+    <value>Weapon</value>
+  </data>
+  <data name="Variables.Weapon.Description" xml:space="preserve">
+    <value>Active weapon of the followed player, e.g. ak47.</value>
+  </data>
+  <data name="Variables.AmmoClip.DisplayName" xml:space="preserve">
+    <value>Ammo in mag</value>
+  </data>
+  <data name="Variables.AmmoClip.Description" xml:space="preserve">
+    <value>Bullets left in the magazine.</value>
+  </data>
+  <data name="Variables.AmmoReserve.DisplayName" xml:space="preserve">
+    <value>Ammo in reserve</value>
+  </data>
+  <data name="Variables.AmmoReserve.Description" xml:space="preserve">
+    <value>Bullets left in reserve.</value>
+  </data>
+  <data name="Variables.Kills.DisplayName" xml:space="preserve">
+    <value>Kills</value>
+  </data>
+  <data name="Variables.Kills.Description" xml:space="preserve">
+    <value>Match kills of the followed player.</value>
+  </data>
+  <data name="Variables.Deaths.DisplayName" xml:space="preserve">
+    <value>Deaths</value>
+  </data>
+  <data name="Variables.Deaths.Description" xml:space="preserve">
+    <value>Match deaths of the followed player.</value>
+  </data>
+  <data name="Variables.Assists.DisplayName" xml:space="preserve">
+    <value>Assists</value>
+  </data>
+  <data name="Variables.Assists.Description" xml:space="preserve">
+    <value>Match assists of the followed player.</value>
+  </data>
+  <data name="Variables.Mvps.DisplayName" xml:space="preserve">
+    <value>MVPs</value>
+  </data>
+  <data name="Variables.Mvps.Description" xml:space="preserve">
+    <value>Match MVPs of the followed player.</value>
+  </data>
+  <data name="Variables.Score.DisplayName" xml:space="preserve">
+    <value>Score</value>
+  </data>
+  <data name="Variables.Score.Description" xml:space="preserve">
+    <value>Match score of the followed player.</value>
+  </data>
+  <data name="Variables.SmokesActive.DisplayName" xml:space="preserve">
+    <value>Smokes up</value>
+  </data>
+  <data name="Variables.SmokesActive.Description" xml:space="preserve">
+    <value>How many smokes are currently deployed.</value>
+  </data>
+  <data name="Variables.FireActive.DisplayName" xml:space="preserve">
+    <value>Fires burning</value>
+  </data>
+  <data name="Variables.FireActive.Description" xml:space="preserve">
+    <value>How many molotov fires are currently burning.</value>
+  </data>
+  <data name="Variables.SessionKills.DisplayName" xml:space="preserve">
+    <value>Session kills</value>
+  </data>
+  <data name="Variables.SessionKills.Description" xml:space="preserve">
+    <value>Kills tracked since the match started or the counter was reset.</value>
+  </data>
+  <data name="Variables.SessionDeaths.DisplayName" xml:space="preserve">
+    <value>Session deaths</value>
+  </data>
+  <data name="Variables.SessionDeaths.Description" xml:space="preserve">
+    <value>Deaths tracked since the match started or the counter was reset.</value>
+  </data>
+  <data name="Variables.SessionKd.DisplayName" xml:space="preserve">
+    <value>Session KD</value>
+  </data>
+  <data name="Variables.SessionKd.Description" xml:space="preserve">
+    <value>Kill/death ratio since the match started or the counter was reset.</value>
+  </data>
+  <data name="Events.RoundStarted.Name" xml:space="preserve">
+    <value>Round started</value>
+  </data>
+  <data name="Events.RoundStarted.Description" xml:space="preserve">
+    <value>Fires when a round enters freeze time.</value>
+  </data>
+  <data name="Events.RoundStarted.RoundParameter.Label" xml:space="preserve">
+    <value>Round</value>
+  </data>
+  <data name="Events.RoundEnded.Name" xml:space="preserve">
+    <value>Round ended</value>
+  </data>
+  <data name="Events.RoundEnded.Description" xml:space="preserve">
+    <value>Fires when a round is decided.</value>
+  </data>
+  <data name="Events.RoundEnded.RoundParameter.Label" xml:space="preserve">
+    <value>Round</value>
+  </data>
+  <data name="Events.RoundEnded.WinnerParameter.Label" xml:space="preserve">
+    <value>Winner</value>
+  </data>
+  <data name="Events.RoundWon.Name" xml:space="preserve">
+    <value>Round won</value>
+  </data>
+  <data name="Events.RoundWon.Description" xml:space="preserve">
+    <value>Fires when the followed player's team wins a round.</value>
+  </data>
+  <data name="Events.RoundWon.RoundParameter.Label" xml:space="preserve">
+    <value>Round</value>
+  </data>
+  <data name="Events.RoundWon.WinnerParameter.Label" xml:space="preserve">
+    <value>Winner</value>
+  </data>
+  <data name="Events.RoundLost.Name" xml:space="preserve">
+    <value>Round lost</value>
+  </data>
+  <data name="Events.RoundLost.Description" xml:space="preserve">
+    <value>Fires when the followed player's team loses a round.</value>
+  </data>
+  <data name="Events.RoundLost.RoundParameter.Label" xml:space="preserve">
+    <value>Round</value>
+  </data>
+  <data name="Events.RoundLost.WinnerParameter.Label" xml:space="preserve">
+    <value>Winner</value>
+  </data>
+  <data name="Events.BombPlanted.Name" xml:space="preserve">
+    <value>Bomb planted</value>
+  </data>
+  <data name="Events.BombPlanted.Description" xml:space="preserve">
+    <value>Fires when the bomb gets planted.</value>
+  </data>
+  <data name="Events.BombPlanted.SiteParameter.Label" xml:space="preserve">
+    <value>Site</value>
+  </data>
+  <data name="Events.BombDefused.Name" xml:space="preserve">
+    <value>Bomb defused</value>
+  </data>
+  <data name="Events.BombDefused.Description" xml:space="preserve">
+    <value>Fires when the bomb gets defused.</value>
+  </data>
+  <data name="Events.BombExploded.Name" xml:space="preserve">
+    <value>Bomb exploded</value>
+  </data>
+  <data name="Events.BombExploded.Description" xml:space="preserve">
+    <value>Fires when the bomb explodes.</value>
+  </data>
+  <data name="Events.PlayerDied.Name" xml:space="preserve">
+    <value>Player died</value>
+  </data>
+  <data name="Events.PlayerDied.Description" xml:space="preserve">
+    <value>Fires when the followed player dies.</value>
+  </data>
+  <data name="Events.PlayerDied.PlayerParameter.Label" xml:space="preserve">
+    <value>Player</value>
+  </data>
+  <data name="Events.PlayerKill.Name" xml:space="preserve">
+    <value>Player kill</value>
+  </data>
+  <data name="Events.PlayerKill.Description" xml:space="preserve">
+    <value>Fires when the followed player gets a kill.</value>
+  </data>
+  <data name="Events.PlayerKill.PlayerParameter.Label" xml:space="preserve">
+    <value>Player</value>
+  </data>
+  <data name="Events.PlayerKill.WeaponParameter.Label" xml:space="preserve">
+    <value>Weapon</value>
+  </data>
+  <data name="Events.MatchStarted.Name" xml:space="preserve">
+    <value>Match started</value>
+  </data>
+  <data name="Events.MatchStarted.Description" xml:space="preserve">
+    <value>Fires when a match goes live.</value>
+  </data>
+  <data name="Events.MatchStarted.MapParameter.Label" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Events.MatchStarted.ModeParameter.Label" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="Events.MatchEnded.Name" xml:space="preserve">
+    <value>Match ended</value>
+  </data>
+  <data name="Events.MatchEnded.Description" xml:space="preserve">
+    <value>Fires when a match ends.</value>
+  </data>
+  <data name="Events.MatchEnded.MapParameter.Label" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Events.MatchEnded.WinnerParameter.Label" xml:space="preserve">
+    <value>Winner</value>
+  </data>
+  <data name="Events.MatchEnded.CtScoreParameter.Label" xml:space="preserve">
+    <value>CT score</value>
+  </data>
+  <data name="Events.MatchEnded.TScoreParameter.Label" xml:space="preserve">
+    <value>T score</value>
+  </data>
+  <data name="Config.Connection.Title" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="Config.Connection.Description" xml:space="preserve">
+    <value>Where the game pushes its live state. Keep the defaults unless the port is taken. Afterwards run the Install GSI config action once so CS2 knows where to push.</value>
+  </data>
+  <data name="Config.Connection.Port.Label" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="Config.Connection.Port.Description" xml:space="preserve">
+    <value>Local port the game posts to, from 1024 to 65535.</value>
+  </data>
+  <data name="Config.Connection.Token.Label" xml:space="preserve">
+    <value>Auth token</value>
+  </data>
+  <data name="Config.Connection.Token.Description" xml:space="preserve">
+    <value>Optional shared secret. Must match the token in the game config.</value>
+  </data>
+  <data name="Config.Player.Title" xml:space="preserve">
+    <value>Player</value>
+  </data>
+  <data name="Config.Player.Description" xml:space="preserve">
+    <value>Whose perspective the player variables and kill events follow. Empty follows whoever you observe.</value>
+  </data>
+  <data name="Config.Player.SteamId.Label" xml:space="preserve">
+    <value>Steam ID</value>
+  </data>
+  <data name="Config.Player.SteamId.Description" xml:space="preserve">
+    <value>The 17-digit Steam ID, e.g. 76561198000000000. Find it on your Steam profile page.</value>
+  </data>
+  <data name="Config.Events.Title" xml:space="preserve">
+    <value>Events</value>
+  </data>
+  <data name="Config.Events.Description" xml:space="preserve">
+    <value>Which match moments fire automations.</value>
+  </data>
+  <data name="Config.Events.Kills.Label" xml:space="preserve">
+    <value>Kill events</value>
+  </data>
+  <data name="Config.Events.Kills.Description" xml:space="preserve">
+    <value>Fire when the followed player gets a kill.</value>
+  </data>
+  <data name="Config.Events.Deaths.Label" xml:space="preserve">
+    <value>Death events</value>
+  </data>
+  <data name="Config.Events.Deaths.Description" xml:space="preserve">
+    <value>Fire when the followed player dies.</value>
+  </data>
+  <data name="Config.Events.Rounds.Label" xml:space="preserve">
+    <value>Round events</value>
+  </data>
+  <data name="Config.Events.Rounds.Description" xml:space="preserve">
+    <value>Fire on round start, end, win and loss.</value>
+  </data>
+  <data name="Config.Events.Bombs.Label" xml:space="preserve">
+    <value>Bomb events</value>
+  </data>
+  <data name="Config.Events.Bombs.Description" xml:space="preserve">
+    <value>Fire when the bomb is planted, defused or explodes.</value>
+  </data>
+  <data name="Config.Events.Matches.Label" xml:space="preserve">
+    <value>Match events</value>
+  </data>
+  <data name="Config.Events.Matches.Description" xml:space="preserve">
+    <value>Fire when a match starts or ends.</value>
+  </data>
+  <data name="Config.DefaultValueHint" xml:space="preserve">
+    <value>Default: {value}</value>
+  </data>
+</root>

@@ -58,6 +58,10 @@ jobs:
             slug: timers
             name: Timers
             tagPrefix: "timers-"
+          - source: src/CsMd
+            slug: csmd
+            name: "CS:MD"
+            tagPrefix: "csmd-"
     steps:
       - name: Checkout
         uses: actions/checkout@v5

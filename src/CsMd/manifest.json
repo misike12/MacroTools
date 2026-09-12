@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schemas.macro-deck.app/plugin-manifest-v1.schema.json",
+  "manifestVersion": 1,
+  "id": "com.misu.csmd",
+  "name": "CS:MD",
+  "version": "1.0.0",
+  "description": "Counter-Strike 2 live match state over GSI: scores, players, rounds, bomb, grenades and match events.",
+  "icon": "Assets/icon.svg",
+  "entrypoints": {
+    "win-x64": {
+      "executable": "runtimes/win-x64/CsMd.exe"
+    }
+  },
+  "publisher": {
+    "name": "Misu"
+  },
+  "license": "MIT",
+  "compatibility": {
+    "macroDeck": ">=3.0.0-beta.4"
+  },
+  "repository": "https://github.com/misike12/MacroTools"
+}
