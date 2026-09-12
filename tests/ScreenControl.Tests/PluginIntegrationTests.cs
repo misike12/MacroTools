@@ -349,6 +349,10 @@ public sealed class PluginIntegrationTests
 
 		public IReadOnlyList<int> GetSupportedInputs(int index) =>
 			index >= 1 && index <= Inputs.Count ? [0x11, 0x12, 0x0F, 0x10, 0x03] : [];
+
+		public void HideOverlays()
+		{
+		}
 	}
 
 	private sealed class FakeWindowService : IWindowService

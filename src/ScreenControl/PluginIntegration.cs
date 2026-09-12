@@ -61,7 +61,19 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider
 
 	public Task InitializeAsync(IIntegrationContext context) => Task.CompletedTask;
 
-	public Task ShutdownAsync() => Task.CompletedTask;
+	public Task ShutdownAsync()
+	{
+		try
+		{
+			_monitors.HideOverlays();
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Overlay hide failed.");
+		}
+
+		return Task.CompletedTask;
+	}
 
 	public ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)
 	{

@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using ScreenControl.Monitors;
+using ScreenControl.Windows;
 
 namespace ScreenControl.Tests;
 
@@ -55,6 +56,34 @@ public sealed class GammaRampTests
 		for (var i = 1; i < 256; i++)
 		{
 			Assert.That(ramp[i], Is.GreaterThanOrEqualTo(ramp[i - 1]), $"entry {i}");
+		}
+	}
+
+	[Test]
+	public void Overlay_is_transparent_at_and_above_the_gamma_floor()
+	{
+		Assert.That(DimmerMath.OverlayAlpha(100), Is.EqualTo((byte)0));
+		Assert.That(DimmerMath.OverlayAlpha(50), Is.EqualTo((byte)0));
+	}
+
+	[Test]
+	public void Overlay_fades_in_linearly_below_the_floor()
+	{
+		Assert.That(DimmerMath.OverlayAlpha(0), Is.EqualTo((byte)255));
+		Assert.That(DimmerMath.OverlayAlpha(25), Is.EqualTo((byte)127).Within(1));
+		Assert.That(DimmerMath.OverlayAlpha(49), Is.GreaterThan((byte)0));
+	}
+
+	[Test]
+	public void Combined_gamma_and_overlay_cover_the_full_range()
+	{
+		for (var brightness = 0; brightness <= 100; brightness++)
+		{
+			var gammaPart = Math.Max(brightness, DimmerMath.GammaFloorPercent);
+			var overlay = DimmerMath.OverlayAlpha(brightness);
+			var effective = gammaPart * (255 - overlay) / 255.0;
+
+			Assert.That(effective, Is.EqualTo(brightness).Within(1.0), $"brightness {brightness}");
 		}
 	}
 }

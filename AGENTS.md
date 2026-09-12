@@ -39,7 +39,7 @@ src/WindowsMediaControl/
   Localization/Strings.resx   default-culture strings; Strings.<tag>.resx per language
   Assets/icon.svg        the icon the manifest declares
   Properties/launchSettings.json   the single real-host debug profile
-src/ScreenControl/       same shape: DDC monitor service (Monitors/, with gamma-ramp software brightness and caps-aware input cycling), Win32 window/desktop service (Windows/), 14 actions, 6 variables plus a monitor-brightness catalog
+src/ScreenControl/       same shape: DDC monitor service (Monitors/, with gamma-ramp software brightness plus a click-through dimmer veil below the driver floor, and caps-aware input cycling), Win32 window/desktop service (Windows/), 14 actions, 6 variables plus a monitor-brightness catalog
 src/Timers/              same shape: countdown/stopwatch service (Timing/), 10 actions, 8 variables, countdown-finished event
 tests/WindowsMediaControl.Tests/
   PluginIntegrationTests.cs   behaviour tests against FakeMediaControlService

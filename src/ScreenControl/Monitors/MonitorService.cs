@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using ScreenControl.Windows;
 
 namespace ScreenControl.Monitors;
 
@@ -26,6 +27,8 @@ public interface IMonitorService
 	int? TryGetPower(int index);
 
 	IReadOnlyList<int> GetSupportedInputs(int index);
+
+	void HideOverlays();
 }
 
 public static class MonitorPowerModes
@@ -35,13 +38,15 @@ public static class MonitorPowerModes
 	public const int Off = 4;
 }
 
-public sealed class MonitorService : IMonitorService
+public sealed class MonitorService : IMonitorService, IDisposable
 {
 	private const byte VcpInputSelect = 0x60;
 	private const byte VcpPowerMode = 0xD6;
 
 	private readonly ConcurrentDictionary<string, bool> _gammaSupport = new(StringComparer.OrdinalIgnoreCase);
 	private readonly ConcurrentDictionary<string, int> _gammaLevel = new(StringComparer.OrdinalIgnoreCase);
+	private readonly DimmerOverlay _dimmer = new();
+	private bool _disposed;
 
 	public IReadOnlyList<MonitorInfo> GetMonitors()
 	{
@@ -87,11 +92,17 @@ public sealed class MonitorService : IMonitorService
 			}
 
 			var clamped = Math.Clamp(percent, 0, 100);
-			if (GammaRamp.TrySet(target.DeviceName, clamped))
+			var gammaPart = Math.Max(clamped, DimmerMath.GammaFloorPercent);
+			if (!GammaRamp.TrySet(target.DeviceName, gammaPart))
 			{
-				_gammaLevel[target.DeviceName] = clamped;
-				return true;
+				return false;
 			}
+
+			_dimmer.SetLevel(
+				target.DeviceName, target.Left, target.Top, target.Right, target.Bottom,
+				DimmerMath.OverlayAlpha(clamped));
+			_gammaLevel[target.DeviceName] = clamped;
+			return true;
 		}
 		catch (Exception)
 		{
@@ -101,8 +112,6 @@ public sealed class MonitorService : IMonitorService
 		{
 			ClosePhysicalMonitors(target.Handles);
 		}
-
-		return false;
 	}
 
 	public bool TrySetInput(int index, int vcpValue)
@@ -171,8 +180,7 @@ public sealed class MonitorService : IMonitorService
 		}
 	}
 
-	public IReadOnlyList<int> GetSupportedInputs(int index)
-	{
+	public IReadOnlyList<int> GetSupportedInputs(int index)	{
 		var target = TargetFor(index);
 		if (target is null)
 		{
@@ -199,6 +207,34 @@ public sealed class MonitorService : IMonitorService
 		}
 
 		return [];
+	}
+
+	public void HideOverlays()
+	{
+		try
+		{
+			_dimmer.HideAll();
+		}
+		catch (Exception)
+		{
+		}
+	}
+
+	public void Dispose()
+	{
+		if (_disposed)
+		{
+			return;
+		}
+
+		_disposed = true;
+		try
+		{
+			_dimmer.Dispose();
+		}
+		catch (Exception)
+		{
+		}
 	}
 
 	private MonitorInfo? Describe(IntPtr hMonitor, int index)
@@ -420,7 +456,7 @@ public sealed class MonitorService : IMonitorService
 		return null;
 	}
 
-	private sealed record Target(IntPtr[] Handles, string DeviceName);
+	private sealed record Target(IntPtr[] Handles, string DeviceName, int Left, int Top, int Right, int Bottom);
 
 	private static Target? TargetFor(int index)
 	{
@@ -434,10 +470,13 @@ public sealed class MonitorService : IMonitorService
 				if (current == index)
 				{
 					var handles = OpenPhysicalMonitors(hMonitor);
-					var name = DeviceNameOf(hMonitor);
-					if (handles is not null && name is not null)
+					var geometry = GeometryOf(hMonitor);
+					if (handles is not null && geometry is not null)
 					{
-						target = new Target(handles, name);
+						target = new Target(
+							handles, geometry.Value.Device,
+							geometry.Value.Left, geometry.Value.Top,
+							geometry.Value.Right, geometry.Value.Bottom);
 					}
 					else
 					{
@@ -458,7 +497,9 @@ public sealed class MonitorService : IMonitorService
 		return target;
 	}
 
-	private static string? DeviceNameOf(IntPtr hMonitor)
+	private readonly record struct Geometry(string Device, int Left, int Top, int Right, int Bottom);
+
+	private static Geometry? GeometryOf(IntPtr hMonitor)
 	{
 		try
 		{
@@ -468,13 +509,22 @@ public sealed class MonitorService : IMonitorService
 				return null;
 			}
 
-			return string.IsNullOrWhiteSpace(info.DeviceName) ? null : info.DeviceName;
+			if (string.IsNullOrWhiteSpace(info.DeviceName))
+			{
+				return null;
+			}
+
+			return new Geometry(
+				info.DeviceName,
+				info.Monitor.Left, info.Monitor.Top, info.Monitor.Right, info.Monitor.Bottom);
 		}
 		catch (Exception)
 		{
 			return null;
 		}
 	}
+
+	private static string? DeviceNameOf(IntPtr hMonitor) => GeometryOf(hMonitor)?.Device;
 
 	private static IntPtr[]? OpenPhysicalMonitors(IntPtr hMonitor)
 	{
