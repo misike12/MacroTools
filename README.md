@@ -96,6 +96,8 @@ Countdowns and a stopwatch for automations. The countdown runs on a background t
 
 Start countdown (hours/minutes/seconds, default 5 minutes, optional label) / Pause / Resume / Cancel, Pause-or-resume toggle, Adjust countdown (add or remove seconds; adjusting past zero finishes it at once), Start / Stop / Reset stopwatch, Start-or-stop toggle.
 
+Leaving a number field blank keeps its default (blank minutes means 5, not 0): type an explicit `0` for a seconds-only timer.
+
 ### Variables (8)
 
 `countdown_remaining_seconds`, `countdown_text` (`m:ss` or `h:mm:ss`), `countdown_running`, `countdown_label`, `countdown_progress_percent`, `stopwatch_elapsed_seconds`, `stopwatch_text`, `stopwatch_running` (all refresh every second, all read-only).

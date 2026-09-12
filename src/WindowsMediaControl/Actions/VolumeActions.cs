@@ -34,9 +34,8 @@ public sealed class VolumeUpAction(IMediaControlService media, MediaSettingsProv
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var step = context.Parameters.ContainsKey(StepParameter)
-				? MediaParameters.ReadNumber(context.Parameters, StepParameter)
-				: settings.Current.DefaultVolumeStep;
+			var step = MediaParameters.ReadNumberOrDefault(
+				context.Parameters, StepParameter, settings.Current.DefaultVolumeStep);
 			if (step is null)
 			{
 				return ActionResult.Failed(
@@ -90,9 +89,8 @@ public sealed class VolumeDownAction(IMediaControlService media, MediaSettingsPr
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var step = context.Parameters.ContainsKey(StepParameter)
-				? MediaParameters.ReadNumber(context.Parameters, StepParameter)
-				: settings.Current.DefaultVolumeStep;
+			var step = MediaParameters.ReadNumberOrDefault(
+				context.Parameters, StepParameter, settings.Current.DefaultVolumeStep);
 			if (step is null)
 			{
 				return ActionResult.Failed(
@@ -146,9 +144,7 @@ public sealed class SetVolumeAction(IMediaControlService media) : IActionDefinit
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var volume = context.Parameters.TryGetValue(VolumeParameter, out var raw)
-				? MediaParameters.ReadNumberValue(raw)
-				: 50.0;
+			var volume = MediaParameters.ReadNumberOrDefault(context.Parameters, VolumeParameter, 50.0);
 			if (volume is null || volume < 0 || volume > 100)
 			{
 				return ActionResult.Failed(

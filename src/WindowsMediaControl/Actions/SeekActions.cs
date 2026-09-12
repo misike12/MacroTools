@@ -35,9 +35,8 @@ public sealed class SeekForwardAction(IMediaControlService media, MediaSettingsP
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var seconds = context.Parameters.ContainsKey(SecondsParameter)
-				? MediaParameters.ReadNumber(context.Parameters, SecondsParameter)
-				: settings.Current.DefaultSeekSeconds;
+			var seconds = MediaParameters.ReadNumberOrDefault(
+				context.Parameters, SecondsParameter, settings.Current.DefaultSeekSeconds);
 			if (seconds is null)
 			{
 				return ActionResult.Failed(
@@ -91,9 +90,8 @@ public sealed class SeekBackwardAction(IMediaControlService media, MediaSettings
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var seconds = context.Parameters.ContainsKey(SecondsParameter)
-				? MediaParameters.ReadNumber(context.Parameters, SecondsParameter)
-				: settings.Current.DefaultSeekSeconds;
+			var seconds = MediaParameters.ReadNumberOrDefault(
+				context.Parameters, SecondsParameter, settings.Current.DefaultSeekSeconds);
 			if (seconds is null)
 			{
 				return ActionResult.Failed(
@@ -147,9 +145,7 @@ public sealed class SeekToAction(IMediaControlService media, MediaSettingsProvid
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var position = context.Parameters.TryGetValue(PositionParameter, out var raw)
-				? MediaParameters.ReadNumberValue(raw)
-				: 0.0;
+			var position = MediaParameters.ReadNumberOrDefault(context.Parameters, PositionParameter, 0.0);
 			if (position is null || position < 0)
 			{
 				return ActionResult.Failed(

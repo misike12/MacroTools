@@ -116,6 +116,29 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Blank_number_fields_fall_back_to_defaults()
+	{
+		var fake = new FakeMediaControlService();
+		var settings = new MediaSettingsProvider();
+		var seek = new SeekForwardAction(fake, settings);
+		var volume = new SetVolumeAction(fake);
+
+		var seekResult = await seek.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["seconds"] = "" },
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+		var volumeResult = await volume.CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		{
+			Parameters = new Dictionary<string, object> { ["volume"] = "  " },
+			CancellationToken = TestContext.CurrentContext.CancellationToken,
+		});
+
+		Assert.That(seekResult.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+		Assert.That(volumeResult.Status, Is.EqualTo(ActionResultStatus.Succeeded));
+	}
+
+	[Test]
 	public async Task Set_volume_rejects_out_of_range_values()
 	{
 		var action = new SetVolumeAction(new FakeMediaControlService());

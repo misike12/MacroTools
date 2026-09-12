@@ -50,9 +50,8 @@ public sealed class SleepTimerAction(IMediaControlService media, MediaSettingsPr
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var minutes = context.Parameters.TryGetValue(MinutesParameter, out var raw)
-				? MediaParameters.ReadNumberValue(raw)
-				: settings.Current.SleepDefaultMinutes;
+			var minutes = MediaParameters.ReadNumberOrDefault(
+				context.Parameters, MinutesParameter, settings.Current.SleepDefaultMinutes);
 			if (minutes is null)
 			{
 				return ActionResult.Failed(
@@ -138,9 +137,8 @@ public sealed class FadeOutPauseAction(IMediaControlService media, MediaSettings
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var seconds = context.Parameters.TryGetValue(SecondsParameter, out var raw)
-				? MediaParameters.ReadNumberValue(raw)
-				: settings.Current.FadeSeconds;
+			var seconds = MediaParameters.ReadNumberOrDefault(
+				context.Parameters, SecondsParameter, settings.Current.FadeSeconds);
 			if (seconds is null || seconds < 0)
 			{
 				return ActionResult.Failed(
@@ -212,9 +210,8 @@ public sealed class FadeInPlayAction(IMediaControlService media, MediaSettingsPr
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var seconds = context.Parameters.TryGetValue(SecondsParameter, out var rawSeconds)
-				? MediaParameters.ReadNumberValue(rawSeconds)
-				: settings.Current.FadeSeconds;
+			var seconds = MediaParameters.ReadNumberOrDefault(
+				context.Parameters, SecondsParameter, settings.Current.FadeSeconds);
 			if (seconds is null || seconds < 0)
 			{
 				return ActionResult.Failed(

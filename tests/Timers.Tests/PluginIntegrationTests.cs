@@ -112,6 +112,32 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Blank_countdown_fields_fall_back_to_defaults()
+	{
+		var timers = new TimerService();
+		await using var harness = CreateHarness(timers);
+		await harness.InitializeIntegrationsAsync();
+
+		var start = await harness.Actions.ExecuteAsync(
+			"start-countdown",
+			new Dictionary<string, object?> { ["minutes"] = "", ["seconds"] = 10.0 });
+		var adjust = await harness.Actions.ExecuteAsync(
+			"adjust-countdown",
+			new Dictionary<string, object?> { ["delta"] = "  " });
+		var garbage = await harness.Actions.ExecuteAsync(
+			"start-countdown",
+			new Dictionary<string, object?> { ["seconds"] = "ten" });
+
+		Assert.That(start.Succeeded, Is.True);
+		Assert.That(adjust.Succeeded, Is.True);
+		Assert.That(garbage.Succeeded, Is.False);
+		Assert.That(timers.CountdownRunning, Is.True);
+		Assert.That(timers.CountdownRemaining, Is.GreaterThan(TimeSpan.FromMinutes(5)));
+
+		timers.CancelCountdown();
+	}
+
+	[Test]
 	public async Task Adjusting_past_zero_finishes_the_countdown()
 	{
 		var timers = new TimerService();

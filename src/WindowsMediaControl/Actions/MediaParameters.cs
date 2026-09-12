@@ -43,6 +43,21 @@ internal static class MediaParameters
 	public static double? ReadNumber(IReadOnlyDictionary<string, object> parameters, string name) =>
 		parameters.TryGetValue(name, out var raw) ? ReadNumberValue(raw) : null;
 
+	public static double? ReadNumberOrDefault(IReadOnlyDictionary<string, object> parameters, string name, double fallback)
+	{
+		if (!parameters.TryGetValue(name, out var raw) || raw is null)
+		{
+			return fallback;
+		}
+
+		if (raw is string text && string.IsNullOrWhiteSpace(text))
+		{
+			return fallback;
+		}
+
+		return ReadNumberValue(raw);
+	}
+
 	public static double? ReadNumberValue(object? raw) =>
 		Finite(raw switch
 		{

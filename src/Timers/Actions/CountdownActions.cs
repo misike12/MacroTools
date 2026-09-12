@@ -14,6 +14,11 @@ internal static class TimerParameters
 			return fallback;
 		}
 
+		if (raw is string text && string.IsNullOrWhiteSpace(text))
+		{
+			return fallback;
+		}
+
 		double? value = raw switch
 		{
 			double d => d,

@@ -61,6 +61,21 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Blank_brightness_falls_back_to_default()
+	{
+		var monitors = new FakeMonitorService();
+		await using var harness = CreateHarness(monitors, new FakeWindowService());
+		await harness.InitializeIntegrationsAsync();
+
+		var set = await harness.Actions.ExecuteAsync(
+			"set-monitor-brightness",
+			new Dictionary<string, object?> { ["monitor"] = 1.0, ["brightness"] = "" });
+
+		Assert.That(set.Succeeded, Is.True);
+		Assert.That(monitors.Levels[0], Is.EqualTo(80));
+	}
+
+	[Test]
 	public async Task Monitor_input_set_and_cycle()
 	{
 		var monitors = new FakeMonitorService();

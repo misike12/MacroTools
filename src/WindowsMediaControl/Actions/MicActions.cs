@@ -33,9 +33,7 @@ public sealed class SetMicVolumeAction(IMediaControlService media) : IActionDefi
 	{
 		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
 		{
-			var volume = context.Parameters.TryGetValue(VolumeParameter, out var raw)
-				? MediaParameters.ReadNumberValue(raw)
-				: 50.0;
+			var volume = MediaParameters.ReadNumberOrDefault(context.Parameters, VolumeParameter, 50.0);
 			if (volume is null || volume < 0 || volume > 100)
 			{
 				return ActionResult.Failed(

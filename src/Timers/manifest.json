@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.timers",
   "name": "Timers",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Countdowns, stopwatches and timer events for automations.",
   "icon": "Assets/icon.svg",
   "entrypoints": {
