@@ -121,7 +121,7 @@ Live Counter-Strike 2 match state on your deck via Game State Integration: the g
 
 ### Setup
 
-1. Open the CS:MD integration in Macro Deck and walk through its one-time setup (connection port, optional auth token, optional Steam ID to follow, event toggles).
+1. Open the CS:MD integration in Macro Deck and walk through its one-time setup (connection port, optional auth token, optional Steam ID to follow, position tracking, event toggles).
 2. Run the **Install GSI config** action once. It finds your CS2 install through Steam and writes `gamestate_integration_csmacrodeck.cfg` (backing up any same-named file first). If it cannot find the game, copy the file by hand into `...\Counter-Strike Global Offensive\game\csgo\cfg\`.
 3. Play. `game-connected` flips true on the first push.
 
@@ -129,13 +129,13 @@ Live Counter-Strike 2 match state on your deck via Game State Integration: the g
 
 Install GSI config / Reset session stats / Simulate a match (injects fake live data so the deck can be arranged without running the game).
 
-### Variables (39)
+### Variables (40)
 
-Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`), round (`round_phase`, `bomb_state`, `phase_ends_in`), player (`my_team`, `player_name`, `alive`, `health`, `armor`, `helmet`, `flashed`, `money`, `weapon`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `smokes_active`, `fire_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
+Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`), round (`round_phase`, `bomb_state`, `phase_ends_in`), player (`my_team`, `player_name`, `alive`, `health`, `armor`, `helmet`, `flashed`, `money`, `weapon`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `smokes_active`, `fire_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`, `position_source`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
 
 Place names (`Mid`, `Bombsite A`, …) come from the map's own `env_cs_place` volumes, read out of the game files the same way community tools do it — every tagged official map is covered, workshop maps too when their mapper tagged them. Kills and deaths carry their place too.
 
-One Valve rule shapes the position variables: the game only sends coordinates and the `allplayers` block to spectators (GOTV or observing a match). While you are playing, alive or dead, `pos_x`, `pos_y`, `pos_z` and `place_name` read unavailable, because the game never sends them. Spectate any match and they populate live; the **Simulate a match** action injects a Mirage Middle position so the tiles can be arranged and verified without the game.
+One Valve rule shapes the position variables: the game only sends coordinates and the `allplayers` block to spectators (GOTV or observing a match). While you are playing, alive or dead, the game never sends them. Position tracking fills the gap from the console log: add `-condebug -conclearlog +bind scancode104 exec csmd_position` to the CS2 launch options in Steam, run **Install GSI config** (it also writes the `csmd_position` helper file), restart the game, then enable tracking in the integration setup. The plugin taps the trigger key on a timer while CS2 is focused, reads each `getpos_exact` answer from `console.log`, and feeds `pos_x`, `pos_y`, `pos_z` and `place_name` while you are alive and playing yourself. The `position-source` variable reports where coordinates come from (`console`, `gsi`, `waiting`, `no-log`, `off`). Spectate any match and they populate from the game feed directly; the **Simulate a match** action injects a Mirage Middle position so the tiles can be arranged and verified without the game.
 
 ### Events (11)
 

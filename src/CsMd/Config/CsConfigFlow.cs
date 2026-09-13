@@ -9,6 +9,7 @@ public sealed class CsConfigFlow : IConfigFlow
 {
 	private const string ConnectionStep = "connection";
 	private const string PlayerStep = "player";
+	private const string PositionStep = "position";
 	private const string EventsStep = "events";
 
 	private readonly Dictionary<string, object?> _input = new(StringComparer.Ordinal);
@@ -30,7 +31,8 @@ public sealed class CsConfigFlow : IConfigFlow
 		return Task.FromResult(stepId switch
 		{
 			ConnectionStep => Validate(ConnectionStepDefinition(), CheckConnection(), PlayerStepDefinition()),
-			PlayerStep => Validate(PlayerStepDefinition(), CheckPlayer(), EventsStepDefinition()),
+			PlayerStep => Validate(PlayerStepDefinition(), CheckPlayer(), PositionStepDefinition()),
+			PositionStep => Validate(PositionStepDefinition(), CheckPosition(), EventsStepDefinition()),
 			EventsStep => SubmitEvents(),
 			_ => ConfigFlowResult.Error(ConnectionStepDefinition(), Strings.Errors.InvalidSettings(), new Dictionary<string, LocalizedText>()),
 		});
@@ -79,6 +81,30 @@ public sealed class CsConfigFlow : IConfigFlow
 		return errors;
 	}
 
+	private Dictionary<string, LocalizedText> CheckPosition()
+	{
+		var errors = new Dictionary<string, LocalizedText>(StringComparer.Ordinal);
+		if (IsProvided(CsKeys.PositionInterval))
+		{
+			var interval = ReadNumber(CsKeys.PositionInterval);
+			if (interval is null || interval < 1 || interval > 10)
+			{
+				errors[CsKeys.PositionInterval] = Strings.Errors.FieldInvalid();
+			}
+		}
+
+		if (IsProvided(CsKeys.PositionKey))
+		{
+			var key = ReadNumber(CsKeys.PositionKey);
+			if (key is null || key < 1 || key > 255)
+			{
+				errors[CsKeys.PositionKey] = Strings.Errors.FieldInvalid();
+			}
+		}
+
+		return errors;
+	}
+
 	private bool IsProvided(string key) =>
 		_input.TryGetValue(key, out var raw)
 			&& raw is not null
@@ -95,7 +121,10 @@ public sealed class CsConfigFlow : IConfigFlow
 			DeathEvents: ReadBool(CsKeys.DeathEvents) ?? fallback.DeathEvents,
 			RoundEvents: ReadBool(CsKeys.RoundEvents) ?? fallback.RoundEvents,
 			BombEvents: ReadBool(CsKeys.BombEvents) ?? fallback.BombEvents,
-			MatchEvents: ReadBool(CsKeys.MatchEvents) ?? fallback.MatchEvents);
+			MatchEvents: ReadBool(CsKeys.MatchEvents) ?? fallback.MatchEvents,
+			PositionTracking: ReadBool(CsKeys.PositionTracking) ?? fallback.PositionTracking,
+			PositionIntervalSeconds: (int)Math.Round(ReadNumber(CsKeys.PositionInterval) ?? fallback.PositionIntervalSeconds),
+			PositionScanCode: (int)Math.Round(ReadNumber(CsKeys.PositionKey) ?? fallback.PositionScanCode));
 	}
 
 	private double? ReadNumber(string key)
@@ -160,6 +189,19 @@ public sealed class CsConfigFlow : IConfigFlow
 		Fields =
 		[
 			Text(CsKeys.SteamId, Strings.Config.Player.SteamId.Label(), Strings.Config.Player.SteamId.Description(), string.Empty),
+		],
+	};
+
+	private static ConfigFlowStep PositionStepDefinition() => new()
+	{
+		StepId = PositionStep,
+		Title = Strings.Config.Position.Title(),
+		Description = Strings.Config.Position.Description(),
+		Fields =
+		[
+			Toggle(CsKeys.PositionTracking, Strings.Config.Position.Tracking.Label(), Strings.Config.Position.Tracking.Description(), CsSettings.Default.PositionTracking),
+			Number(CsKeys.PositionInterval, Strings.Config.Position.Interval.Label(), Strings.Config.Position.Interval.Description(), 1, 10, 1, CsSettings.Default.PositionIntervalSeconds),
+			Number(CsKeys.PositionKey, Strings.Config.Position.Key.Label(), Strings.Config.Position.Key.Description(), 1, 255, 1, CsSettings.Default.PositionScanCode),
 		],
 	};
 

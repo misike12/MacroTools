@@ -151,6 +151,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 		_settings.Update(settings);
 		_gsi.SetSteamIdFilter(settings.PlayerSteamId);
+		_gsi.UpdatePositionOptions(settings.PositionTracking, settings.PositionIntervalSeconds, settings.PositionScanCode);
 		if (!_gsi.Start(settings.Port, settings.AuthToken))
 		{
 			_logger.Warning("GSI listener could not bind port {Port}; match data stays unavailable.", settings.Port);
@@ -236,6 +237,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"pos-x" => snapshot.HasPosition ? VariableReading.Of(snapshot.PosX) : VariableReading.Unavailable,
 			"pos-y" => snapshot.HasPosition ? VariableReading.Of(snapshot.PosY) : VariableReading.Unavailable,
 			"pos-z" => snapshot.HasPosition ? VariableReading.Of(snapshot.PosZ) : VariableReading.Unavailable,
+			"position-source" => snapshot.Connected ? TextOrUnavailable(snapshot.PositionSource) : VariableReading.Unavailable,
 			"bomb-countdown" => snapshot.BombCountdown is { } bombIn ? VariableReading.Of(bombIn) : VariableReading.Unavailable,
 			"bomb-carrier" => TextOrUnavailable(snapshot.BombCarrier),
 			"place-name" => TextOrUnavailable(snapshot.PlaceName),

@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using CsMd.Console;
 using CsMd.Places;
 using Serilog;
 
@@ -64,9 +65,24 @@ public sealed record GsiSnapshot(
 	double PosY,
 	double PosZ,
 	bool HasPosition,
+	string PositionSource,
 	string? PlaceName,
 	double? BombCountdown,
 	string? BombCarrier);
+
+public sealed record PositionOptions(bool Enabled, int IntervalSeconds, int ScanCode)
+{
+	public static PositionOptions Default { get; } = new(false, 2, 104);
+}
+
+public static class PositionSources
+{
+	public const string Off = "off";
+	public const string NoLog = "no-log";
+	public const string Waiting = "waiting";
+	public const string Console = "console";
+	public const string Gsi = "gsi";
+}
 
 public sealed class GsiService : IDisposable
 {
@@ -79,14 +95,18 @@ public sealed class GsiService : IDisposable
 	private readonly object _gate = new();
 	private readonly SemaphoreSlim _handlers = new(MaxConnections, MaxConnections);
 	private readonly PlaceStore _places;
+	private readonly ConsolePositionWatcher _console;
+	private readonly IPositionTrigger _trigger;
 	private TcpListener? _listener;
 	private CancellationTokenSource? _cts;
 	private Task? _acceptTask;
 	private Task? _consumeTask;
 	private Channel<GsiPayload>? _channel;
+	private Timer? _positionTimer;
 	private int _port;
 	private string _authToken = string.Empty;
 	private string _steamIdFilter = string.Empty;
+	private PositionOptions _positionOptions = PositionOptions.Default;
 	private bool _disposed;
 
 	private GsiPayload? _last;
@@ -96,15 +116,21 @@ public sealed class GsiService : IDisposable
 	private int _sessionDeaths;
 
 	public GsiService(ILogger logger)
+		: this(logger, new PlaceStore(logger))
 	{
-		_logger = logger.ForContext<GsiService>();
-		_places = new PlaceStore(logger);
 	}
 
 	public GsiService(ILogger logger, PlaceStore places)
+		: this(logger, places, new PositionTrigger(), ConsoleLogPath.Find)
+	{
+	}
+
+	public GsiService(ILogger logger, PlaceStore places, IPositionTrigger trigger, Func<string?> consoleLogPath)
 	{
 		_logger = logger.ForContext<GsiService>();
 		_places = places;
+		_trigger = trigger;
+		_console = new ConsolePositionWatcher(consoleLogPath);
 	}
 
 	public event EventHandler<GsiMatchEvent>? MatchEvent;
@@ -174,6 +200,8 @@ public sealed class GsiService : IDisposable
 			_channel = Channel.CreateUnbounded<GsiPayload>(new UnboundedChannelOptions { SingleReader = true });
 			_acceptTask = AcceptLoopAsync(_cts.Token);
 			_consumeTask = ConsumeLoopAsync(_channel.Reader, _cts.Token);
+			var interval = TimeSpan.FromSeconds(Math.Clamp(_positionOptions.IntervalSeconds, 1, 10));
+			_positionTimer = new Timer(PollPosition, null, interval, interval);
 			return true;
 		}
 	}
@@ -253,11 +281,20 @@ public sealed class GsiService : IDisposable
 		{
 		}
 
+		try
+		{
+			_positionTimer?.Dispose();
+		}
+		catch (Exception)
+		{
+		}
+
 		_listener = null;
 		_cts = null;
 		_channel = null;
 		_acceptTask = null;
 		_consumeTask = null;
+		_positionTimer = null;
 	}
 
 	private async Task AcceptLoopAsync(CancellationToken cancellationToken)
@@ -756,9 +793,9 @@ public sealed class GsiService : IDisposable
 		var previousFocus = previous is not null ? FocusedPlayer(previous, null) : null;
 		if (focus is not null)
 		{
-			var position = ParsePosition(FocusedPosition(current, focus, FocusedSteamId(current, previous)));
+			var position = ResolvePosition(current, focus, previous);
 			var place = position is not null
-				? SafeFindPlace(current.Map?.Name, position.Value.X, position.Value.Y, position.Value.Z)
+				? SafeFindPlace(current.Map?.Name, position.X, position.Y, position.Z)
 				: null;
 			var deaths = focus.MatchStats?.Deaths ?? 0;
 			var previousDeaths = previousFocus?.MatchStats?.Deaths ?? 0;
@@ -821,6 +858,75 @@ public sealed class GsiService : IDisposable
 		{
 			_steamIdFilter = steamId?.Trim() ?? string.Empty;
 		}
+	}
+
+	public void UpdatePositionOptions(bool enabled, int intervalSeconds, int scanCode)
+	{
+		lock (_gate)
+		{
+			_positionOptions = new PositionOptions(
+				enabled,
+				Math.Clamp(intervalSeconds, 1, 10),
+				Math.Clamp(scanCode, 1, 255));
+			if (_positionTimer is not null)
+			{
+				var interval = TimeSpan.FromSeconds(_positionOptions.IntervalSeconds);
+				try
+				{
+					_positionTimer.Change(interval, interval);
+				}
+				catch (Exception)
+				{
+				}
+			}
+		}
+	}
+
+	private void PollPosition(object? _)
+	{
+		try
+		{
+			PositionOptions options;
+			bool connected;
+			lock (_gate)
+			{
+				if (_disposed)
+				{
+					return;
+				}
+
+				options = _positionOptions;
+				connected = _lastReceivedAt is { } seen && DateTimeOffset.UtcNow - seen <= ConnectedWindow;
+			}
+
+			if (!options.Enabled || !connected)
+			{
+				return;
+			}
+
+			_console.Poll();
+			if (!_console.LogPresent || !LogActive())
+			{
+				return;
+			}
+
+			if (!_trigger.IsGameFocused())
+			{
+				return;
+			}
+
+			_trigger.Tap((byte)Math.Clamp(options.ScanCode, 1, 255));
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Position poll failed.");
+		}
+	}
+
+	private bool LogActive()
+	{
+		var modified = _console.LogModifiedUtc;
+		return modified is not null && DateTimeOffset.UtcNow - modified <= TimeSpan.FromMinutes(2);
 	}
 
 	private GsiPlayer? FocusedPlayer(GsiPayload current, GsiPayload? previous)
@@ -897,6 +1003,66 @@ public sealed class GsiService : IDisposable
 		}
 
 		return null;
+	}
+
+	private sealed record ResolvedPosition(double X, double Y, double Z, bool FromConsole);
+
+	private ResolvedPosition? ResolvePosition(GsiPayload payload, GsiPlayer? focus, GsiPayload? previous)
+	{
+		PositionOptions options;
+		lock (_gate)
+		{
+			options = _positionOptions;
+		}
+
+		if (options.Enabled && IsLocalAliveFocus(payload, focus))
+		{
+			var fix = _console.LatestFix;
+			var freshness = TimeSpan.FromSeconds(Math.Max(6, 3 * options.IntervalSeconds));
+			if (fix is not null && DateTimeOffset.UtcNow - fix.Value.At <= freshness)
+			{
+				return new ResolvedPosition(fix.Value.X, fix.Value.Y, fix.Value.Z, true);
+			}
+		}
+
+		var gsi = ParsePosition(FocusedPosition(payload, focus, FocusedSteamId(payload, previous)));
+		return gsi is null ? null : new ResolvedPosition(gsi.Value.X, gsi.Value.Y, gsi.Value.Z, false);
+	}
+
+	private static bool IsLocalAliveFocus(GsiPayload payload, GsiPlayer? focus)
+	{
+		var provider = payload.Provider?.SteamId;
+		return !string.IsNullOrWhiteSpace(provider)
+			&& focus is not null
+			&& string.Equals(focus.SteamId, provider, StringComparison.Ordinal)
+			&& focus.State is not null
+			&& focus.State.Health > 0;
+	}
+
+	private string ResolvePositionSource(GsiPayload payload, GsiPlayer? focus, ResolvedPosition? position)
+	{
+		PositionOptions options;
+		lock (_gate)
+		{
+			options = _positionOptions;
+		}
+
+		if (!options.Enabled)
+		{
+			return PositionSources.Off;
+		}
+
+		if (!_console.LogPresent || !LogActive())
+		{
+			return PositionSources.NoLog;
+		}
+
+		if (position is not null)
+		{
+			return position.FromConsole ? PositionSources.Console : PositionSources.Gsi;
+		}
+
+		return PositionSources.Waiting;
 	}
 
 	private static string? MapNameOf(GsiPayload? payload) =>
@@ -976,7 +1142,7 @@ public sealed class GsiService : IDisposable
 		connected, null, null, null, 0, 0, 0, null, null, null, null, null,
 		false, null, null, false, 0, 0, false, false, 0, null, -1, -1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
-		0, 0, 0, false, null, null, null);
+		0, 0, 0, false, PositionSources.Off, null, null, null);
 
 	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected)
 	{
@@ -1019,10 +1185,10 @@ public sealed class GsiService : IDisposable
 		}
 
 		double? phaseEndsIn = payload.PhaseCountdowns?.PhaseEndsIn;
-		var position = ParsePosition(FocusedPosition(payload, focus, FocusedSteamId(payload, null)));
+		var position = ResolvePosition(payload, focus, null);
 		var bombCarrier = ResolveBombCarrier(payload, focus);
 		var placeName = position is not null
-			? SafeFindPlace(payload.Map?.Name, position.Value.X, position.Value.Y, position.Value.Z)
+			? SafeFindPlace(payload.Map?.Name, position.X, position.Y, position.Z)
 			: null;
 		return new GsiSnapshot(
 			connected,
@@ -1041,6 +1207,7 @@ public sealed class GsiService : IDisposable
 			_sessionKills, _sessionDeaths,
 			_sessionDeaths > 0 ? (double)_sessionKills / _sessionDeaths : _sessionKills,
 			position?.X ?? 0, position?.Y ?? 0, position?.Z ?? 0, position is not null,
+			ResolvePositionSource(payload, focus, position),
 			placeName, payload.Bomb?.Countdown, bombCarrier);
 	}
 

@@ -91,21 +91,27 @@ public sealed class PluginIntegrationTests
 			new Dictionary<string, object?> { ["port"] = 3000.0 }, context, TestContext.CurrentContext.CancellationToken);
 		var third = await flow.SubmitAsync("player",
 			new Dictionary<string, object?>(), context, TestContext.CurrentContext.CancellationToken);
+		var fourth = await flow.SubmitAsync("position",
+			new Dictionary<string, object?> { ["position-tracking"] = true, ["position-interval"] = 2.0, ["position-key"] = 104.0 }, context, TestContext.CurrentContext.CancellationToken);
 		var done = await flow.SubmitAsync("events",
 			new Dictionary<string, object?>(), context, TestContext.CurrentContext.CancellationToken);
 
 		Assert.That(first.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Step));
 		Assert.That(second.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Step));
 		Assert.That(third.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Step));
+		Assert.That(fourth.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Step));
 		Assert.That(done.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Complete));
 
 		var badPort = await flow.SubmitAsync("connection",
 			new Dictionary<string, object?> { ["port"] = 80.0 }, context, TestContext.CurrentContext.CancellationToken);
 		var badSteam = await flow.SubmitAsync("player",
 			new Dictionary<string, object?> { ["steam-id"] = "abc" }, context, TestContext.CurrentContext.CancellationToken);
+		var badInterval = await flow.SubmitAsync("position",
+			new Dictionary<string, object?> { ["position-interval"] = 60.0 }, context, TestContext.CurrentContext.CancellationToken);
 
 		Assert.That(badPort.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Error));
 		Assert.That(badSteam.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Error));
+		Assert.That(badInterval.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Error));
 	}
 
 	[Test]
@@ -123,7 +129,7 @@ public sealed class PluginIntegrationTests
 		Assert.That(duplicates, Is.Empty);
 		Assert.That(integration.Actions.Count, Is.EqualTo(3));
 		Assert.That(integration.EventDefinitions.Count, Is.EqualTo(11));
-		Assert.That(integration.Variables.Count, Is.EqualTo(39));
+		Assert.That(integration.Variables.Count, Is.EqualTo(40));
 	}
 
 	[Test]

@@ -16,7 +16,7 @@
     <value>Install GSI config</value>
   </data>
   <data name="Actions.InstallGsiConfig.Description" xml:space="preserve">
-    <value>Find Counter-Strike 2 and write the Game State Integration file so the game pushes live data here. Restarts the listener.</value>
+    <value>Find Counter-Strike 2 and write the Game State Integration file so the game pushes live data here. Also writes the position helper file used by position tracking. Restarts the listener.</value>
   </data>
   <data name="Actions.ResetSessionStats.Name" xml:space="preserve">
     <value>Reset session stats</value>
@@ -235,19 +235,19 @@
     <value>Position X</value>
   </data>
   <data name="Variables.PosX.Description" xml:space="preserve">
-    <value>X coordinate of the followed player on the map. The game only sends positions while spectating, so this reads unavailable while playing.</value>
+    <value>X coordinate of the followed player on the map. From the game while spectating, or from console tracking while playing.</value>
   </data>
   <data name="Variables.PosY.DisplayName" xml:space="preserve">
     <value>Position Y</value>
   </data>
   <data name="Variables.PosY.Description" xml:space="preserve">
-    <value>Y coordinate of the followed player on the map. The game only sends positions while spectating, so this reads unavailable while playing.</value>
+    <value>Y coordinate of the followed player on the map. From the game while spectating, or from console tracking while playing.</value>
   </data>
   <data name="Variables.PosZ.DisplayName" xml:space="preserve">
     <value>Position Z</value>
   </data>
   <data name="Variables.PosZ.Description" xml:space="preserve">
-    <value>Height of the followed player on the map. The game only sends positions while spectating, so this reads unavailable while playing.</value>
+    <value>Height of the followed player on the map. From the game while spectating, or from console tracking while playing.</value>
   </data>
   <data name="Variables.BombCountdown.DisplayName" xml:space="preserve">
     <value>Bomb countdown</value>
@@ -265,7 +265,13 @@
     <value>Place</value>
   </data>
   <data name="Variables.PlaceName.Description" xml:space="preserve">
-    <value>Named map area of the followed player, e.g. Mid or Bombsite A. Needs a position from the game, which it only sends while spectating.</value>
+    <value>Named map area of the followed player, e.g. Mid or Bombsite A. Needs a position, from the game or console tracking.</value>
+  </data>
+  <data name="Variables.PositionSource.DisplayName" xml:space="preserve">
+    <value>Position source</value>
+  </data>
+  <data name="Variables.PositionSource.Description" xml:space="preserve">
+    <value>Where coordinates currently come from: console, gsi, waiting, no-log or off.</value>
   </data>
   <data name="Variables.SessionKills.DisplayName" xml:space="preserve">
     <value>Session kills</value>
@@ -455,6 +461,30 @@
   </data>
   <data name="Config.Player.SteamId.Description" xml:space="preserve">
     <value>The 17-digit Steam ID, e.g. 76561198000000000. Find it on your Steam profile page.</value>
+  </data>
+  <data name="Config.Position.Title" xml:space="preserve">
+    <value>Position tracking</value>
+  </data>
+  <data name="Config.Position.Description" xml:space="preserve">
+    <value>The game hides positions from players, so tracking reads them from the console log instead. Needs two one-time steps: add -condebug -conclearlog +bind scancode104 exec csmd_position to the CS2 launch options in Steam, then run Install GSI config and restart the game.</value>
+  </data>
+  <data name="Config.Position.Tracking.Label" xml:space="preserve">
+    <value>Track position while playing</value>
+  </data>
+  <data name="Config.Position.Tracking.Description" xml:space="preserve">
+    <value>Poll your position from the console log while you play. Only enable after the launch options above are set.</value>
+  </data>
+  <data name="Config.Position.Interval.Label" xml:space="preserve">
+    <value>Poll interval</value>
+  </data>
+  <data name="Config.Position.Interval.Description" xml:space="preserve">
+    <value>Seconds between position polls, from 1 to 10.</value>
+  </data>
+  <data name="Config.Position.Key.Label" xml:space="preserve">
+    <value>Trigger key code</value>
+  </data>
+  <data name="Config.Position.Key.Description" xml:space="preserve">
+    <value>Key code the game listens on, matching the scancode number in the launch options. Change only both together.</value>
   </data>
   <data name="Config.Events.Title" xml:space="preserve">
     <value>Events</value>

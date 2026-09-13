@@ -13,6 +13,9 @@ public static class CsKeys
 	public const string RoundEvents = "events-round";
 	public const string BombEvents = "events-bomb";
 	public const string MatchEvents = "events-match";
+	public const string PositionTracking = "position-tracking";
+	public const string PositionInterval = "position-interval";
+	public const string PositionKey = "position-key";
 	public const string Reset = "reset";
 }
 
@@ -24,7 +27,10 @@ public sealed record CsSettings(
 	bool DeathEvents,
 	bool RoundEvents,
 	bool BombEvents,
-	bool MatchEvents)
+	bool MatchEvents,
+	bool PositionTracking,
+	int PositionIntervalSeconds,
+	int PositionScanCode)
 {
 	public static CsSettings Default { get; } = new(
 		Port: 32075,
@@ -34,7 +40,10 @@ public sealed record CsSettings(
 		DeathEvents: true,
 		RoundEvents: true,
 		BombEvents: true,
-		MatchEvents: true);
+		MatchEvents: true,
+		PositionTracking: false,
+		PositionIntervalSeconds: 2,
+		PositionScanCode: Gsi.GsiConfig.DefaultPositionScanCode);
 }
 
 public sealed class CsSettingsProvider
@@ -92,7 +101,10 @@ public static class CsSettingsReader
 			DeathEvents: await ReadBoolAsync(config, entry.Id, CsKeys.DeathEvents, fallback.DeathEvents, timeout.Token),
 			RoundEvents: await ReadBoolAsync(config, entry.Id, CsKeys.RoundEvents, fallback.RoundEvents, timeout.Token),
 			BombEvents: await ReadBoolAsync(config, entry.Id, CsKeys.BombEvents, fallback.BombEvents, timeout.Token),
-			MatchEvents: await ReadBoolAsync(config, entry.Id, CsKeys.MatchEvents, fallback.MatchEvents, timeout.Token));
+			MatchEvents: await ReadBoolAsync(config, entry.Id, CsKeys.MatchEvents, fallback.MatchEvents, timeout.Token),
+			PositionTracking: await ReadBoolAsync(config, entry.Id, CsKeys.PositionTracking, fallback.PositionTracking, timeout.Token),
+			PositionIntervalSeconds: ClampInt(await ReadNumberAsync(config, entry.Id, CsKeys.PositionInterval, fallback.PositionIntervalSeconds, timeout.Token), 1, 10, fallback.PositionIntervalSeconds),
+			PositionScanCode: ClampInt(await ReadNumberAsync(config, entry.Id, CsKeys.PositionKey, fallback.PositionScanCode, timeout.Token), 1, 255, fallback.PositionScanCode));
 	}
 
 	private static int ClampInt(double value, int min, int max, int fallback)
@@ -159,6 +171,9 @@ internal static class CsSettingsValues
 			[CsKeys.RoundEvents] = Plain(settings.RoundEvents),
 			[CsKeys.BombEvents] = Plain(settings.BombEvents),
 			[CsKeys.MatchEvents] = Plain(settings.MatchEvents),
+			[CsKeys.PositionTracking] = Plain(settings.PositionTracking),
+			[CsKeys.PositionInterval] = ConfigFlowValue.Plain(settings.PositionIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			[CsKeys.PositionKey] = ConfigFlowValue.Plain(settings.PositionScanCode.ToString(System.Globalization.CultureInfo.InvariantCulture)),
 		};
 
 	private static ConfigFlowValue Plain(bool value) =>

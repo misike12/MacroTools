@@ -6,7 +6,9 @@ namespace CsMd.Gsi;
 public static class GsiConfig
 {
 	public const string FileName = "gamestate_integration_csmacrodeck.cfg";
+	public const string PositionFileName = "csmd_position.cfg";
 	public const int AppId = 730;
+	public const int DefaultPositionScanCode = 104;
 
 	public static string Render(int port, string? authToken)
 	{
@@ -72,11 +74,37 @@ public static class GsiConfig
 			}
 
 			File.WriteAllText(path, Render(port, authToken));
+			WritePositionCfg(cfgDirectory);
 			return (true, path);
 		}
 		catch (Exception)
 		{
 			return (false, "write-failed");
+		}
+	}
+
+	public static string PositionCommands() => "getpos_exact\n";
+
+	public static string PositionBindLine(int scanCode) => $"+bind scancode{scanCode} exec {Path.GetFileNameWithoutExtension(PositionFileName)}";
+
+	private static void WritePositionCfg(string cfgDirectory)
+	{
+		try
+		{
+			var path = Path.Combine(cfgDirectory, PositionFileName);
+			if (File.Exists(path))
+			{
+				var backup = path + ".bak";
+				if (!File.Exists(backup))
+				{
+					File.Copy(path, backup);
+				}
+			}
+
+			File.WriteAllText(path, PositionCommands());
+		}
+		catch (Exception)
+		{
 		}
 	}
 
