@@ -124,7 +124,7 @@ public sealed class CsConfigFlow : IConfigFlow
 			MatchEvents: ReadBool(CsKeys.MatchEvents) ?? fallback.MatchEvents,
 			PositionTracking: ReadBool(CsKeys.PositionTracking) ?? fallback.PositionTracking,
 			PositionIntervalSeconds: (int)Math.Round(ReadNumber(CsKeys.PositionInterval) ?? fallback.PositionIntervalSeconds),
-			PositionScanCode: (int)Math.Round(ReadNumber(CsKeys.PositionKey) ?? fallback.PositionScanCode));
+			PositionKeyCode: (int)Math.Round(ReadNumber(CsKeys.PositionKey) ?? fallback.PositionKeyCode));
 	}
 
 	private double? ReadNumber(string key)
@@ -201,7 +201,7 @@ public sealed class CsConfigFlow : IConfigFlow
 		[
 			Toggle(CsKeys.PositionTracking, Strings.Config.Position.Tracking.Label(), Strings.Config.Position.Tracking.Description(), CsSettings.Default.PositionTracking),
 			Number(CsKeys.PositionInterval, Strings.Config.Position.Interval.Label(), Strings.Config.Position.Interval.Description(), 1, 10, 1, CsSettings.Default.PositionIntervalSeconds),
-			Number(CsKeys.PositionKey, Strings.Config.Position.Key.Label(), Strings.Config.Position.Key.Description(), 1, 255, 1, CsSettings.Default.PositionScanCode),
+			Number(CsKeys.PositionKey, Strings.Config.Position.Key.Label(), Strings.Config.Position.Key.Description(), 1, 255, 1, CsSettings.Default.PositionKeyCode),
 		],
 	};
 

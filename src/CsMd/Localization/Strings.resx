@@ -481,10 +481,10 @@
     <value>Seconds between position polls, from 1 to 10.</value>
   </data>
   <data name="Config.Position.Key.Label" xml:space="preserve">
-    <value>Trigger key code</value>
+    <value>Trigger key</value>
   </data>
   <data name="Config.Position.Key.Description" xml:space="preserve">
-    <value>Key code the game listens on, matching the scancode number in the launch options. Change only both together.</value>
+    <value>Key code sent to the game, 124 is F13 which is what the scancode104 bind shows up as. Change only if you changed the bind too.</value>
   </data>
   <data name="Config.Events.Title" xml:space="preserve">
     <value>Events</value>

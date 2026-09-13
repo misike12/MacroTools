@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using CsMd.Config;
 using CsMd.Console;
 using CsMd.Gsi;
 using CsMd.Places;
@@ -31,6 +32,14 @@ public sealed class ConsolePositionTests
 		catch (Exception)
 		{
 		}
+	}
+
+	[Test]
+	public void Defaults_keep_tracking_off_and_F13()
+	{
+		Assert.That(CsSettings.Default.PositionTracking, Is.False);
+		Assert.That(CsSettings.Default.PositionIntervalSeconds, Is.EqualTo(2));
+		Assert.That(CsSettings.Default.PositionKeyCode, Is.EqualTo(124));
 	}
 
 	[Test]

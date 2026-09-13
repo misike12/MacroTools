@@ -5,20 +5,20 @@ namespace CsMd.Console;
 
 // Sends the getpos trigger key to the game. The game runs the bound exec, which prints
 // the local player's coordinates to console.log, where the watcher picks them up.
-// Same pairing community tools use: a launch-option bind on an otherwise unused key,
-// pressed synthetically. Only ever fires while CS2 itself is the foreground window.
+// The launch-option bind (scancode104) shows up in-game as F13, so this sends a plain
+// F13 virtual-key event and lets Windows translate it, the same way every F-key sender
+// does. Only ever fires while CS2 itself is the foreground window.
 public interface IPositionTrigger
 {
 	bool IsGameFocused();
 
-	bool Tap(byte scanCode);
+	bool Tap(byte virtualKey);
 }
 
 public sealed class PositionTrigger : IPositionTrigger
 {
 	private const uint InputKeyboard = 1;
 	private const uint KeyEventKeyUp = 0x0002;
-	private const uint KeyEventScancode = 0x0008;
 
 	public bool IsGameFocused()
 	{
@@ -40,14 +40,14 @@ public sealed class PositionTrigger : IPositionTrigger
 		}
 	}
 
-	public bool Tap(byte scanCode)
+	public bool Tap(byte virtualKey)
 	{
 		try
 		{
 			var inputs = new Input[]
 			{
-				new() { Type = InputKeyboard, Vk = 0, Scan = scanCode, Flags = KeyEventScancode },
-				new() { Type = InputKeyboard, Vk = 0, Scan = scanCode, Flags = KeyEventScancode | KeyEventKeyUp },
+				new() { Type = InputKeyboard, Vk = virtualKey, Scan = 0, Flags = 0 },
+				new() { Type = InputKeyboard, Vk = virtualKey, Scan = 0, Flags = KeyEventKeyUp },
 			};
 			return SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Input>()) == inputs.Length;
 		}

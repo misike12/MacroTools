@@ -92,7 +92,7 @@ public sealed class PluginIntegrationTests
 		var third = await flow.SubmitAsync("player",
 			new Dictionary<string, object?>(), context, TestContext.CurrentContext.CancellationToken);
 		var fourth = await flow.SubmitAsync("position",
-			new Dictionary<string, object?> { ["position-tracking"] = true, ["position-interval"] = 2.0, ["position-key"] = 104.0 }, context, TestContext.CurrentContext.CancellationToken);
+			new Dictionary<string, object?> { ["position-tracking"] = true, ["position-interval"] = 2.0, ["position-vkey"] = 124.0 }, context, TestContext.CurrentContext.CancellationToken);
 		var done = await flow.SubmitAsync("events",
 			new Dictionary<string, object?>(), context, TestContext.CurrentContext.CancellationToken);
 

@@ -8,7 +8,7 @@ public static class GsiConfig
 	public const string FileName = "gamestate_integration_csmacrodeck.cfg";
 	public const string PositionFileName = "csmd_position.cfg";
 	public const int AppId = 730;
-	public const int DefaultPositionScanCode = 104;
+	public const int DefaultPositionKeyCode = 124;
 
 	public static string Render(int port, string? authToken)
 	{

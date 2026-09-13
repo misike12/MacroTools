@@ -70,7 +70,7 @@ public sealed record GsiSnapshot(
 	double? BombCountdown,
 	string? BombCarrier);
 
-public sealed record PositionOptions(bool Enabled, int IntervalSeconds, int ScanCode)
+public sealed record PositionOptions(bool Enabled, int IntervalSeconds, int KeyCode)
 {
 	public static PositionOptions Default { get; } = new(false, 2, 104);
 }
@@ -860,14 +860,14 @@ public sealed class GsiService : IDisposable
 		}
 	}
 
-	public void UpdatePositionOptions(bool enabled, int intervalSeconds, int scanCode)
+	public void UpdatePositionOptions(bool enabled, int intervalSeconds, int keyCode)
 	{
 		lock (_gate)
 		{
 			_positionOptions = new PositionOptions(
 				enabled,
 				Math.Clamp(intervalSeconds, 1, 10),
-				Math.Clamp(scanCode, 1, 255));
+				Math.Clamp(keyCode, 1, 255));
 			if (_positionTimer is not null)
 			{
 				var interval = TimeSpan.FromSeconds(_positionOptions.IntervalSeconds);
@@ -915,7 +915,7 @@ public sealed class GsiService : IDisposable
 				return;
 			}
 
-			_trigger.Tap((byte)Math.Clamp(options.ScanCode, 1, 255));
+			_trigger.Tap((byte)Math.Clamp(options.KeyCode, 1, 255));
 		}
 		catch (Exception ex)
 		{
