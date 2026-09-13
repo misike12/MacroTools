@@ -556,8 +556,23 @@ public sealed class GsiService : IDisposable
 		}
 	}
 
+	private long _dumpCount;
+
+	private void DumpForDiagnostics(byte[] body)
+	{
+		try
+		{
+			var taken = (int)(Interlocked.Increment(ref _dumpCount) % 30);
+			File.WriteAllBytes(Path.Combine(Path.GetTempPath(), $"csmd-ring-{taken}.json"), body);
+		}
+		catch (Exception)
+		{
+		}
+	}
+
 	private void EnqueueJson(byte[] body)
 	{
+		DumpForDiagnostics(body);
 		GsiPayload? payload;
 		try
 		{
@@ -756,7 +771,7 @@ public sealed class GsiService : IDisposable
 		var previousFocus = previous is not null ? FocusedPlayer(previous, null) : null;
 		if (focus is not null)
 		{
-			var position = ParsePosition(focus.Position);
+			var position = ParsePosition(FocusedPosition(current, focus, FocusedSteamId(current, previous)));
 			var place = position is not null
 				? SafeFindPlace(current.Map?.Name, position.Value.X, position.Value.Y, position.Value.Z)
 				: null;
@@ -882,6 +897,23 @@ public sealed class GsiService : IDisposable
 		}
 	}
 
+	private static string? FocusedPosition(GsiPayload payload, GsiPlayer? focus, string? wantedSteamId)
+	{
+		if (!string.IsNullOrWhiteSpace(focus?.Position))
+		{
+			return focus.Position;
+		}
+
+		if (!string.IsNullOrWhiteSpace(wantedSteamId)
+			&& payload.AllPlayers is not null
+			&& payload.AllPlayers.TryGetValue(wantedSteamId, out var tracked))
+		{
+			return tracked.Position;
+		}
+
+		return null;
+	}
+
 	private static string? MapNameOf(GsiPayload? payload) =>
 		string.IsNullOrWhiteSpace(payload?.Map?.Name) ? null : payload.Map.Name;
 
@@ -1002,7 +1034,7 @@ public sealed class GsiService : IDisposable
 		}
 
 		double? phaseEndsIn = payload.PhaseCountdowns?.PhaseEndsIn;
-		var position = ParsePosition(focus?.Position);
+		var position = ParsePosition(FocusedPosition(payload, focus, FocusedSteamId(payload, null)));
 		var bombCarrier = ResolveBombCarrier(payload, focus);
 		var placeName = position is not null
 			? SafeFindPlace(payload.Map?.Name, position.Value.X, position.Value.Y, position.Value.Z)
