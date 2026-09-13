@@ -237,17 +237,25 @@ public sealed class GsiService : IDisposable
 
 	public GsiSnapshot Snapshot()
 	{
+		GsiPayload? payload;
+		int sessionKills;
+		int sessionDeaths;
 		lock (_gate)
 		{
 			var connected = _lastReceivedAt is { } seen && DateTimeOffset.UtcNow - seen <= ConnectedWindow;
-			var payload = _last;
+			payload = _last;
+			sessionKills = _sessionKills;
+			sessionDeaths = _sessionDeaths;
 			if (!connected || payload is null)
 			{
 				return EmptySnapshot(false);
 			}
-
-			return BuildSnapshot(payload, connected: true);
 		}
+
+		// Built outside the gate on purpose: place lookup parses map files on first
+		// use, and every variable read takes a snapshot. Holding the gate through
+		// file IO would convoy all readers behind one slow extraction.
+		return BuildSnapshot(payload, connected: true, sessionKills, sessionDeaths);
 	}
 
 	public void Dispose()
@@ -1251,7 +1259,7 @@ public sealed class GsiService : IDisposable
 		0, 0, 0, false, PositionSources.Off, null, null, null,
 		0, 0, 0, false, false, false, 0, null, null, string.Empty);
 
-	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected)
+	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected, int sessionKills, int sessionDeaths)
 	{
 		var focus = FocusedPlayer(payload, null);
 		var state = focus?.State;
@@ -1294,8 +1302,8 @@ public sealed class GsiService : IDisposable
 			state?.Money ?? 0, active, ammoClip, ammoReserve,
 			stats?.Kills ?? 0, stats?.Deaths ?? 0, stats?.Assists ?? 0, stats?.Mvps ?? 0, stats?.Score ?? 0,
 			smokes, fire,
-			_sessionKills, _sessionDeaths,
-			_sessionDeaths > 0 ? (double)_sessionKills / _sessionDeaths : _sessionKills,
+			sessionKills, sessionDeaths,
+			sessionDeaths > 0 ? (double)sessionKills / sessionDeaths : sessionKills,
 			position?.X ?? 0, position?.Y ?? 0, position?.Z ?? 0, position is not null,
 			ResolvePositionSource(payload, focus, position),
 			placeName, payload.Bomb?.Countdown, bombCarrier,
