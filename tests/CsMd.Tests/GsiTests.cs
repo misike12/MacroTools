@@ -295,6 +295,7 @@ public sealed class GsiTests
 		Assert.That(plain, Does.Contain("\"uri\"          \"http://127.0.0.1:32075/gsi\""));
 		Assert.That(plain, Does.Not.Contain("\"auth\""));
 		Assert.That(plain, Does.Contain("\"player_match_stats\" \"1\""));
+		Assert.That(plain, Does.Contain("\"player_position\" \"1\""));
 		Assert.That(plain, Does.Contain("\"bomb\" \"1\""));
 
 		var authed = GsiConfig.Render(3000, "s3cret");

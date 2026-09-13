@@ -34,7 +34,7 @@ public static class GsiConfig
 		foreach (var section in new[]
 		{
 			"provider", "map", "round", "player_id", "player_state", "player_weapons",
-			"player_match_stats", "allplayers_id", "allplayers_state", "allplayers_match_stats",
+			"player_match_stats", "player_position", "allplayers_id", "allplayers_state", "allplayers_match_stats",
 			"allplayers_weapons", "allplayers_position", "phase_countdowns", "bomb", "grenades",
 		})
 		{
