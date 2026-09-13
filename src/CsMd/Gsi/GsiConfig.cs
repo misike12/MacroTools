@@ -83,9 +83,9 @@ public static class GsiConfig
 		}
 	}
 
-	// Plain getpos on purpose: getpos_exact is cheat-gated and the game silently
-	// ignores it on any server without sv_cheats, including official matchmaking.
-	// Plain getpos prints the same setpos line everywhere.
+	// Plain getpos on purpose: in CS2 both getpos and getpos_exact are cheat-gated and
+	// the game silently ignores them on any server without sv_cheats, including official
+	// matchmaking. Plain getpos prints the same setpos line wherever cheats are on.
 	public static string PositionCommands() => "getpos\n";
 
 	public static string PositionBindLine(int scanCode) => $"+bind scancode{scanCode} exec {Path.GetFileNameWithoutExtension(PositionFileName)}";
