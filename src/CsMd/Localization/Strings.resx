@@ -291,6 +291,60 @@
   <data name="Variables.SessionKd.Description" xml:space="preserve">
     <value>Kill/death ratio since the match started or the counter was reset.</value>
   </data>
+  <data name="Variables.RoundKills.DisplayName" xml:space="preserve">
+    <value>Round kills</value>
+  </data>
+  <data name="Variables.RoundKills.Description" xml:space="preserve">
+    <value>Kills by the followed player in the current round.</value>
+  </data>
+  <data name="Variables.RoundHeadshots.DisplayName" xml:space="preserve">
+    <value>Round headshots</value>
+  </data>
+  <data name="Variables.RoundHeadshots.Description" xml:space="preserve">
+    <value>Headshot kills by the followed player in the current round.</value>
+  </data>
+  <data name="Variables.RoundDamage.DisplayName" xml:space="preserve">
+    <value>Round damage</value>
+  </data>
+  <data name="Variables.RoundDamage.Description" xml:space="preserve">
+    <value>Damage dealt by the followed player in the current round.</value>
+  </data>
+  <data name="Variables.Smoked.DisplayName" xml:space="preserve">
+    <value>Smoked</value>
+  </data>
+  <data name="Variables.Smoked.Description" xml:space="preserve">
+    <value>Whether the followed player is standing in smoke.</value>
+  </data>
+  <data name="Variables.Burning.DisplayName" xml:space="preserve">
+    <value>Burning</value>
+  </data>
+  <data name="Variables.Burning.Description" xml:space="preserve">
+    <value>Whether the followed player is burning.</value>
+  </data>
+  <data name="Variables.Defusekit.DisplayName" xml:space="preserve">
+    <value>Defuse kit</value>
+  </data>
+  <data name="Variables.Defusekit.Description" xml:space="preserve">
+    <value>Whether the followed player carries a defuse kit.</value>
+  </data>
+  <data name="Variables.EquipValue.DisplayName" xml:space="preserve">
+    <value>Equipment value</value>
+  </data>
+  <data name="Variables.EquipValue.Description" xml:space="preserve">
+    <value>Loadout value of the followed player in dollars.</value>
+  </data>
+  <data name="Variables.PlayerActivity.DisplayName" xml:space="preserve">
+    <value>Player activity</value>
+  </data>
+  <data name="Variables.PlayerActivity.Description" xml:space="preserve">
+    <value>What the followed player is doing, e.g. playing or menu.</value>
+  </data>
+  <data name="Variables.WeaponType.DisplayName" xml:space="preserve">
+    <value>Weapon type</value>
+  </data>
+  <data name="Variables.WeaponType.Description" xml:space="preserve">
+    <value>Class of the active weapon, e.g. Rifle or Pistol.</value>
+  </data>
   <data name="Events.RoundStarted.Name" xml:space="preserve">
     <value>Round started</value>
   </data>

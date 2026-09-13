@@ -14,6 +14,14 @@ public static class GsiJson
 		PropertyNameCaseInsensitive = true,
 		NumberHandling = JsonNumberHandling.AllowReadingFromString,
 		AllowTrailingCommas = true,
+		Converters =
+		{
+			new TolerantBoolConverter(),
+			new TolerantIntConverter(),
+			new TolerantLongConverter(),
+			new TolerantDoubleConverter(),
+			new TolerantStringConverter(),
+		},
 	};
 }
 
@@ -26,6 +34,7 @@ public sealed record GsiPayload(
 	[property: JsonPropertyName("allplayers")] Dictionary<string, GsiPlayer>? AllPlayers,
 	[property: JsonPropertyName("phase_countdowns")] GsiPhaseCountdowns? PhaseCountdowns,
 	[property: JsonPropertyName("grenades")] Dictionary<string, GsiGrenade>? Grenades,
+	[property: JsonPropertyName("allgrenades")] Dictionary<string, GsiGrenade>? AllGrenades,
 	[property: JsonPropertyName("bomb")] GsiBomb? Bomb);
 
 public sealed record GsiAuth(

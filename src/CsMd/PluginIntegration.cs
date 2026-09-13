@@ -151,7 +151,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 		_settings.Update(settings);
 		_gsi.SetSteamIdFilter(settings.PlayerSteamId);
-		_gsi.UpdatePositionOptions(settings.PositionTracking, settings.PositionIntervalSeconds, settings.PositionScanCode);
+		_gsi.UpdatePositionOptions(settings.PositionTracking, settings.PositionIntervalSeconds, settings.PositionKeyCode);
 		if (!_gsi.Start(settings.Port, settings.AuthToken))
 		{
 			_logger.Warning("GSI listener could not bind port {Port}; match data stays unavailable.", settings.Port);
@@ -244,6 +244,15 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"session-kills" => VariableReading.Of((double)snapshot.SessionKills),
 			"session-deaths" => VariableReading.Of((double)snapshot.SessionDeaths),
 			"session-kd" => VariableReading.Of(snapshot.SessionKd),
+			"round-kills" => NumberOrUnavailable(snapshot.RoundKills, snapshot.HasPlayer),
+			"round-headshots" => NumberOrUnavailable(snapshot.RoundHeadshots, snapshot.HasPlayer),
+			"round-damage" => NumberOrUnavailable(snapshot.RoundDamage, snapshot.HasPlayer),
+			"smoked" => snapshot.HasPlayer ? VariableReading.Of(snapshot.Smoked) : VariableReading.Unavailable,
+			"burning" => snapshot.HasPlayer ? VariableReading.Of(snapshot.Burning) : VariableReading.Unavailable,
+			"defusekit" => snapshot.HasPlayer ? VariableReading.Of(snapshot.DefuseKit) : VariableReading.Unavailable,
+			"equip-value" => NumberOrUnavailable(snapshot.EquipValue, snapshot.HasPlayer),
+			"player-activity" => TextOrUnavailable(snapshot.Activity),
+			"weapon-type" => TextOrUnavailable(snapshot.WeaponType),
 			_ => VariableReading.Unavailable,
 		});
 	}

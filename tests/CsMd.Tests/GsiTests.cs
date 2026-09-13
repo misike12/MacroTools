@@ -55,6 +55,129 @@ public sealed class GsiTests
 	}
 
 	[Test]
+	public void Mistyped_fields_degrade_singly_not_wholly()
+	{
+		const string json = """
+		{
+			"provider": { "name": 730, "appid": "730", "version": 1, "steamid": null, "timestamp": "99" },
+			"map": { "mode": "casual", "name": "de_dust2", "phase": "live", "round": 1 },
+			"player": {
+				"steamid": "76561198000000000", "name": null, "team": "CT", "activity": "playing",
+				"state": { "health": "100", "armor": 100.0, "helmet": 1, "defusekit": "true", "flashed": 0, "smoked": 0, "burning": 0, "money": 800, "round_kills": 2, "round_killhs": 1, "round_totaldmg": 250, "equip_value": 4700 },
+				"weapons": { "weapon_0": { "name": "weapon_ak47", "type": "Rifle", "state": "active", "ammo_clip": "30", "ammo_reserve": 90 } },
+				"match_stats": { "kills": 4, "assists": 1, "deaths": 2, "mvps": 0, "score": 10 }
+			}
+		}
+		""";
+
+		var payload = JsonSerializer.Deserialize<GsiPayload>(json, GsiJson.Options);
+
+		Assert.That(payload, Is.Not.Null);
+		Assert.That(payload!.Provider!.Name, Is.EqualTo("730"));
+		Assert.That(payload.Provider.AppId, Is.EqualTo(730));
+		Assert.That(payload.Provider.SteamId, Is.Null);
+		Assert.That(payload.Provider.Timestamp, Is.EqualTo(99));
+		Assert.That(payload.Player!.Name, Is.Null);
+		Assert.That(payload.Player.State!.Health, Is.EqualTo(100));
+		Assert.That(payload.Player.State.Armor, Is.EqualTo(100));
+		Assert.That(payload.Player.State.Helmet, Is.True);
+		Assert.That(payload.Player.State.DefuseKit, Is.True);
+		Assert.That(payload.Player.State.RoundKills, Is.EqualTo(2));
+		Assert.That(payload.Player.State.RoundHeadshots, Is.EqualTo(1));
+		Assert.That(payload.Player.State.RoundDamage, Is.EqualTo(250));
+		Assert.That(payload.Player.Weapons!["weapon_0"].AmmoClip, Is.EqualTo(30));
+	}
+
+	[Test]
+	public async Task Round_bomb_fills_in_for_a_missing_bomb_block()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },
+			round = new { phase = "over", bomb = "planted" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		}), ct);
+
+		var snapshot = await WaitForSnapshotAsync(gsi, ct);
+
+		Assert.That(snapshot.BombState, Is.EqualTo("planted"));
+	}
+
+	[Test]
+	public async Task Allgrenades_block_counts_like_grenades()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+			allgrenades = new Dictionary<string, object>
+			{
+				["1"] = new { owner = "1", type = "smoke", lifetime = 18.0, effecttime = 12.0 },
+			},
+		}), ct);
+
+		var snapshot = await WaitForSnapshotAsync(gsi, ct);
+
+		Assert.That(snapshot.SmokesActive, Is.EqualTo(1));
+	}
+
+	[Test]
+	public async Task Empty_probe_posts_do_not_fake_a_connection()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		await http.PostAsync(uri, JsonContent.Create(new { }), ct);
+		await Task.Delay(500, ct);
+
+		Assert.That(gsi.Snapshot().Connected, Is.False);
+	}
+
+	private static async Task<GsiSnapshot> WaitForSnapshotAsync(GsiService gsi, CancellationToken cancellationToken)
+	{
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+		GsiSnapshot snapshot;
+		do
+		{
+			await Task.Delay(50, cancellationToken);
+			snapshot = gsi.Snapshot();
+		}
+		while (!snapshot.Connected && DateTimeOffset.UtcNow < deadline);
+
+		Assert.That(snapshot.Connected, Is.True);
+		return snapshot;
+	}
+
+	[Test]
 	public async Task Listener_accepts_posts_and_tracks_state()
 	{
 		using var gsi = new GsiService(TestLogger());

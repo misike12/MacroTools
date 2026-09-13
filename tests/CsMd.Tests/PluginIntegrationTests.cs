@@ -48,7 +48,16 @@ public sealed class PluginIntegrationTests
 		Assert.That(simulate.Succeeded, Is.True);
 		Assert.That((await integration.ReadAsync("health")).Value, Is.EqualTo(100.0));
 		Assert.That((await integration.ReadAsync("weapon")).Value, Is.EqualTo("ak47"));
+		Assert.That((await integration.ReadAsync("weapon-type")).Value, Is.EqualTo("Rifle"));
 		Assert.That((await integration.ReadAsync("map-name")).Value, Is.EqualTo("de_mirage"));
+		Assert.That((await integration.ReadAsync("player-activity")).Value, Is.EqualTo("playing"));
+		Assert.That((await integration.ReadAsync("round-kills")).Value, Is.EqualTo(0.0));
+		Assert.That((await integration.ReadAsync("round-headshots")).Value, Is.EqualTo(0.0));
+		Assert.That((await integration.ReadAsync("round-damage")).Value, Is.EqualTo(0.0));
+		Assert.That((await integration.ReadAsync("smoked")).Value, Is.EqualTo(false));
+		Assert.That((await integration.ReadAsync("burning")).Value, Is.EqualTo(false));
+		Assert.That((await integration.ReadAsync("defusekit")).Value, Is.EqualTo(false));
+		Assert.That((await integration.ReadAsync("equip-value")).Value, Is.EqualTo(4700.0));
 		Assert.That((await integration.ReadAsync("pos-x")).Value, Is.EqualTo(-503.0));
 		Assert.That((await integration.ReadAsync("pos-y")).Value, Is.EqualTo(-735.0));
 		Assert.That((await integration.ReadAsync("pos-z")).Value, Is.EqualTo(-148.0));
@@ -129,7 +138,7 @@ public sealed class PluginIntegrationTests
 		Assert.That(duplicates, Is.Empty);
 		Assert.That(integration.Actions.Count, Is.EqualTo(3));
 		Assert.That(integration.EventDefinitions.Count, Is.EqualTo(11));
-		Assert.That(integration.Variables.Count, Is.EqualTo(40));
+		Assert.That(integration.Variables.Count, Is.EqualTo(49));
 	}
 
 	[Test]

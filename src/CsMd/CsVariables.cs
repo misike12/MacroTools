@@ -49,6 +49,15 @@ internal static class CsVariables
 		Eager("session-kills", VariableType.Numeric, Strings.Variables.SessionKills.DisplayName(), Strings.Variables.SessionKills.Description(), refresh: FastRefresh),
 		Eager("session-deaths", VariableType.Numeric, Strings.Variables.SessionDeaths.DisplayName(), Strings.Variables.SessionDeaths.Description(), refresh: FastRefresh),
 		Eager("session-kd", VariableType.Numeric, Strings.Variables.SessionKd.DisplayName(), Strings.Variables.SessionKd.Description(), refresh: FastRefresh),
+		Eager("round-kills", VariableType.Numeric, Strings.Variables.RoundKills.DisplayName(), Strings.Variables.RoundKills.Description(), refresh: FastRefresh),
+		Eager("round-headshots", VariableType.Numeric, Strings.Variables.RoundHeadshots.DisplayName(), Strings.Variables.RoundHeadshots.Description(), refresh: FastRefresh),
+		Eager("round-damage", VariableType.Numeric, Strings.Variables.RoundDamage.DisplayName(), Strings.Variables.RoundDamage.Description(), refresh: FastRefresh),
+		Eager("smoked", VariableType.Boolean, Strings.Variables.Smoked.DisplayName(), Strings.Variables.Smoked.Description(), refresh: FastRefresh),
+		Eager("burning", VariableType.Boolean, Strings.Variables.Burning.DisplayName(), Strings.Variables.Burning.Description(), refresh: FastRefresh),
+		Eager("defusekit", VariableType.Boolean, Strings.Variables.Defusekit.DisplayName(), Strings.Variables.Defusekit.Description(), refresh: SlowRefresh),
+		Eager("equip-value", VariableType.Numeric, Strings.Variables.EquipValue.DisplayName(), Strings.Variables.EquipValue.Description(), unit: "$", refresh: FastRefresh),
+		Eager("player-activity", VariableType.Text, Strings.Variables.PlayerActivity.DisplayName(), Strings.Variables.PlayerActivity.Description(), refresh: SlowRefresh),
+		Eager("weapon-type", VariableType.Text, Strings.Variables.WeaponType.DisplayName(), Strings.Variables.WeaponType.Description(), refresh: FastRefresh),
 	];
 
 	private static VariableDefinition Eager(

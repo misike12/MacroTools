@@ -68,7 +68,16 @@ public sealed record GsiSnapshot(
 	string PositionSource,
 	string? PlaceName,
 	double? BombCountdown,
-	string? BombCarrier);
+	string? BombCarrier,
+	int RoundKills,
+	int RoundHeadshots,
+	int RoundDamage,
+	bool Smoked,
+	bool Burning,
+	bool DefuseKit,
+	int EquipValue,
+	string? Activity,
+	string? WeaponType);
 
 public sealed record PositionOptions(bool Enabled, int IntervalSeconds, int KeyCode)
 {
@@ -606,7 +615,7 @@ public sealed class GsiService : IDisposable
 			return;
 		}
 
-		if (payload is null)
+		if (payload is null || !HasGameData(payload))
 		{
 			return;
 		}
@@ -769,8 +778,8 @@ public sealed class GsiService : IDisposable
 			}
 		}
 
-		var previousBomb = NormalizeBomb(previous?.Bomb?.State);
-		var bomb = NormalizeBomb(current.Bomb?.State);
+		var previousBomb = previous is null ? string.Empty : CurrentBombState(previous);
+		var bomb = CurrentBombState(current);
 		if (!string.Equals(previousBomb, bomb, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(bomb))
 		{
 			var bombEvent = bomb switch
@@ -942,7 +951,7 @@ public sealed class GsiService : IDisposable
 			return current.Player;
 		}
 
-		if (current.AllPlayers is not null && current.AllPlayers.TryGetValue(wanted, out var tracked))
+		if (current.AllPlayers is not null && current.AllPlayers.TryGetValue(wanted, out var tracked) && tracked is not null)
 		{
 			return tracked;
 		}
@@ -997,7 +1006,8 @@ public sealed class GsiService : IDisposable
 
 		if (!string.IsNullOrWhiteSpace(wantedSteamId)
 			&& payload.AllPlayers is not null
-			&& payload.AllPlayers.TryGetValue(wantedSteamId, out var tracked))
+			&& payload.AllPlayers.TryGetValue(wantedSteamId, out var tracked)
+			&& tracked is not null)
 		{
 			return tracked.Position;
 		}
@@ -1065,6 +1075,23 @@ public sealed class GsiService : IDisposable
 		return PositionSources.Waiting;
 	}
 
+	private static bool HasGameData(GsiPayload payload) =>
+		payload.Provider is not null
+		|| payload.Map is not null
+		|| payload.Round is not null
+		|| payload.Player is not null
+		|| payload.AllPlayers is not null
+		|| payload.PhaseCountdowns is not null
+		|| payload.Grenades is not null
+		|| payload.AllGrenades is not null
+		|| payload.Bomb is not null;
+
+	private static string CurrentBombState(GsiPayload payload)
+	{
+		var direct = NormalizeBomb(payload.Bomb?.State);
+		return direct.Length > 0 ? direct : NormalizeBomb(payload.Round?.Bomb);
+	}
+
 	private static string? MapNameOf(GsiPayload? payload) =>
 		string.IsNullOrWhiteSpace(payload?.Map?.Name) ? null : payload.Map.Name;
 
@@ -1100,7 +1127,7 @@ public sealed class GsiService : IDisposable
 			return focus?.Name;
 		}
 
-		if (payload.AllPlayers is not null && payload.AllPlayers.TryGetValue(carrier, out var holder))
+		if (payload.AllPlayers is not null && payload.AllPlayers.TryGetValue(carrier, out var holder) && holder is not null)
 		{
 			return holder.Name;
 		}
@@ -1108,31 +1135,63 @@ public sealed class GsiService : IDisposable
 		return null;
 	}
 
+	private static void CountGrenades(Dictionary<string, GsiGrenade> grenades, ref int smokes, ref int fire)
+	{
+		foreach (var grenade in grenades.Values)
+		{
+			if (grenade is null)
+			{
+				continue;
+			}
+
+			if (string.Equals(grenade.Type, "smoke", StringComparison.OrdinalIgnoreCase) && grenade.EffectTime > 0)
+			{
+				smokes++;
+			}
+
+			if (string.Equals(grenade.Type, "inferno", StringComparison.OrdinalIgnoreCase)
+				&& grenade.Flames is { Count: > 0 })
+			{
+				fire++;
+			}
+		}
+	}
+
 	private static string ActiveWeaponName(GsiPlayer player)
+	{
+		var entry = ActiveWeaponEntry(player);
+		return entry is null ? string.Empty : StripWeaponPrefix(entry.Name ?? string.Empty);
+	}
+
+	private static GsiWeapon? ActiveWeaponEntry(GsiPlayer player)
 	{
 		if (player.Weapons is null)
 		{
-			return string.Empty;
+			return null;
 		}
 
+		GsiWeapon? reloading = null;
+		GsiWeapon? first = null;
 		foreach (var weapon in player.Weapons.Values)
 		{
-			if (string.Equals(weapon.State, "active", StringComparison.OrdinalIgnoreCase)
-				&& !string.IsNullOrWhiteSpace(weapon.Name))
+			if (weapon is null || string.IsNullOrWhiteSpace(weapon.Name))
 			{
-				return StripWeaponPrefix(weapon.Name);
+				continue;
+			}
+
+			first ??= weapon;
+			if (string.Equals(weapon.State, "active", StringComparison.OrdinalIgnoreCase))
+			{
+				return weapon;
+			}
+
+			if (reloading is null && string.Equals(weapon.State, "reloading", StringComparison.OrdinalIgnoreCase))
+			{
+				reloading = weapon;
 			}
 		}
 
-		foreach (var weapon in player.Weapons.Values)
-		{
-			if (!string.IsNullOrWhiteSpace(weapon.Name))
-			{
-				return StripWeaponPrefix(weapon.Name);
-			}
-		}
-
-		return string.Empty;
+		return reloading ?? first;
 	}
 
 	private static string StripWeaponPrefix(string name) =>
@@ -1142,46 +1201,30 @@ public sealed class GsiService : IDisposable
 		connected, null, null, null, 0, 0, 0, null, null, null, null, null,
 		false, null, null, false, 0, 0, false, false, 0, null, -1, -1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
-		0, 0, 0, false, PositionSources.Off, null, null, null);
+		0, 0, 0, false, PositionSources.Off, null, null, null,
+		0, 0, 0, false, false, false, 0, null, null);
 
 	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected)
 	{
 		var focus = FocusedPlayer(payload, null);
 		var state = focus?.State;
 		var stats = focus?.MatchStats;
-		var active = focus is not null ? ActiveWeaponName(focus) : string.Empty;
-		var ammoClip = -1;
-		var ammoReserve = -1;
-		if (focus?.Weapons is not null)
-		{
-			foreach (var weapon in focus.Weapons.Values)
-			{
-				if (string.Equals(weapon.State, "active", StringComparison.OrdinalIgnoreCase))
-				{
-					ammoClip = weapon.AmmoClip ?? -1;
-					ammoReserve = weapon.AmmoReserve ?? -1;
-					break;
-				}
-			}
-		}
+		var entry = focus is not null ? ActiveWeaponEntry(focus) : null;
+		var active = entry is not null ? StripWeaponPrefix(entry.Name ?? string.Empty) : string.Empty;
+		var ammoClip = entry?.AmmoClip ?? -1;
+		var ammoReserve = entry?.AmmoReserve ?? -1;
+		var weaponType = entry?.Type ?? string.Empty;
 
 		var smokes = 0;
 		var fire = 0;
 		if (payload.Grenades is not null)
 		{
-			foreach (var grenade in payload.Grenades.Values)
-			{
-				if (string.Equals(grenade.Type, "smoke", StringComparison.OrdinalIgnoreCase) && grenade.EffectTime > 0)
-				{
-					smokes++;
-				}
+			CountGrenades(payload.Grenades, ref smokes, ref fire);
+		}
 
-				if (string.Equals(grenade.Type, "inferno", StringComparison.OrdinalIgnoreCase)
-					&& grenade.Flames is { Count: > 0 })
-				{
-					fire++;
-				}
-			}
+		if (payload.AllGrenades is not null)
+		{
+			CountGrenades(payload.AllGrenades, ref smokes, ref fire);
 		}
 
 		double? phaseEndsIn = payload.PhaseCountdowns?.PhaseEndsIn;
@@ -1195,7 +1238,7 @@ public sealed class GsiService : IDisposable
 			payload.Map?.Name, payload.Map?.Mode, payload.Map?.Phase, payload.Map?.Round ?? 0,
 			payload.Map?.TeamCt?.Score ?? 0, payload.Map?.TeamT?.Score ?? 0,
 			payload.Map?.TeamCt?.Name, payload.Map?.TeamT?.Name,
-			payload.Round?.Phase, NormalizeBomb(payload.Bomb?.State) is { Length: > 0 } b ? b : null,
+			payload.Round?.Phase, CurrentBombState(payload) is { Length: > 0 } b ? b : null,
 			phaseEndsIn,
 			focus is not null,
 			focus?.Name, NormalizeTeam(focus?.Team),
@@ -1208,7 +1251,10 @@ public sealed class GsiService : IDisposable
 			_sessionDeaths > 0 ? (double)_sessionKills / _sessionDeaths : _sessionKills,
 			position?.X ?? 0, position?.Y ?? 0, position?.Z ?? 0, position is not null,
 			ResolvePositionSource(payload, focus, position),
-			placeName, payload.Bomb?.Countdown, bombCarrier);
+			placeName, payload.Bomb?.Countdown, bombCarrier,
+			state?.RoundKills ?? 0, state?.RoundHeadshots ?? 0, state?.RoundDamage ?? 0,
+			(state?.Smoked ?? 0) > 0, (state?.Burning ?? 0) > 0, state?.DefuseKit ?? false,
+			state?.EquipmentValue ?? 0, focus?.Activity, weaponType);
 	}
 
 	private static GsiPayload TestPayload() => new(
@@ -1231,5 +1277,6 @@ public sealed class GsiService : IDisposable
 		AllPlayers: null,
 		PhaseCountdowns: new GsiPhaseCountdowns("live", 95.5),
 		Grenades: null,
+		AllGrenades: null,
 		Bomb: new GsiBomb("carried", null, null));
 }

@@ -129,9 +129,9 @@ Live Counter-Strike 2 match state on your deck via Game State Integration: the g
 
 Install GSI config / Reset session stats / Simulate a match (injects fake live data so the deck can be arranged without running the game).
 
-### Variables (40)
+### Variables (49)
 
-Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`), round (`round_phase`, `bomb_state`, `phase_ends_in`), player (`my_team`, `player_name`, `alive`, `health`, `armor`, `helmet`, `flashed`, `money`, `weapon`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `smokes_active`, `fire_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`, `position_source`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
+Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`), round (`round_phase`, `bomb_state`, `phase_ends_in`), player (`my_team`, `player_name`, `player_activity`, `alive`, `health`, `armor`, `helmet`, `defusekit`, `flashed`, `smoked`, `burning`, `money`, `equip_value`, `weapon`, `weapon_type`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `round_kills`, `round_headshots`, `round_damage`, `smokes_active`, `fire_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`, `position_source`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
 
 Place names (`Mid`, `Bombsite A`, …) come from the map's own `env_cs_place` volumes, read out of the game files the same way community tools do it — every tagged official map is covered, workshop maps too when their mapper tagged them. Kills and deaths carry their place too.
 
