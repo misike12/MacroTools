@@ -392,7 +392,7 @@ public class PlaceStore
 			package.Read(stream);
 			return new OpenedPackage(package, stream);
 		}
-		catch (Exception ex)
+		catch (Exception)
 		{
 			try
 			{
