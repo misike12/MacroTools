@@ -268,6 +268,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"equip-value" => NumberOrUnavailable(snapshot.EquipValue, snapshot.HasPlayer),
 			"player-activity" => TextOrUnavailable(snapshot.Activity),
 			"weapon-type" => TextOrUnavailable(snapshot.WeaponType),
+			"round-history" => TextOrUnavailable(snapshot.RoundHistory),
 			_ => VariableReading.Unavailable,
 		});
 	}

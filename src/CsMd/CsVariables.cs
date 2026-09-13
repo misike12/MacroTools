@@ -58,6 +58,7 @@ internal static class CsVariables
 		Eager("equip-value", VariableType.Numeric, Strings.Variables.EquipValue.DisplayName(), Strings.Variables.EquipValue.Description(), unit: "$", refresh: FastRefresh),
 		Eager("player-activity", VariableType.Text, Strings.Variables.PlayerActivity.DisplayName(), Strings.Variables.PlayerActivity.Description(), refresh: SlowRefresh),
 		Eager("weapon-type", VariableType.Text, Strings.Variables.WeaponType.DisplayName(), Strings.Variables.WeaponType.Description(), refresh: FastRefresh),
+		Eager("round-history", VariableType.Text, Strings.Variables.RoundHistory.DisplayName(), Strings.Variables.RoundHistory.Description(), refresh: SlowRefresh),
 	];
 
 	private static VariableDefinition Eager(

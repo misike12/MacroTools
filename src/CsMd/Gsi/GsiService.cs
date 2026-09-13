@@ -77,7 +77,8 @@ public sealed record GsiSnapshot(
 	bool DefuseKit,
 	int EquipValue,
 	string? Activity,
-	string? WeaponType);
+	string? WeaponType,
+	string RoundHistory);
 
 public sealed record PositionOptions(bool Enabled, int IntervalSeconds, int KeyCode)
 {
@@ -1092,6 +1093,35 @@ public sealed class GsiService : IDisposable
 		return direct.Length > 0 ? direct : NormalizeBomb(payload.Round?.Bomb);
 	}
 
+	private static string RoundHistoryOf(GsiPayload payload)
+	{
+		var wins = payload.MapRoundWins ?? payload.Map?.RoundWins;
+		if (wins is null || wins.Count == 0)
+		{
+			return string.Empty;
+		}
+
+		return string.Concat(wins
+			.Where(entry => int.TryParse(entry.Key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+			.OrderBy(entry => int.Parse(entry.Key, System.Globalization.CultureInfo.InvariantCulture))
+			.Select(entry => RoundWinnerToken(entry.Value)));
+	}
+
+	private static char RoundWinnerToken(string? value)
+	{
+		if (string.IsNullOrEmpty(value))
+		{
+			return '?';
+		}
+
+		if (value.StartsWith("ct", StringComparison.OrdinalIgnoreCase))
+		{
+			return 'C';
+		}
+
+		return value.StartsWith("t", StringComparison.OrdinalIgnoreCase) ? 'T' : '?';
+	}
+
 	private static string? MapNameOf(GsiPayload? payload) =>
 		string.IsNullOrWhiteSpace(payload?.Map?.Name) ? null : payload.Map.Name;
 
@@ -1202,7 +1232,7 @@ public sealed class GsiService : IDisposable
 		false, null, null, false, 0, 0, false, false, 0, null, -1, -1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
 		0, 0, 0, false, PositionSources.Off, null, null, null,
-		0, 0, 0, false, false, false, 0, null, null);
+		0, 0, 0, false, false, false, 0, null, null, string.Empty);
 
 	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected)
 	{
@@ -1254,14 +1284,14 @@ public sealed class GsiService : IDisposable
 			placeName, payload.Bomb?.Countdown, bombCarrier,
 			state?.RoundKills ?? 0, state?.RoundHeadshots ?? 0, state?.RoundDamage ?? 0,
 			(state?.Smoked ?? 0) > 0, (state?.Burning ?? 0) > 0, state?.DefuseKit ?? false,
-			state?.EquipmentValue ?? 0, focus?.Activity, weaponType);
+			state?.EquipmentValue ?? 0, focus?.Activity, weaponType, RoundHistoryOf(payload));
 	}
 
 	private static GsiPayload TestPayload() => new(
 		Auth: null,
 		Provider: new GsiProvider("Counter-Strike 2", 730, 1, "76561198000000000", 1),
 		Map: new GsiMap("competitive", "de_mirage", "live", 5,
-			new GsiTeam(3, "CTs", 1, 0), new GsiTeam(1, "Ts", 1, 0), 13),
+			new GsiTeam(3, "CTs", 1, 0), new GsiTeam(1, "Ts", 1, 0), 13, null),
 		Round: new GsiRound("live", null, null),
 		// A genuine point inside Mirage Middle (center of its env_cs_place volume),
 		// so Simulate demonstrates coordinates and place lookup the way a
@@ -1275,6 +1305,7 @@ public sealed class GsiService : IDisposable
 			},
 			new GsiMatchStats(4, 1, 2, 0, 10), null, "-503, -735, -148"),
 		AllPlayers: null,
+		MapRoundWins: null,
 		PhaseCountdowns: new GsiPhaseCountdowns("live", 95.5),
 		Grenades: null,
 		AllGrenades: null,

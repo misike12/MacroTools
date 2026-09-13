@@ -117,6 +117,82 @@ public sealed class GsiTests
 	}
 
 	[Test]
+	public async Task Round_wins_build_history_oldest_first()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new
+			{
+				mode = "competitive",
+				name = "de_mirage",
+				phase = "live",
+				round = 4,
+				round_wins = new Dictionary<string, object>
+				{
+					["3"] = "t_win_bomb",
+					["1"] = "ct_win_elimination",
+					["2"] = "ct_win_time",
+					["bogus"] = "ct_win_elimination",
+					["4"] = "overtime",
+				},
+			},
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		}), ct);
+
+		var snapshot = await WaitForSnapshotAsync(gsi, ct);
+
+		Assert.That(snapshot.RoundHistory, Is.EqualTo("CCT?"));
+	}
+
+	[Test]
+	public async Task Top_level_round_wins_win_over_nested()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new
+			{
+				mode = "competitive",
+				name = "de_mirage",
+				phase = "live",
+				round = 2,
+				round_wins = new Dictionary<string, object> { ["1"] = "ct_win_elimination" },
+			},
+			map_round_wins = new Dictionary<string, object> { ["1"] = "t_win_elimination" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		}), ct);
+
+		var snapshot = await WaitForSnapshotAsync(gsi, ct);
+
+		Assert.That(snapshot.RoundHistory, Is.EqualTo("T"));
+	}
+
+	[Test]
 	public async Task Allgrenades_block_counts_like_grenades()
 	{
 		using var gsi = new GsiService(TestLogger());

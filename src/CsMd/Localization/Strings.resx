@@ -345,6 +345,12 @@
   <data name="Variables.WeaponType.Description" xml:space="preserve">
     <value>Class of the active weapon, e.g. Rifle or Pistol.</value>
   </data>
+  <data name="Variables.RoundHistory.DisplayName" xml:space="preserve">
+    <value>Round history</value>
+  </data>
+  <data name="Variables.RoundHistory.Description" xml:space="preserve">
+    <value>Past rounds oldest first, C for CT wins and T for T wins.</value>
+  </data>
   <data name="Events.RoundStarted.Name" xml:space="preserve">
     <value>Round started</value>
   </data>
@@ -626,5 +632,53 @@
   </data>
   <data name="Widget.Config.CompactMode" xml:space="preserve">
     <value>Compact mode</value>
+  </data>
+  <data name="Widget.Config.ShowCharts" xml:space="preserve">
+    <value>Graphs</value>
+  </data>
+  <data name="Widget.Config.ShowChartsDescription" xml:space="preserve">
+    <value>Health trend and per-round damage graphs.</value>
+  </data>
+  <data name="Widget.Config.ShowFeed" xml:space="preserve">
+    <value>Event feed</value>
+  </data>
+  <data name="Widget.Config.ShowFeedDescription" xml:space="preserve">
+    <value>Latest kills, deaths, bomb and round moments.</value>
+  </data>
+  <data name="Widget.Effects.Flashed" xml:space="preserve">
+    <value>FLASHED</value>
+  </data>
+  <data name="Widget.Effects.Helmet" xml:space="preserve">
+    <value>HELM</value>
+  </data>
+  <data name="Widget.Feed.Kill" xml:space="preserve">
+    <value>{player} +1 · {weapon} · {place}</value>
+  </data>
+  <data name="Widget.Feed.KillBare" xml:space="preserve">
+    <value>{player} +1 · {weapon}</value>
+  </data>
+  <data name="Widget.Feed.Death" xml:space="preserve">
+    <value>{player} −1 · {place}</value>
+  </data>
+  <data name="Widget.Feed.DeathBare" xml:space="preserve">
+    <value>{player} −1</value>
+  </data>
+  <data name="Widget.Feed.BombPlanted" xml:space="preserve">
+    <value>Bomb planted · {site}</value>
+  </data>
+  <data name="Widget.Feed.BombPlantedBare" xml:space="preserve">
+    <value>Bomb planted</value>
+  </data>
+  <data name="Widget.Feed.BombDefused" xml:space="preserve">
+    <value>Bomb defused</value>
+  </data>
+  <data name="Widget.Feed.BombExploded" xml:space="preserve">
+    <value>Bomb exploded</value>
+  </data>
+  <data name="Widget.Feed.RoundWon" xml:space="preserve">
+    <value>Round won</value>
+  </data>
+  <data name="Widget.Feed.RoundLost" xml:space="preserve">
+    <value>Round lost</value>
   </data>
 </root>

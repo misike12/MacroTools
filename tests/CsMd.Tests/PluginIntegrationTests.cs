@@ -138,7 +138,7 @@ public sealed class PluginIntegrationTests
 		Assert.That(duplicates, Is.Empty);
 		Assert.That(integration.Actions.Count, Is.EqualTo(3));
 		Assert.That(integration.EventDefinitions.Count, Is.EqualTo(11));
-		Assert.That(integration.Variables.Count, Is.EqualTo(49));
+		Assert.That(integration.Variables.Count, Is.EqualTo(50));
 		Assert.That(integration.GetWidgetTypes().Count, Is.EqualTo(1));
 		Assert.That(integration.GetWidgetTypes()[0].Id, Is.EqualTo("match-hud"));
 	}

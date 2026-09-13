@@ -32,6 +32,7 @@ public sealed record GsiPayload(
 	[property: JsonPropertyName("round")] GsiRound? Round,
 	[property: JsonPropertyName("player")] GsiPlayer? Player,
 	[property: JsonPropertyName("allplayers")] Dictionary<string, GsiPlayer>? AllPlayers,
+	[property: JsonPropertyName("map_round_wins")] Dictionary<string, string>? MapRoundWins,
 	[property: JsonPropertyName("phase_countdowns")] GsiPhaseCountdowns? PhaseCountdowns,
 	[property: JsonPropertyName("grenades")] Dictionary<string, GsiGrenade>? Grenades,
 	[property: JsonPropertyName("allgrenades")] Dictionary<string, GsiGrenade>? AllGrenades,
@@ -60,7 +61,8 @@ public sealed record GsiMap(
 	[property: JsonPropertyName("round")] int Round,
 	[property: JsonPropertyName("team_ct")] GsiTeam? TeamCt,
 	[property: JsonPropertyName("team_t")] GsiTeam? TeamT,
-	[property: JsonPropertyName("num_matches_to_win_series")] int NumMatchesToWinSeries);
+	[property: JsonPropertyName("num_matches_to_win_series")] int NumMatchesToWinSeries,
+	[property: JsonPropertyName("round_wins")] Dictionary<string, string>? RoundWins);
 
 public sealed record GsiRound(
 	[property: JsonPropertyName("phase")] string? Phase,
