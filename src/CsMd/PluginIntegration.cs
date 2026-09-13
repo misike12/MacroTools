@@ -3,18 +3,22 @@ using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.ConfigFlow;
 using MacroDeck.Sdk.Events;
+using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
+using MacroDeck.Sdk.Widgets;
 using Serilog;
 using CsMd.Actions;
 using CsMd.Config;
 using CsMd.Gsi;
+using CsMd.Widgets;
 
 namespace CsMd;
 
-public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IEventProvider, IConfigFlowProvider, IDisposable
+public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IEventProvider, IConfigFlowProvider, IWidgetTypeProvider, IUiProvider, IDisposable
 {
 	private readonly GsiService _gsi;
 	private readonly CsSettingsProvider _settings;
+	private readonly MatchHudWidget _widget;
 	private readonly ILogger _logger;
 	private IIntegrationContext? _context;
 	private bool _disposed;
@@ -24,6 +28,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_gsi = gsi;
 		_settings = settings;
 		_logger = logger.ForContext<PluginIntegration>();
+		_widget = new MatchHudWidget(gsi, logger);
 		Actions =
 		[
 			new InstallGsiConfigAction(settings, gsi),
@@ -122,6 +127,16 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_gsi.Stop();
 		return Task.CompletedTask;
 	}
+
+	public Task InitializeAsync(IWidgetTypeProviderContext context, CancellationToken cancellationToken) =>
+		_widget.InitializeAsync(context, cancellationToken);
+
+	public IReadOnlyList<WidgetTypeDescriptor> GetWidgetTypes() => _widget.GetWidgetTypes();
+
+	public IReadOnlyList<UiSurfaceDeclaration> Surfaces => _widget.Surfaces;
+
+	public Task<IUiSession?> CreateSessionAsync(UiSessionRequest request, CancellationToken cancellationToken) =>
+		_widget.CreateSessionAsync(request, cancellationToken);
 
 	public void Dispose()
 	{

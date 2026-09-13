@@ -141,6 +141,10 @@ One Valve rule shapes the position variables: the game only sends coordinates an
 
 `round-started`, `round-ended`, `round-won` / `round-lost` (only when your team is known), `bomb-planted` (site), `bomb-defused`, `bomb-exploded`, `player-died`, `player-kill` (player, weapon), `match-started`, `match-ended` (winner, scores). Each group can be toggled in setup.
 
+### Widget (1)
+
+Match HUD: a broadcast-style scorebug (team scores, round, phase and clock), a player plate (health bar, loadout, money and KDA) and status pills (alive state, place, bomb, smoke, fire, kit) with a session footer. Sections and compact mode are configurable per widget.
+
 Deliberately out of scope: Steam Web API history (needs an API key and offers no live data; GSI is the live API) and sending commands into the game (CS2 exposes no such channel).
 
 ## Requirements

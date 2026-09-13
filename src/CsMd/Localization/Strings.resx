@@ -579,4 +579,52 @@
   <data name="Config.DefaultValueHint" xml:space="preserve">
     <value>Default: {value}</value>
   </data>
+  <data name="Widget.MatchHud.Name" xml:space="preserve">
+    <value>Match HUD</value>
+  </data>
+  <data name="Widget.MatchHud.Description" xml:space="preserve">
+    <value>Live match scorebug, player plate and status pills.</value>
+  </data>
+  <data name="Widget.State.Alive" xml:space="preserve">
+    <value>ALIVE</value>
+  </data>
+  <data name="Widget.State.Dead" xml:space="preserve">
+    <value>OUT</value>
+  </data>
+  <data name="Widget.NoData.Caption" xml:space="preserve">
+    <value>Waiting for match data</value>
+  </data>
+  <data name="Widget.Effects.Smoked" xml:space="preserve">
+    <value>SMOKED</value>
+  </data>
+  <data name="Widget.Effects.Burning" xml:space="preserve">
+    <value>BURNING</value>
+  </data>
+  <data name="Widget.Effects.DefuseKit" xml:space="preserve">
+    <value>KIT</value>
+  </data>
+  <data name="Widget.Config.LookHeading" xml:space="preserve">
+    <value>Sections</value>
+  </data>
+  <data name="Widget.Config.ShowScore" xml:space="preserve">
+    <value>Scorebug</value>
+  </data>
+  <data name="Widget.Config.ShowScoreDescription" xml:space="preserve">
+    <value>Team scores, round number and map phase.</value>
+  </data>
+  <data name="Widget.Config.ShowPlayer" xml:space="preserve">
+    <value>Player plate</value>
+  </data>
+  <data name="Widget.Config.ShowPlayerDescription" xml:space="preserve">
+    <value>Name, health bar, loadout and money line.</value>
+  </data>
+  <data name="Widget.Config.ShowStatus" xml:space="preserve">
+    <value>Status pills</value>
+  </data>
+  <data name="Widget.Config.ShowStatusDescription" xml:space="preserve">
+    <value>Alive state, place, bomb and effect pills plus session line.</value>
+  </data>
+  <data name="Widget.Config.CompactMode" xml:space="preserve">
+    <value>Compact mode</value>
+  </data>
 </root>
