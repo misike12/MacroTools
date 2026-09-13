@@ -929,7 +929,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			!string.IsNullOrEmpty(snapshot.PlaceName),
 			coords,
 			!string.IsNullOrEmpty(coords),
-			JoinParts(coords, snapshot.PositionSource.ToUpperInvariant()),
+			coords,
 			(bomb ?? string.Empty).ToUpperInvariant(),
 			!string.IsNullOrEmpty(bomb),
 			BombProgressOf(snapshot),

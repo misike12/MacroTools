@@ -158,6 +158,52 @@ public sealed class GsiTests
 	}
 
 	[Test]
+	public async Task Terminal_bomb_states_hide_outside_round_end()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		Task<HttpResponseMessage> Post(object body) =>
+			http.PostAsync(uri, JsonContent.Create(body), ct);
+		Task<GsiSnapshot> Snap() => WaitForSnapshotAsync(gsi, ct);
+
+		await Post(new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 6 },
+			round = new { phase = "freezetime" },
+			bomb = new { state = "defused" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		});
+		Assert.That((await Snap()).BombState, Is.Null);
+
+		await Post(new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 6 },
+			round = new { phase = "over", win_team = "CT" },
+			bomb = new { state = "defused" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		});
+		Assert.That((await Snap()).BombState, Is.EqualTo("defused"));
+	}
+
+	[Test]
 	public async Task Top_level_round_wins_win_over_nested()
 	{
 		using var gsi = new GsiService(TestLogger());

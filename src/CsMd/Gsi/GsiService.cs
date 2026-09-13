@@ -1093,6 +1093,23 @@ public sealed class GsiService : IDisposable
 		return direct.Length > 0 ? direct : NormalizeBomb(payload.Round?.Bomb);
 	}
 
+	private static string DisplayBombState(GsiPayload payload)
+	{
+		var state = CurrentBombState(payload);
+		if (state.Length == 0)
+		{
+			return state;
+		}
+
+		if ((state == "defused" || state == "exploded")
+			&& !string.Equals(payload.Round?.Phase, "over", StringComparison.OrdinalIgnoreCase))
+		{
+			return string.Empty;
+		}
+
+		return state;
+	}
+
 	private static string RoundHistoryOf(GsiPayload payload)
 	{
 		var wins = payload.MapRoundWins ?? payload.Map?.RoundWins;
@@ -1268,7 +1285,7 @@ public sealed class GsiService : IDisposable
 			payload.Map?.Name, payload.Map?.Mode, payload.Map?.Phase, payload.Map?.Round ?? 0,
 			payload.Map?.TeamCt?.Score ?? 0, payload.Map?.TeamT?.Score ?? 0,
 			payload.Map?.TeamCt?.Name, payload.Map?.TeamT?.Name,
-			payload.Round?.Phase, CurrentBombState(payload) is { Length: > 0 } b ? b : null,
+			payload.Round?.Phase, DisplayBombState(payload) is { Length: > 0 } b ? b : null,
 			phaseEndsIn,
 			focus is not null,
 			focus?.Name, NormalizeTeam(focus?.Team),
