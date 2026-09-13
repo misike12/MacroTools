@@ -556,23 +556,8 @@ public sealed class GsiService : IDisposable
 		}
 	}
 
-	private long _dumpCount;
-
-	private void DumpForDiagnostics(byte[] body)
-	{
-		try
-		{
-			var taken = (int)(Interlocked.Increment(ref _dumpCount) % 30);
-			File.WriteAllBytes(Path.Combine(Path.GetTempPath(), $"csmd-ring-{taken}.json"), body);
-		}
-		catch (Exception)
-		{
-		}
-	}
-
 	private void EnqueueJson(byte[] body)
 	{
-		DumpForDiagnostics(body);
 		GsiPayload? payload;
 		try
 		{
@@ -1065,6 +1050,9 @@ public sealed class GsiService : IDisposable
 		Map: new GsiMap("competitive", "de_mirage", "live", 5,
 			new GsiTeam(3, "CTs", 1, 0), new GsiTeam(1, "Ts", 1, 0), 13),
 		Round: new GsiRound("live", null, null),
+		// A genuine point inside Mirage Middle (center of its env_cs_place volume),
+		// so Simulate demonstrates coordinates and place lookup the way a
+		// spectator feed would. Real player feeds carry no position at all.
 		Player: new GsiPlayer("76561198000000000", "TestPlayer", null, 1, "CT", "playing",
 			new GsiPlayerState(100, 100, true, 0, 0, 0, 800, 0, 0, 0, 4700, false),
 			new Dictionary<string, GsiWeapon>
@@ -1072,7 +1060,7 @@ public sealed class GsiService : IDisposable
 				["weapon_0"] = new("weapon_ak47", "default", "Rifle", "active", 30, 30, 90),
 				["weapon_1"] = new("weapon_knife_karambit", null, "Knife", "holstered", null, null, null),
 			},
-			new GsiMatchStats(4, 1, 2, 0, 10), null, null),
+			new GsiMatchStats(4, 1, 2, 0, 10), null, "-503, -735, -148"),
 		AllPlayers: null,
 		PhaseCountdowns: new GsiPhaseCountdowns("live", 95.5),
 		Grenades: null,

@@ -49,6 +49,9 @@ public sealed class PluginIntegrationTests
 		Assert.That((await integration.ReadAsync("health")).Value, Is.EqualTo(100.0));
 		Assert.That((await integration.ReadAsync("weapon")).Value, Is.EqualTo("ak47"));
 		Assert.That((await integration.ReadAsync("map-name")).Value, Is.EqualTo("de_mirage"));
+		Assert.That((await integration.ReadAsync("pos-x")).Value, Is.EqualTo(-503.0));
+		Assert.That((await integration.ReadAsync("pos-y")).Value, Is.EqualTo(-735.0));
+		Assert.That((await integration.ReadAsync("pos-z")).Value, Is.EqualTo(-148.0));
 		Assert.That((await integration.ReadAsync("gsi-connected")).Value, Is.EqualTo(true));
 
 		var reset = await harness.Actions.ExecuteAsync(

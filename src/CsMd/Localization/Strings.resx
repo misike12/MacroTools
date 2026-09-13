@@ -28,7 +28,7 @@
     <value>Simulate a match</value>
   </data>
   <data name="Actions.SimulateMatch.Description" xml:space="preserve">
-    <value>Inject fake live match data for testing the deck without running the game.</value>
+    <value>Inject fake live match data for testing the deck without running the game. Includes a Mirage Middle position so coordinates and place can be arranged.</value>
   </data>
   <data name="Errors.CommandFailed" xml:space="preserve">
     <value>The command could not be completed.</value>
@@ -235,19 +235,19 @@
     <value>Position X</value>
   </data>
   <data name="Variables.PosX.Description" xml:space="preserve">
-    <value>X coordinate of the followed player on the map.</value>
+    <value>X coordinate of the followed player on the map. The game only sends positions while spectating, so this reads unavailable while playing.</value>
   </data>
   <data name="Variables.PosY.DisplayName" xml:space="preserve">
     <value>Position Y</value>
   </data>
   <data name="Variables.PosY.Description" xml:space="preserve">
-    <value>Y coordinate of the followed player on the map.</value>
+    <value>Y coordinate of the followed player on the map. The game only sends positions while spectating, so this reads unavailable while playing.</value>
   </data>
   <data name="Variables.PosZ.DisplayName" xml:space="preserve">
     <value>Position Z</value>
   </data>
   <data name="Variables.PosZ.Description" xml:space="preserve">
-    <value>Height of the followed player on the map.</value>
+    <value>Height of the followed player on the map. The game only sends positions while spectating, so this reads unavailable while playing.</value>
   </data>
   <data name="Variables.BombCountdown.DisplayName" xml:space="preserve">
     <value>Bomb countdown</value>
@@ -265,7 +265,7 @@
     <value>Place</value>
   </data>
   <data name="Variables.PlaceName.Description" xml:space="preserve">
-    <value>Named map area of the followed player, e.g. Mid or Bombsite A.</value>
+    <value>Named map area of the followed player, e.g. Mid or Bombsite A. Needs a position from the game, which it only sends while spectating.</value>
   </data>
   <data name="Variables.SessionKills.DisplayName" xml:space="preserve">
     <value>Session kills</value>

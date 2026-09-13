@@ -135,6 +135,8 @@ Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_rou
 
 Place names (`Mid`, `Bombsite A`, …) come from the map's own `env_cs_place` volumes, read out of the game files the same way community tools do it — every tagged official map is covered, workshop maps too when their mapper tagged them. Kills and deaths carry their place too.
 
+One Valve rule shapes the position variables: the game only sends coordinates and the `allplayers` block to spectators (GOTV or observing a match). While you are playing, alive or dead, `pos_x`, `pos_y`, `pos_z` and `place_name` read unavailable, because the game never sends them. Spectate any match and they populate live; the **Simulate a match** action injects a Mirage Middle position so the tiles can be arranged and verified without the game.
+
 ### Events (11)
 
 `round-started`, `round-ended`, `round-won` / `round-lost` (only when your team is known), `bomb-planted` (site), `bomb-defused`, `bomb-exploded`, `player-died`, `player-kill` (player, weapon), `match-started`, `match-ended` (winner, scores). Each group can be toggled in setup.
