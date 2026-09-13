@@ -289,6 +289,12 @@ public sealed class GsiTests
 	}
 
 	[Test]
+	public void Position_helper_uses_plain_getpos()
+	{
+		Assert.That(GsiConfig.PositionCommands(), Is.EqualTo("getpos\n"));
+	}
+
+	[Test]
 	public void Cfg_renders_with_and_without_token()
 	{
 		var plain = GsiConfig.Render(32075, null);

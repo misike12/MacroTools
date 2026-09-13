@@ -83,7 +83,10 @@ public static class GsiConfig
 		}
 	}
 
-	public static string PositionCommands() => "getpos_exact\n";
+	// Plain getpos on purpose: getpos_exact is cheat-gated and the game silently
+	// ignores it on any server without sv_cheats, including official matchmaking.
+	// Plain getpos prints the same setpos line everywhere.
+	public static string PositionCommands() => "getpos\n";
 
 	public static string PositionBindLine(int scanCode) => $"+bind scancode{scanCode} exec {Path.GetFileNameWithoutExtension(PositionFileName)}";
 
