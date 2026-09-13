@@ -317,6 +317,7 @@ internal static class MatchHudView
 				],
 			},
 		});
+		body.Add(MicroLine(content, "map", () => content.Value.MapLine));
 
 		return new UiStack
 		{
@@ -430,6 +431,7 @@ internal static class MatchHudView
 			new UiStack
 			{
 				Key = "hp-chart-box",
+				Fill = true,
 				Children =
 				[
 					new UiChart
@@ -445,6 +447,7 @@ internal static class MatchHudView
 			new UiStack
 			{
 				Key = "dmg-chart-box",
+				Fill = true,
 				Children =
 				[
 					new UiChart

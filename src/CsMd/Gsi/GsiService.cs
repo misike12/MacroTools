@@ -1268,7 +1268,7 @@ public sealed class GsiService : IDisposable
 		var active = entry is not null ? StripWeaponPrefix(entry.Name ?? string.Empty) : string.Empty;
 		var ammoClip = entry?.AmmoClip ?? -1;
 		var ammoReserve = entry?.AmmoReserve ?? -1;
-		var weaponType = entry?.Type ?? string.Empty;
+		var weaponType = PlaceStore.Prettify(entry?.Type ?? string.Empty);
 
 		var smokes = 0;
 		var fire = 0;

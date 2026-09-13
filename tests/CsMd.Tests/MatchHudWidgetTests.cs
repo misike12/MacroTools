@@ -60,6 +60,7 @@ public sealed class MatchHudWidgetTests
 
 		Assert.That(content.Connected, Is.True);
 		Assert.That(content.MapLine, Is.EqualTo("DE_MIRAGE · COMPETITIVE"));
+		Assert.That(content.MapLine, Is.EqualTo("DE_MIRAGE · COMPETITIVE"));
 		Assert.That(content.RoundText, Is.EqualTo("R5"));
 		Assert.That(content.CtScore, Is.EqualTo(3));
 		Assert.That(content.TScore, Is.EqualTo(1));
