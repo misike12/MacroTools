@@ -485,7 +485,7 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "player",
-			Gap = 0.02,
+			Gap = 0.035,
 			Children = body,
 		};
 	}
