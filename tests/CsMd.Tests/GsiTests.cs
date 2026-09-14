@@ -491,6 +491,14 @@ public sealed class GsiTests
 		gsi.Start(0, null);
 		using var http = new HttpClient();
 		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var seen = new List<GsiMatchEvent>();
+		gsi.MatchEvent += (_, e) =>
+		{
+			lock (seen)
+			{
+				seen.Add(e);
+			}
+		};
 		var ct = TestContext.CurrentContext.CancellationToken;
 
 		await http.PostAsync(uri, JsonContent.Create(new
@@ -510,6 +518,72 @@ public sealed class GsiTests
 		var snapshot = await WaitForSnapshotAsync(gsi, ct);
 
 		Assert.That(snapshot.BombState, Is.EqualTo("planted"));
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+		GsiMatchEvent? planted = null;
+		while (DateTimeOffset.UtcNow < deadline && planted is null)
+		{
+			await Task.Delay(50, ct);
+			lock (seen)
+			{
+				planted = seen.FirstOrDefault(e => e.EventId == GsiEventIds.BombPlanted);
+			}
+		}
+
+		Assert.That(planted, Is.Not.Null);
+		Assert.That(planted!.Payload["site"], Is.EqualTo(string.Empty));
+	}
+
+	[Test]
+	public async Task Bomb_site_keeps_only_real_sites()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var seen = new List<GsiMatchEvent>();
+		gsi.MatchEvent += (_, e) =>
+		{
+			lock (seen)
+			{
+				seen.Add(e);
+			}
+		};
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		Task<HttpResponseMessage> Post(object body) =>
+			http.PostAsync(uri, JsonContent.Create(body), ct);
+		object State(string? bomb, string? roundBomb) => new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },
+			round = new { phase = "live", bomb = roundBomb },
+			bomb = bomb is null ? null : new { state = bomb },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		};
+
+		await Post(State("carried", null));
+		await Post(State("planted", "b"));
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		GsiMatchEvent? planted = null;
+		while (DateTimeOffset.UtcNow < deadline && planted is null)
+		{
+			await Task.Delay(50, ct);
+			lock (seen)
+			{
+				planted = seen.FirstOrDefault(e => e.EventId == GsiEventIds.BombPlanted);
+			}
+		}
+
+		Assert.That(planted, Is.Not.Null);
+		Assert.That(planted!.Payload["site"], Is.EqualTo("B"));
 	}
 
 	[Test]

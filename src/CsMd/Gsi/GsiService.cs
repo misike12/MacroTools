@@ -878,7 +878,7 @@ public sealed class GsiService : IDisposable
 			{
 				events.Add(new GsiMatchEvent(bombEvent, new Dictionary<string, object?>
 				{
-					["site"] = current.Round?.Bomb ?? string.Empty,
+					["site"] = BombSiteOf(current.Round?.Bomb),
 				}));
 			}
 		}
@@ -1258,6 +1258,13 @@ public sealed class GsiService : IDisposable
 		|| payload.Grenades is not null
 		|| payload.AllGrenades is not null
 		|| payload.Bomb is not null;
+
+	private static string BombSiteOf(string? site) => site?.Trim().ToUpperInvariant() switch
+	{
+		"A" => "A",
+		"B" => "B",
+		_ => string.Empty,
+	};
 
 	private static string CurrentBombState(GsiPayload payload)
 	{
