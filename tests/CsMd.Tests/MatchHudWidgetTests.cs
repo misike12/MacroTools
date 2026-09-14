@@ -29,6 +29,14 @@ public sealed class MatchHudWidgetTests
 		Assert.That(MatchHudWidget.SanitizeDisplay("Mag1c <3"), Is.EqualTo("Mag1c ‹3"));
 		Assert.That(MatchHudWidget.SanitizeDisplay("a>b"), Is.EqualTo("a›b"));
 		Assert.That(MatchHudWidget.SanitizeDisplay("Fish & Chips"), Is.EqualTo("Fish ＆ Chips"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("say \"hi\""), Is.EqualTo("say ″hi″"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("O'Neil"), Is.EqualTo("O′Neil"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("a" + (char)0x200B + "b" + (char)0x200F + "c"), Is.EqualTo("abc"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("a" + (char)0x202E + "b"), Is.EqualTo("ab"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("a" + (char)0xFEFF + "b"), Is.EqualTo("ab"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("a\nb\tc"), Is.EqualTo("abc"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("  padded  "), Is.EqualTo("padded"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("Árvíztűrő 🔥 s1mple"), Is.EqualTo("Árvíztűrő 🔥 s1mple"));
 		Assert.That(MatchHudWidget.SanitizeDisplay("plain"), Is.EqualTo("plain"));
 		Assert.That(MatchHudWidget.SanitizeDisplay(null), Is.Empty);
 		Assert.That(MatchHudWidget.SanitizeDisplay(string.Empty), Is.Empty);

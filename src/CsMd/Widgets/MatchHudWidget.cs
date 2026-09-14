@@ -1009,8 +1009,44 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			return string.Empty;
 		}
 
-		return value.Replace('&', '＆').Replace('<', '‹').Replace('>', '›');
+		var builder = new System.Text.StringBuilder(value.Length);
+		foreach (var ch in value)
+		{
+			switch (ch)
+			{
+				case '<':
+					builder.Append('‹');
+					break;
+				case '>':
+					builder.Append('›');
+					break;
+				case '&':
+					builder.Append('＆');
+					break;
+				case '"':
+					builder.Append('″');
+					break;
+				case '\'':
+					builder.Append('′');
+					break;
+				default:
+					if (!char.IsControl(ch) && !IsInvisibleFormat(ch))
+					{
+						builder.Append(ch);
+					}
+
+					break;
+			}
+		}
+
+		return builder.ToString().Trim();
 	}
+
+	private static bool IsInvisibleFormat(char ch) =>
+		(ch >= (char)0x200B && ch <= (char)0x200F)
+		|| (ch >= (char)0x202A && ch <= (char)0x202E)
+		|| (ch >= (char)0x2066 && ch <= (char)0x2069)
+		|| ch == (char)0xFEFF;
 
 	public static string NormalizeTeam(string? team) => team?.ToUpperInvariant() switch
 	{
