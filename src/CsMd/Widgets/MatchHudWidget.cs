@@ -415,48 +415,32 @@ internal static class MatchHudView
 				Weight = UiComponentTextWeights.SemiBold,
 				Align = UiComponentAlignments.Center,
 			},
-			new UiLayer
+			new UiGauge
 			{
-				Key = "hp-gauge-layer",
-				MainSize = UiSize.Capped(0.26, 104),
-				Children =
-				[
-					new UiGauge
-					{
-						Key = "hp-gauge",
-						Level = UiValue.From(() => content.Value.HpFrac),
-						LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-						Thickness = 0.045,
-						Fallback = new UiRangeBar
-						{
-							Key = "hp-gauge-fallback",
-							Start = UiValue.Of(0.0),
-							End = UiValue.From(() => content.Value.HpFrac),
-							StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-							EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-							Thickness = 0.035,
-						},
-					},
-					new UiStack
-					{
-						Key = "hp-gauge-label",
-						Justify = UiComponentJustify.Center,
-						Align = UiComponentAlignments.Center,
-						Children =
-						[
-							new UiTextRun
-							{
-								Key = "hp-gauge-number",
-								Text = UiText.From(() => content.Value.HpText),
-								Size = options.Compact ? UiSize.Capped(0.14, 20) : UiSize.Capped(0.17, 26),
-								Weight = UiComponentTextWeights.SemiBold,
-								Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
-								Digits = UiValue.Of(3.0),
-								Align = UiComponentAlignments.Center,
-							},
-						],
-					},
-				],
+				Key = "hp-gauge",
+				Level = UiValue.From(() => content.Value.HpFrac),
+				LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+				Thickness = 0.045,
+				MainSize = UiSize.Capped(0.24, 96),
+				Fallback = new UiRangeBar
+				{
+					Key = "hp-gauge-fallback",
+					Start = UiValue.Of(0.0),
+					End = UiValue.From(() => content.Value.HpFrac),
+					StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+					EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+					Thickness = 0.035,
+				},
+			},
+			new UiTextRun
+			{
+				Key = "hp-line",
+				Text = UiText.From(() => content.Value.HpText),
+				Size = options.Compact ? UiSize.Capped(0.14, 20) : UiSize.Capped(0.17, 26),
+				Weight = UiComponentTextWeights.SemiBold,
+				Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
+				Digits = UiValue.Of(3.0),
+				Align = UiComponentAlignments.Center,
 			},
 			new UiWhen
 			{
