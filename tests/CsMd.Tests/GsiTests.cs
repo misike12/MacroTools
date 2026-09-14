@@ -89,7 +89,105 @@ public sealed class GsiTests
 	}
 
 	[Test]
-	public async Task Round_bomb_fills_in_for_a_missing_bomb_block()
+	public async Task Streaks_top_weapon_rounds_and_damage_track()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		Task<HttpResponseMessage> Post(object body) =>
+			http.PostAsync(uri, JsonContent.Create(body), ct);
+		object State(int health, int kills, int deaths, int damage, string weapon) => new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },
+			round = new { phase = "live" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				clan = "TAG",
+				team = "CT",
+				state = new { health, armor = 100, helmet = true, money = 2400, round_kills = kills, round_killhs = 0, round_totaldmg = damage, equip_value = 4500 },
+				weapons = new Dictionary<string, object>
+				{
+					["weapon_0"] = new { name = weapon, type = "Rifle", state = "active", ammo_clip = 30, ammo_reserve = 90 },
+				},
+				match_stats = new { kills, assists = 0, deaths, mvps = 0, score = kills * 2 },
+			},
+		};
+
+		await Post(State(100, 0, 0, 0, "weapon_ak47"));
+		await Post(State(100, 2, 0, 250, "weapon_ak47"));
+		await Post(State(0, 2, 1, 250, "weapon_ak47"));
+		await Post(State(100, 3, 1, 60, "weapon_awp"));
+
+		var snapshot = await WaitForSnapshotAsync(gsi, ct);
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+		while ((snapshot.KillStreak != 1 || snapshot.BestStreak != 2) && DateTimeOffset.UtcNow < deadline)
+		{
+			await Task.Delay(50, ct);
+			snapshot = gsi.Snapshot();
+		}
+
+		Assert.That(snapshot.KillStreak, Is.EqualTo(1));
+		Assert.That(snapshot.BestStreak, Is.EqualTo(2));
+		Assert.That(snapshot.TopWeapon, Is.EqualTo("AK-47"));
+		Assert.That(snapshot.TopWeaponKills, Is.EqualTo(2));
+		Assert.That(snapshot.Clan, Is.EqualTo("TAG"));
+		Assert.That(snapshot.RoundsPlayed, Is.EqualTo(1));
+
+		gsi.ResetSessionStats();
+		snapshot = gsi.Snapshot();
+		Assert.That(snapshot.KillStreak, Is.EqualTo(0));
+		Assert.That(snapshot.BestStreak, Is.EqualTo(0));
+		Assert.That(snapshot.TopWeapon, Is.Null);
+		Assert.That(snapshot.RoundsPlayed, Is.EqualTo(0));
+		Assert.That(snapshot.SessionDamage, Is.EqualTo(0));
+	}
+
+	[Test]
+	public async Task Round_change_banks_previous_round_damage()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		Task<HttpResponseMessage> Post(int round, int damage) => http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round },
+			round = new { phase = "live" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100, round_totaldmg = damage },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		}), ct);
+
+		await Post(5, 300);
+		await Post(6, 20);
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+		GsiSnapshot snapshot;
+		do
+		{
+			await Task.Delay(50, ct);
+			snapshot = gsi.Snapshot();
+		}
+		while (snapshot.SessionDamage != 300 && DateTimeOffset.UtcNow < deadline);
+
+		Assert.That(snapshot.SessionDamage, Is.EqualTo(300));
+		Assert.That(snapshot.RoundsPlayed, Is.EqualTo(2));
+	}
+
+	[Test]
+	public async Task Timeout_grenade_countdown_clan_surface()
 	{
 		using var gsi = new GsiService(TestLogger());
 		gsi.Start(0, null);
@@ -99,21 +197,40 @@ public sealed class GsiTests
 
 		await http.PostAsync(uri, JsonContent.Create(new
 		{
-			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },
-			round = new { phase = "over", bomb = "planted" },
+			map = new
+			{
+				mode = "competitive",
+				name = "de_mirage",
+				phase = "live",
+				round = 5,
+				team_ct = new { score = 3, timeouts_remaining = 2 },
+				team_t = new { score = 1, timeouts_remaining = 0 },
+			},
+			round = new { phase = "live" },
 			player = new
 			{
 				steamid = "76561198000000000",
 				name = "Me",
+				clan = "TAG",
 				team = "CT",
 				state = new { health = 100 },
 				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+			phase_countdowns = new { phase = "live", phase_ends_in = 100.0 },
+			grenades = new Dictionary<string, object>
+			{
+				["1"] = new { owner = "1", type = "smoke", lifetime = 18.0, effecttime = 12.0 },
+				["2"] = new { owner = "1", type = "flashbang", lifetime = 1.0, effecttime = 0.0 },
 			},
 		}), ct);
 
 		var snapshot = await WaitForSnapshotAsync(gsi, ct);
 
-		Assert.That(snapshot.BombState, Is.EqualTo("planted"));
+		Assert.That(snapshot.TimeoutsCt, Is.EqualTo(2));
+		Assert.That(snapshot.TimeoutsT, Is.EqualTo(0));
+		Assert.That(snapshot.CountdownPhase, Is.EqualTo("live"));
+		Assert.That(snapshot.GrenadesActive, Is.EqualTo(2));
+		Assert.That(snapshot.Clan, Is.EqualTo("TAG"));
 	}
 
 	[Test]
@@ -232,6 +349,34 @@ public sealed class GsiTests
 		var snapshot = await WaitForSnapshotAsync(gsi, ct);
 
 		Assert.That(snapshot.WeaponType, Is.EqualTo("Sniper Rifle"));
+	}
+
+	[Test]
+	public async Task Round_bomb_fills_in_for_a_missing_bomb_block()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },
+			round = new { phase = "over", bomb = "planted" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		}), ct);
+
+		var snapshot = await WaitForSnapshotAsync(gsi, ct);
+
+		Assert.That(snapshot.BombState, Is.EqualTo("planted"));
 	}
 
 	[Test]

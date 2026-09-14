@@ -19,13 +19,16 @@ namespace CsMd.Widgets;
 
 public sealed record MatchHudOptions(
 	bool ShowScore,
+	bool ShowHistory,
 	bool ShowPlayer,
 	bool ShowCharts,
 	bool ShowStatus,
+	bool ShowSession,
 	bool ShowFeed,
+	int FeedCount,
 	bool Compact)
 {
-	public static MatchHudOptions Default { get; } = new(true, true, true, true, true, false);
+	public static MatchHudOptions Default { get; } = new(true, true, true, true, true, true, true, 3, false);
 
 	public static MatchHudOptions FromData(JsonElement data)
 	{
@@ -36,10 +39,13 @@ public sealed record MatchHudOptions(
 
 		return new MatchHudOptions(
 			ShowScore: ReadFlag(data, "showScore", true),
+			ShowHistory: ReadFlag(data, "showHistory", true),
 			ShowPlayer: ReadFlag(data, "showPlayer", true),
 			ShowCharts: ReadFlag(data, "showCharts", true),
 			ShowStatus: ReadFlag(data, "showStatus", true),
+			ShowSession: ReadFlag(data, "showSession", true),
 			ShowFeed: ReadFlag(data, "showFeed", true),
+			FeedCount: ReadCount(data),
 			Compact: ReadFlag(data, "compactMode", false));
 	}
 
@@ -47,6 +53,22 @@ public sealed record MatchHudOptions(
 		data.TryGetProperty(name, out var element) && element.ValueKind is JsonValueKind.True or JsonValueKind.False
 			? element.GetBoolean()
 			: fallback;
+
+	private static int ReadCount(JsonElement data)
+	{
+		if (data.TryGetProperty("feedCount", out var element) && element.ValueKind == JsonValueKind.Number)
+		{
+			try
+			{
+				return Math.Clamp((int)element.GetDouble(), 1, 5);
+			}
+			catch (Exception)
+			{
+			}
+		}
+
+		return Default.FeedCount;
+	}
 }
 
 public sealed record RoundDot(string Key, string Glyph, string? Color);
@@ -66,7 +88,7 @@ public sealed record MatchHudContent(
 	bool HasTimer,
 	IReadOnlyList<RoundDot> HistoryDots,
 	bool HasHistory,
-	string PlayerName,
+	string NameLine,
 	string PlayerTeam,
 	bool Alive,
 	bool HasPlayer,
@@ -77,6 +99,7 @@ public sealed record MatchHudContent(
 	string LoadoutLine,
 	string MoneyLine,
 	string RoundLine,
+	MacroDeck.Localization.LocalizedString? TopWeaponLine,
 	string PlaceText,
 	bool HasPlace,
 	string CoordsLine,
@@ -91,12 +114,16 @@ public sealed record MatchHudContent(
 	bool Flashed,
 	bool Helmet,
 	bool DefuseKit,
+	int Streak,
+	bool HasStreak,
 	string SessionLine,
 	IReadOnlyList<double> HpHistory,
 	bool HasHpHistory,
 	IReadOnlyList<double> DmgHistory,
 	string DmgCaption,
 	bool HasDmgHistory,
+	IReadOnlyList<double> MoneyHistory,
+	bool HasMoneyHistory,
 	IReadOnlyList<FeedItem> FeedItems,
 	bool HasFeed,
 	MatchHudOptions Options)
@@ -104,30 +131,30 @@ public sealed record MatchHudContent(
 	public static MatchHudContent Empty { get; } = new(
 		false, string.Empty, "CT", 0, "T", 0, string.Empty, string.Empty, string.Empty, false,
 		[], false,
-		string.Empty, string.Empty, false, false, 0, string.Empty, 0, string.Empty, string.Empty, string.Empty, string.Empty,
+		string.Empty, string.Empty, false, false, 0, string.Empty, 0, string.Empty, string.Empty, string.Empty, string.Empty, null,
 		string.Empty, false, string.Empty, false, string.Empty, string.Empty, false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
-		false, false, false, false, false, string.Empty,
-		[], false, [], string.Empty, false, [], false,
+		false, false, false, false, false, 0, false, string.Empty,
+		[], false, [], string.Empty, false, [], false, [], false,
 		MatchHudOptions.Default);
 
 	public static MatchHudContent SampleLive { get; } = new(
 		true, "DE_MIRAGE · COMPETITIVE", "NAVI", 9, "FAZE", 7, "R17", "LIVE", "1:23", true,
 		[new RoundDot("1", "●", "#4ADE80"), new RoundDot("2", "●", "#4ADE80"), new RoundDot("3", "●", "#F87171")], true,
-		"s1mple", "CT", true, true, 0.87, "87", 1.0, "100", "AWP · Rifle · 5 / 30", "$4,700 · 18 / 9 / 4", "R17 · +2 · 250",
+		"s1mple [NAVI]", "CT", true, true, 0.87, "87", 1.0, "100", "AWP · Rifle · 5 / 30", "$4,700 · 18 / 9 / 4", "R17 · +2 · 250", Strings.Widget.TopWeapon.Line("AWP", 14),
 		"Middle", true, "512 · -735 · -148", true, "CONSOLE", "CARRIED", false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
-		false, false, false, true, true, "K 18 · D 9 · 2.00",
-		[0.9, 0.85, 0.87, 0.6, 0.62, 0.87], true, [0.2, 0.5, 0.3], "250 / 400", true,
+		false, false, false, true, true, 4, true, "K 18 · D 9 · 2.00",
+		[0.9, 0.85, 0.87, 0.6, 0.62, 0.87], true, [0.2, 0.5, 0.3], "250 / 400", true, [0.1, 0.2, 0.29], true,
 		[new FeedItem("f2", Strings.Widget.Feed.Kill("s1mple", "AWP", "Middle")), new FeedItem("f1", Strings.Widget.Feed.RoundWon())], true,
 		MatchHudOptions.Default);
 
 	public static MatchHudContent SampleBomb { get; } = new(
 		true, "DE_DUST2 · COMPETITIVE", "CTs", 11, "Ts", 9, "R21", "LIVE", "0:32", true,
 		[], false,
-		"misuuu", "T", false, true, 0, "0", 0, "0", "AK-47 · Rifle · 0 / 90", "$800 · 14 / 12 / 3", "R21 · +0 · 0",
+		"misuuu", "T", false, true, 0, "0", 0, "0", "AK-47 · Rifle · 0 / 90", "$800 · 14 / 12 / 3", "R21 · +0 · 0", null,
 		"Bombsite A", true, string.Empty, false, string.Empty, "PLANTED", true,
 		new UiProgressReference { PositionMs = 8000, Anchor = DateTimeOffset.UtcNow, DurationMs = 40000, Rate = 1 }, true,
-		false, false, false, false, false, "K 14 · D 12 · 1.17",
-		[], false, [], string.Empty, false, [new FeedItem("f1", Strings.Widget.Feed.BombPlanted("B"))], true,
+		false, false, false, false, false, 0, false, "K 14 · D 12 · 1.17",
+		[], false, [], string.Empty, false, [], false, [new FeedItem("f1", Strings.Widget.Feed.BombPlanted("B"))], true,
 		MatchHudOptions.Default);
 
 	public static string FormatClock(double seconds)
@@ -212,7 +239,12 @@ internal static class MatchHudView
 
 		if (options.ShowCharts && !options.Compact)
 		{
-			body.Add(Charts(content));
+			body.Add(new UiWhen
+			{
+				Key = "charts-when",
+				Condition = () => content.Value.HasHpHistory || content.Value.HasDmgHistory || content.Value.HasMoneyHistory,
+				Content = () => Charts(content),
+			});
 		}
 
 		if (options.ShowStatus)
@@ -292,7 +324,7 @@ internal static class MatchHudView
 		body.Add(new UiWhen
 		{
 			Key = "history-when",
-			Condition = () => content.Value.HasHistory,
+			Condition = () => options.ShowHistory && content.Value.HasHistory,
 			Content = () => new UiStack
 			{
 				Key = "history",
@@ -375,7 +407,7 @@ internal static class MatchHudView
 					new UiTextRun
 					{
 						Key = "player-name",
-						Text = UiText.From(() => content.Value.PlayerName),
+						Text = UiText.From(() => content.Value.NameLine),
 						Size = options.Compact ? UiSize.Capped(0.11, 14) : UiSize.Capped(0.13, 17),
 						Weight = UiComponentTextWeights.SemiBold,
 						Align = UiComponentAlignments.Center,
@@ -386,49 +418,52 @@ internal static class MatchHudView
 						Text = UiText.From(() => content.Value.HpText),
 						Size = options.Compact ? UiSize.Capped(0.16, 22) : UiSize.Capped(0.2, 30),
 						Weight = UiComponentTextWeights.SemiBold,
-						Color = UiValue.From(() => content.Value.HpFrac > 0.5
-							? MatchHudColors.Good
-							: content.Value.HpFrac > 0.25 ? MatchHudColors.Warn : MatchHudColors.Bad),
+						Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
 						Digits = UiValue.Of(3.0),
 						Align = UiComponentAlignments.Center,
 					},
 				],
 			},
-			new UiStack
+			new UiRangeBar
 			{
-				Key = "bars",
-				Gap = 0.035,
-				Children =
-				[
-					new UiRangeBar
-					{
-						Key = "hp-bar",
-						Start = UiValue.Of(0.0),
-						End = UiValue.From(() => content.Value.HpFrac),
-						StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-						EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-						Thickness = 0.035,
-					},
-					new UiWhen
-					{
-						Key = "armor-bar-when",
-						Condition = () => content.Value.ArmorFrac > 0,
-						Content = () => new UiRangeBar
-						{
-							Key = "armor-bar",
-							Start = UiValue.Of(0.0),
-							End = UiValue.From(() => content.Value.ArmorFrac),
-							StartColor = UiValue.Of("#93C5FD"),
-							EndColor = UiValue.Of("#93C5FD"),
-							Thickness = 0.018,
-						},
-					},
-				],
+				Key = "hp-bar",
+				Start = UiValue.Of(0.0),
+				End = UiValue.From(() => content.Value.HpFrac),
+				StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+				EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+				Thickness = 0.035,
+			},
+			new UiWhen
+			{
+				Key = "armor-bar-when",
+				Condition = () => content.Value.ArmorFrac > 0,
+				Content = () => new UiRangeBar
+				{
+					Key = "armor-bar",
+					Start = UiValue.Of(0.0),
+					End = UiValue.From(() => content.Value.ArmorFrac),
+					StartColor = UiValue.Of("#93C5FD"),
+					EndColor = UiValue.Of("#93C5FD"),
+					Thickness = 0.018,
+				},
 			},
 			MicroLine(content, "armor", () => content.Value.ArmorLine),
 			MicroLine(content, "loadout", () => content.Value.LoadoutLine),
 			MicroLine(content, "money", () => content.Value.MoneyLine),
 			MicroLine(content, "round-line", () => content.Value.RoundLine),
+			new UiWhen
+			{
+				Key = "topweapon-when",
+				Condition = () => content.Value.TopWeaponLine is not null,
+				Content = () => new UiTextRun
+				{
+					Key = "topweapon",
+					Text = UiText.FromLocalized(() => content.Value.TopWeaponLine ?? Strings.Widget.TopWeapon.Line(string.Empty, 0)),
+					Size = UiSize.Capped(0.08, 10),
+					Role = UiComponentTextRoles.Muted,
+					Align = UiComponentAlignments.Center,
+				},
+			},
 		};
 
 		return new UiStack
@@ -489,6 +524,22 @@ internal static class MatchHudView
 					},
 				],
 			},
+			new UiStack
+			{
+				Key = "money-chart-box",
+				Fill = true,
+				Children =
+				[
+					new UiChart
+					{
+						Key = "money-chart",
+						Points = UiValue.From(() => content.Value.MoneyHistory),
+						Color = UiValue.Of(MatchHudColors.Ct),
+						Thickness = 0.02,
+						MainSize = UiSize.Capped(0.1, 36),
+					},
+				],
+			},
 		],
 	};
 
@@ -505,6 +556,7 @@ internal static class MatchHudView
 			LocalizedPill("flashed", () => content.Value.Flashed, Strings.Widget.Effects.Flashed),
 			LocalizedPill("helm", () => content.Value.Helmet, Strings.Widget.Effects.Helmet),
 			LocalizedPill("defuse", () => content.Value.DefuseKit, Strings.Widget.Effects.DefuseKit),
+			LocalizedPill("streak", () => content.Value.HasStreak, () => Strings.Widget.Streak.Label(content.Value.Streak)),
 		};
 
 		var children = new List<UiElement>
@@ -527,7 +579,7 @@ internal static class MatchHudView
 		});
 		children.Add(MicroLine(content, "tracking", () => content.Value.TrackingLine));
 
-		if (!options.Compact)
+		if (options.ShowSession && !options.Compact)
 		{
 			children.Add(new UiTextRun
 			{
@@ -785,8 +837,8 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		"match-hud",
 		Strings.Widget.MatchHud.Name(),
 		Strings.Widget.MatchHud.Description(),
-		"""{"showScore":true,"showPlayer":true,"showCharts":true,"showStatus":true,"showFeed":true,"compactMode":false}""",
-		"""{"type":"object","properties":{"showScore":{"type":"boolean"},"showPlayer":{"type":"boolean"},"showCharts":{"type":"boolean"},"showStatus":{"type":"boolean"},"showFeed":{"type":"boolean"},"compactMode":{"type":"boolean"}}}""",
+		"""{"showScore":true,"showHistory":true,"showPlayer":true,"showCharts":true,"showStatus":true,"showSession":true,"showFeed":true,"feedCount":3,"compactMode":false}""",
+		"""{"type":"object","properties":{"showScore":{"type":"boolean"},"showHistory":{"type":"boolean"},"showPlayer":{"type":"boolean"},"showCharts":{"type":"boolean"},"showStatus":{"type":"boolean"},"showSession":{"type":"boolean"},"showFeed":{"type":"boolean"},"feedCount":{"type":"number"},"compactMode":{"type":"boolean"}}}""",
 		true,
 		new Dictionary<string, string>());
 	private static string? s_widgetTypeId;
@@ -878,12 +930,13 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 	}
 
 	public MatchHudContent BuildContent(MatchHudOptions options) =>
-		BuildContent(options, [], [], []);
+		BuildContent(options, [], [], [], []);
 
 	public MatchHudContent BuildContent(
 		MatchHudOptions options,
 		IReadOnlyList<double> hpHistory,
 		IReadOnlyList<double> dmgHistory,
+		IReadOnlyList<double> moneyHistory,
 		IReadOnlyList<FeedItem> feed)
 	{
 		GsiSnapshot snapshot;
@@ -927,6 +980,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		var coords = snapshot.HasPosition
 			? $"{snapshot.PosX:F0} · {snapshot.PosY:F0} · {snapshot.PosZ:F0}"
 			: string.Empty;
+		var facing = snapshot.FacingYaw is { } yaw ? $"{yaw:F0}°" : string.Empty;
 
 		return new MatchHudContent(
 			true,
@@ -938,7 +992,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			snapshot.PhaseEndsIn is { } ends ? MatchHudContent.FormatClock(ends) : string.Empty,
 			snapshot.PhaseEndsIn is not null,
 			dots, dots.Count > 0,
-			SanitizeDisplay(snapshot.PlayerName),
+			JoinParts(SanitizeDisplay(snapshot.PlayerName), ClanTag(snapshot.Clan)),
 			team,
 			snapshot.Alive,
 			snapshot.HasPlayer,
@@ -951,11 +1005,14 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			"R" + snapshot.MapRound.ToString(System.Globalization.CultureInfo.InvariantCulture)
 				+ " · +" + snapshot.RoundKills.ToString(System.Globalization.CultureInfo.InvariantCulture)
 				+ " · " + snapshot.RoundDamage.ToString(System.Globalization.CultureInfo.InvariantCulture),
+			!string.IsNullOrEmpty(snapshot.TopWeapon)
+				? Strings.Widget.TopWeapon.Line(snapshot.TopWeapon, snapshot.TopWeaponKills)
+				: null,
 			SanitizeDisplay(snapshot.PlaceName),
 			!string.IsNullOrEmpty(snapshot.PlaceName),
 			coords,
 			!string.IsNullOrEmpty(coords),
-			coords,
+			JoinParts(coords, facing),
 			(bomb ?? string.Empty).ToUpperInvariant(),
 			!string.IsNullOrEmpty(bomb),
 			BombProgressOf(snapshot),
@@ -965,6 +1022,8 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			snapshot.Flashed,
 			snapshot.Helmet,
 			snapshot.DefuseKit,
+			snapshot.KillStreak,
+			snapshot.KillStreak >= 2,
 			$"K {snapshot.SessionKills} · D {snapshot.SessionDeaths} · {snapshot.SessionKd.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}",
 			hpHistory,
 			hpHistory.Count > 0,
@@ -973,6 +1032,8 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 				? $"{dmgLast:F0} / {dmgMax:F0}"
 				: string.Empty,
 			dmgHistory.Count > 0,
+			moneyHistory,
+			moneyHistory.Count > 0,
 			feed,
 			feed.Count > 0,
 			options);
@@ -1001,6 +1062,12 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 
 	public static string JoinParts(params string?[] parts) =>
 		string.Join(" · ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+	public static string ClanTag(string? clan)
+	{
+		var clean = SanitizeDisplay(clan);
+		return clean.Length == 0 ? string.Empty : "[" + clean + "]";
+	}
 
 	public static string SanitizeDisplay(string? value)
 	{
@@ -1060,10 +1127,13 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		MatchHudOptions options)
 	{
 		var showScore = new UiState<bool>(options.ShowScore);
+		var showHistory = new UiState<bool>(options.ShowHistory);
 		var showPlayer = new UiState<bool>(options.ShowPlayer);
 		var showCharts = new UiState<bool>(options.ShowCharts);
 		var showStatus = new UiState<bool>(options.ShowStatus);
+		var showSession = new UiState<bool>(options.ShowSession);
 		var showFeed = new UiState<bool>(options.ShowFeed);
+		var feedCount = new UiState<double>(options.FeedCount);
 		var compactMode = new UiState<bool>(options.Compact);
 		var view = new UiView(surface, new UiWidgetConfiguration
 		{
@@ -1080,6 +1150,13 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 						Label = Strings.Widget.Config.ShowScore(),
 						Description = Strings.Widget.Config.ShowScoreDescription(),
 						Binding = Bind.To(showScore),
+					},
+					new UiBooleanInput
+					{
+						Key = "showHistory",
+						Label = Strings.Widget.Config.ShowHistory(),
+						Description = Strings.Widget.Config.ShowHistoryDescription(),
+						Binding = Bind.To(showHistory),
 					},
 					new UiBooleanInput
 					{
@@ -1104,10 +1181,28 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 					},
 					new UiBooleanInput
 					{
+						Key = "showSession",
+						Label = Strings.Widget.Config.ShowSession(),
+						Description = Strings.Widget.Config.ShowSessionDescription(),
+						Binding = Bind.To(showSession),
+					},
+					new UiBooleanInput
+					{
 						Key = "showFeed",
 						Label = Strings.Widget.Config.ShowFeed(),
 						Description = Strings.Widget.Config.ShowFeedDescription(),
 						Binding = Bind.To(showFeed),
+					},
+					new UiNumberInput
+					{
+						Key = "feedCount",
+						Label = Strings.Widget.Config.FeedCount(),
+						Description = Strings.Widget.Config.FeedCountDescription(),
+						Min = UiValue.Of(1.0),
+						Max = UiValue.Of(5.0),
+						Step = UiValue.Of(1.0),
+						ShowSlider = UiValue.Of(true),
+						Binding = Bind.To(feedCount),
 					},
 					new UiBooleanInput
 					{
@@ -1149,6 +1244,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		private readonly List<FeedItem> _feed = [];
 		private IReadOnlyList<double> _hp = [];
 		private IReadOnlyList<double> _dmg = [];
+		private IReadOnlyList<double> _money = [];
 		private int _dmgRound;
 		private int _dmgDamage;
 		private int _feedSeq;
@@ -1239,7 +1335,8 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 					_feedSeq++;
 					_feed.Insert(0, new FeedItem(
 						_feedSeq.ToString(System.Globalization.CultureInfo.InvariantCulture), line.Value));
-					while (_feed.Count > MatchHudFeed.MaxItems)
+					var cap = _content?.Value.Options.FeedCount ?? MatchHudFeed.MaxItems;
+					while (_feed.Count > cap)
 					{
 						_feed.RemoveAt(_feed.Count - 1);
 					}
@@ -1307,6 +1404,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			if (snapshot.Connected && snapshot.HasPlayer)
 			{
 				_hp = MatchHudHistory.PushCapped(_hp, snapshot.Health / 100.0, MatchHudHistory.MaxHpPoints);
+				_money = MatchHudHistory.PushCapped(_money, snapshot.Money / 16000.0, MatchHudHistory.MaxHpPoints);
 				if (MatchHudHistory.RoundChanged(_dmgRound, snapshot.MapRound))
 				{
 					if (_dmgRound > 0)
@@ -1323,11 +1421,18 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			{
 				_hp = [];
 				_dmg = [];
+				_money = [];
 				_dmgRound = 0;
 				_dmgDamage = 0;
 			}
 
-			var next = _owner.BuildContent(_content.Value.Options, _hp, _dmg, feed);
+			var cap = _content.Value.Options.FeedCount;
+			if (feed.Count > cap)
+			{
+				feed = feed.Take(cap).ToList();
+			}
+
+			var next = _owner.BuildContent(_content.Value.Options, _hp, _dmg, _money, feed);
 			if (!ContentsEqual(_content.Value, next))
 			{
 				_content.Set(next);
@@ -1342,6 +1447,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 				{
 					HpHistory = next.HpHistory,
 					DmgHistory = next.DmgHistory,
+					MoneyHistory = next.MoneyHistory,
 					FeedItems = next.FeedItems,
 					BombProgress = next.BombProgress,
 				};
@@ -1353,6 +1459,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 
 			if (!current.HpHistory.SequenceEqual(next.HpHistory)
 				|| !current.DmgHistory.SequenceEqual(next.DmgHistory)
+				|| !current.MoneyHistory.SequenceEqual(next.MoneyHistory)
 				|| !FeedEqual(current.FeedItems, next.FeedItems))
 			{
 				return false;

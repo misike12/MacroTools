@@ -14,17 +14,19 @@ public sealed class ConsolePositionWatcher
 		@"setpos(?:_exact)?\s+(?<x>-?\d+(?:\.\d+)?)\s+(?<y>-?\d+(?:\.\d+)?)\s+(?<z>-?\d+(?:\.\d+)?)",
 		RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
+	private static readonly Regex FacingLine = new(
+		@";\s*setang(?:_exact)?\s+(?<p>-?\d+(?:\.\d+)?)\s+(?<yaw>-?\d+(?:\.\d+)?)\s+(?<r>-?\d+(?:\.\d+)?)",
+		RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
 	private static readonly Regex LineStamp = new(
 		@"^(?<mo>\d{2})/(?<day>\d{2}) (?<h>\d{2}):(?<mi>\d{2}):(?<s>\d{2})\s",
 		RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-	private const long MaxReadPerPoll = 1024 * 1024;
+	private const long TailBytes = 64 * 1024;
 
 	private readonly object _gate = new();
 	private readonly Func<string?> _logPath;
-	private string? _seenPath;
-	private long _offset;
-	private (double X, double Y, double Z, DateTimeOffset At)? _fix;
+	private (double X, double Y, double Z, double Yaw, DateTimeOffset At)? _fix;
 	private bool _logPresent;
 	private DateTimeOffset? _logModifiedUtc;
 
@@ -38,7 +40,7 @@ public sealed class ConsolePositionWatcher
 		_logPath = logPath;
 	}
 
-	public (double X, double Y, double Z, DateTimeOffset At)? LatestFix
+	public (double X, double Y, double Z, double Yaw, DateTimeOffset At)? LatestFix
 	{
 		get
 		{
@@ -109,31 +111,17 @@ public sealed class ConsolePositionWatcher
 		try
 		{
 			using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+			var start = Math.Max(0, stream.Length - TailBytes);
+			stream.Seek(start, SeekOrigin.Begin);
+			using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+			if (start > 0)
+			{
+				reader.ReadLine();
+			}
+
+			text = reader.ReadToEnd();
 			lock (_gate)
 			{
-				if (!string.Equals(_seenPath, path, StringComparison.OrdinalIgnoreCase))
-				{
-					_seenPath = path;
-					_offset = 0;
-				}
-
-				if (stream.Length < _offset)
-				{
-					_offset = 0;
-				}
-
-				if (stream.Length - _offset > MaxReadPerPoll)
-				{
-					_offset = stream.Length;
-					_logPresent = true;
-					_logModifiedUtc = info.LastWriteTimeUtc;
-					return;
-				}
-
-				stream.Seek(_offset, SeekOrigin.Begin);
-				using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
-				text = reader.ReadToEnd();
-				_offset = stream.Position;
 				_logPresent = true;
 				_logModifiedUtc = info.LastWriteTimeUtc;
 			}
@@ -150,7 +138,7 @@ public sealed class ConsolePositionWatcher
 		}
 
 		var observedAt = DateTimeOffset.UtcNow;
-		(DateTimeOffset At, double X, double Y, double Z)? best = null;
+		(DateTimeOffset At, double X, double Y, double Z, double Yaw)? best = null;
 		foreach (var line in text.Split('\n'))
 		{
 			var match = FixLine.Match(line);
@@ -165,7 +153,7 @@ public sealed class ConsolePositionWatcher
 			var at = ParseLineStamp(line, observedAt);
 			if (best is null || at >= best.Value.At)
 			{
-				best = (at, x, y, z);
+				best = (at, x, y, z, ParseYaw(line));
 			}
 		}
 
@@ -176,7 +164,7 @@ public sealed class ConsolePositionWatcher
 				var current = _fix;
 				if (current is null || best.Value.At >= current.Value.At)
 				{
-					_fix = (best.Value.X, best.Value.Y, best.Value.Z, best.Value.At);
+					_fix = (best.Value.X, best.Value.Y, best.Value.Z, best.Value.Yaw, best.Value.At);
 				}
 			}
 		}
@@ -189,6 +177,17 @@ public sealed class ConsolePositionWatcher
 			_logPresent = false;
 			_logModifiedUtc = null;
 		}
+	}
+
+	private static double ParseYaw(string line)
+	{
+		var match = FacingLine.Match(line);
+		if (!match.Success || !TryParseDouble(match.Groups["yaw"].Value, out var yaw))
+		{
+			return double.NaN;
+		}
+
+		return ((yaw % 360) + 360) % 360;
 	}
 
 	private static DateTimeOffset ParseLineStamp(string line, DateTimeOffset observedAt)

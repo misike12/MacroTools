@@ -78,7 +78,19 @@ public sealed record GsiSnapshot(
 	int EquipValue,
 	string? Activity,
 	string? WeaponType,
-	string RoundHistory);
+	string RoundHistory,
+	double? FacingYaw,
+	string? Clan,
+	int TimeoutsCt,
+	int TimeoutsT,
+	string? CountdownPhase,
+	int GrenadesActive,
+	int KillStreak,
+	int BestStreak,
+	string? TopWeapon,
+	int TopWeaponKills,
+	int RoundsPlayed,
+	int SessionDamage);
 
 public sealed record PositionOptions(bool Enabled, int IntervalSeconds, int KeyCode)
 {
@@ -124,6 +136,11 @@ public sealed class GsiService : IDisposable
 	private DateTimeOffset? _lastReceivedAt;
 	private int _sessionKills;
 	private int _sessionDeaths;
+	private int _streak;
+	private int _bestStreak;
+	private readonly Dictionary<string, int> _weaponKills = new(StringComparer.OrdinalIgnoreCase);
+	private readonly HashSet<int> _roundsSeen = [];
+	private int _sessionDamage;
 
 	public GsiService(ILogger logger)
 		: this(logger, new PlaceStore(logger))
@@ -228,9 +245,19 @@ public sealed class GsiService : IDisposable
 	{
 		lock (_gate)
 		{
-			_sessionKills = 0;
-			_sessionDeaths = 0;
+			ResetSessionLocked();
 		}
+	}
+
+	private void ResetSessionLocked()
+	{
+		_sessionKills = 0;
+		_sessionDeaths = 0;
+		_streak = 0;
+		_bestStreak = 0;
+		_weaponKills.Clear();
+		_roundsSeen.Clear();
+		_sessionDamage = 0;
 	}
 
 	public void InjectTestState() => ApplyPayload(TestPayload(), bypassAuth: true);
@@ -238,14 +265,19 @@ public sealed class GsiService : IDisposable
 	public GsiSnapshot Snapshot()
 	{
 		GsiPayload? payload;
-		int sessionKills;
-		int sessionDeaths;
+		SessionStats stats;
 		lock (_gate)
 		{
 			var connected = _lastReceivedAt is { } seen && DateTimeOffset.UtcNow - seen <= ConnectedWindow;
 			payload = _last;
-			sessionKills = _sessionKills;
-			sessionDeaths = _sessionDeaths;
+			stats = new SessionStats(
+				_sessionKills,
+				_sessionDeaths,
+				_streak,
+				_bestStreak,
+				_weaponKills.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
+				_roundsSeen.Count,
+				_sessionDamage);
 			if (!connected || payload is null)
 			{
 				return EmptySnapshot(false);
@@ -255,8 +287,17 @@ public sealed class GsiService : IDisposable
 		// Built outside the gate on purpose: place lookup parses map files on first
 		// use, and every variable read takes a snapshot. Holding the gate through
 		// file IO would convoy all readers behind one slow extraction.
-		return BuildSnapshot(payload, connected: true, sessionKills, sessionDeaths);
+		return BuildSnapshot(payload, connected: true, stats);
 	}
+
+	private sealed record SessionStats(
+		int Kills,
+		int Deaths,
+		int Streak,
+		int BestStreak,
+		Dictionary<string, int> WeaponKills,
+		int RoundsPlayed,
+		int Damage);
 
 	public void Dispose()
 	{
@@ -699,8 +740,7 @@ public sealed class GsiService : IDisposable
 			if (MapNameOf(previous) is not null && MapNameOf(payload) is not null
 				&& !string.Equals(MapNameOf(previous), MapNameOf(payload), StringComparison.OrdinalIgnoreCase))
 			{
-				_sessionKills = 0;
-				_sessionDeaths = 0;
+				ResetSessionLocked();
 			}
 
 			events.AddRange(DiffLocked(previous, payload));
@@ -849,11 +889,34 @@ public sealed class GsiService : IDisposable
 				}
 
 				_sessionKills += kills - previousKills;
+				_streak += kills - previousKills;
+				if (_streak > _bestStreak)
+				{
+					_bestStreak = _streak;
+				}
+
+				if (!string.IsNullOrEmpty(weapon))
+				{
+					_weaponKills[weapon] = _weaponKills.TryGetValue(weapon, out var count) ? count + kills - previousKills : kills - previousKills;
+				}
 			}
 
 			if (previous is not null && deaths > previousDeaths)
 			{
 				_sessionDeaths += deaths - previousDeaths;
+				_streak = 0;
+			}
+
+			var round = current.Map?.Round ?? 0;
+			if (round > 0)
+			{
+				_roundsSeen.Add(round);
+			}
+
+			var previousRound = previous?.Map?.Round ?? 0;
+			if (previousRound > 0 && round != previousRound)
+			{
+				_sessionDamage += previousFocus?.State?.RoundDamage ?? 0;
 			}
 		}
 
@@ -1024,7 +1087,7 @@ public sealed class GsiService : IDisposable
 		return null;
 	}
 
-	private sealed record ResolvedPosition(double X, double Y, double Z, bool FromConsole);
+	private sealed record ResolvedPosition(double X, double Y, double Z, double Yaw, bool FromConsole);
 
 	private ResolvedPosition? ResolvePosition(GsiPayload payload, GsiPlayer? focus, GsiPayload? previous)
 	{
@@ -1040,12 +1103,12 @@ public sealed class GsiService : IDisposable
 			var freshness = TimeSpan.FromSeconds(Math.Max(6, 3 * options.IntervalSeconds));
 			if (fix is not null && DateTimeOffset.UtcNow - fix.Value.At <= freshness)
 			{
-				return new ResolvedPosition(fix.Value.X, fix.Value.Y, fix.Value.Z, true);
+				return new ResolvedPosition(fix.Value.X, fix.Value.Y, fix.Value.Z, fix.Value.Yaw, true);
 			}
 		}
 
 		var gsi = ParsePosition(FocusedPosition(payload, focus, FocusedSteamId(payload, previous)));
-		return gsi is null ? null : new ResolvedPosition(gsi.Value.X, gsi.Value.Y, gsi.Value.Z, false);
+		return gsi is null ? null : new ResolvedPosition(gsi.Value.X, gsi.Value.Y, gsi.Value.Z, double.NaN, false);
 	}
 
 	private static bool IsLocalAliveFocus(GsiPayload payload, GsiPlayer? focus)
@@ -1190,7 +1253,7 @@ public sealed class GsiService : IDisposable
 		return null;
 	}
 
-	private static void CountGrenades(Dictionary<string, GsiGrenade> grenades, ref int smokes, ref int fire)
+	private static void CountGrenades(Dictionary<string, GsiGrenade> grenades, ref int smokes, ref int fire, ref int total)
 	{
 		foreach (var grenade in grenades.Values)
 		{
@@ -1199,6 +1262,7 @@ public sealed class GsiService : IDisposable
 				continue;
 			}
 
+			total++;
 			if (string.Equals(grenade.Type, "smoke", StringComparison.OrdinalIgnoreCase) && grenade.EffectTime > 0)
 			{
 				smokes++;
@@ -1210,6 +1274,23 @@ public sealed class GsiService : IDisposable
 				fire++;
 			}
 		}
+	}
+
+	private static (string? Weapon, int Kills) TopWeaponOf(Dictionary<string, int> weaponKills)
+	{
+		string? best = null;
+		var bestKills = 0;
+		foreach (var pair in weaponKills)
+		{
+			if (pair.Value > bestKills
+				|| (pair.Value == bestKills && best is not null && string.Compare(pair.Key, best, StringComparison.Ordinal) < 0))
+			{
+				best = pair.Key;
+				bestKills = pair.Value;
+			}
+		}
+
+		return bestKills > 0 ? (best, bestKills) : (null, 0);
 	}
 
 	private static string ActiveWeaponName(GsiPlayer player)
@@ -1254,9 +1335,10 @@ public sealed class GsiService : IDisposable
 		false, null, null, false, 0, 0, false, false, 0, null, -1, -1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
 		0, 0, 0, false, PositionSources.Off, null, null, null,
-		0, 0, 0, false, false, false, 0, null, null, string.Empty);
+		0, 0, 0, false, false, false, 0, null, null, string.Empty,
+		null, null, 0, 0, null, 0, 0, 0, null, 0, 0, 0);
 
-	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected, int sessionKills, int sessionDeaths)
+	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected, SessionStats session)
 	{
 		var focus = FocusedPlayer(payload, null);
 		var state = focus?.State;
@@ -1269,19 +1351,21 @@ public sealed class GsiService : IDisposable
 
 		var smokes = 0;
 		var fire = 0;
+		var grenadesActive = 0;
 		if (payload.Grenades is not null)
 		{
-			CountGrenades(payload.Grenades, ref smokes, ref fire);
+			CountGrenades(payload.Grenades, ref smokes, ref fire, ref grenadesActive);
 		}
 
 		if (payload.AllGrenades is not null)
 		{
-			CountGrenades(payload.AllGrenades, ref smokes, ref fire);
+			CountGrenades(payload.AllGrenades, ref smokes, ref fire, ref grenadesActive);
 		}
 
 		double? phaseEndsIn = payload.PhaseCountdowns?.PhaseEndsIn;
 		var position = ResolvePosition(payload, focus, null);
 		var bombCarrier = ResolveBombCarrier(payload, focus);
+		var topWeapon = TopWeaponOf(session.WeaponKills);
 		var placeName = position is not null
 			? SafeFindPlace(payload.Map?.Name, position.X, position.Y, position.Z)
 			: null;
@@ -1299,14 +1383,26 @@ public sealed class GsiService : IDisposable
 			state?.Money ?? 0, active, ammoClip, ammoReserve,
 			stats?.Kills ?? 0, stats?.Deaths ?? 0, stats?.Assists ?? 0, stats?.Mvps ?? 0, stats?.Score ?? 0,
 			smokes, fire,
-			sessionKills, sessionDeaths,
-			sessionDeaths > 0 ? (double)sessionKills / sessionDeaths : sessionKills,
+			session.Kills, session.Deaths,
+			session.Deaths > 0 ? (double)session.Kills / session.Deaths : session.Kills,
 			position?.X ?? 0, position?.Y ?? 0, position?.Z ?? 0, position is not null,
 			ResolvePositionSource(payload, focus, position),
 			placeName, payload.Bomb?.Countdown, bombCarrier,
 			state?.RoundKills ?? 0, state?.RoundHeadshots ?? 0, state?.RoundDamage ?? 0,
 			(state?.Smoked ?? 0) > 0, (state?.Burning ?? 0) > 0, state?.DefuseKit ?? false,
-			state?.EquipmentValue ?? 0, focus?.Activity, weaponType, RoundHistoryOf(payload));
+			state?.EquipmentValue ?? 0, focus?.Activity, weaponType, RoundHistoryOf(payload),
+			position?.FromConsole == true && !double.IsNaN(position.Yaw) ? position.Yaw : (double?)null,
+			focus?.Clan,
+			payload.Map?.TeamCt?.TimeoutsRemaining ?? 0,
+			payload.Map?.TeamT?.TimeoutsRemaining ?? 0,
+			payload.PhaseCountdowns?.Phase,
+			grenadesActive,
+			session.Streak,
+			session.BestStreak,
+			topWeapon.Weapon,
+			topWeapon.Kills,
+			session.RoundsPlayed,
+			session.Damage);
 	}
 
 	private static GsiPayload TestPayload() => new(

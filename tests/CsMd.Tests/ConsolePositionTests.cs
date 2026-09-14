@@ -68,6 +68,31 @@ public sealed class ConsolePositionTests
 	}
 
 	[Test]
+	public void Yaw_parses_and_normalizes_to_compass()
+	{
+		WriteLog(Stamp(DateTimeOffset.UtcNow) + " setpos 1.0 2.0 3.0;setang 0.0 -90.0 0.0");
+		var watcher = new ConsolePositionWatcher(() => _log);
+		watcher.Poll();
+
+		Assert.That(watcher.LatestFix!.Value.Yaw, Is.EqualTo(270.0).Within(0.001));
+
+		WriteLog(Stamp(DateTimeOffset.UtcNow) + " setpos 1.0 2.0 3.0;setang 0.0 720.5 0.0");
+		watcher.Poll();
+
+		Assert.That(watcher.LatestFix!.Value.Yaw, Is.EqualTo(0.5).Within(0.001));
+	}
+
+	[Test]
+	public void Missing_angles_leave_yaw_unknown()
+	{
+		WriteLog(Stamp(DateTimeOffset.UtcNow) + " setpos 1.0 2.0 3.0");
+		var watcher = new ConsolePositionWatcher(() => _log);
+		watcher.Poll();
+
+		Assert.That(double.IsNaN(watcher.LatestFix!.Value.Yaw), Is.True);
+	}
+
+	[Test]
 	public void Newest_line_wins_and_plain_setpos_parses()
 	{
 		WriteLog(string.Join("\n",

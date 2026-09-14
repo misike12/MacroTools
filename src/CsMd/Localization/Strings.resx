@@ -351,6 +351,78 @@
   <data name="Variables.RoundHistory.Description" xml:space="preserve">
     <value>Past rounds oldest first, C for CT wins and T for T wins.</value>
   </data>
+  <data name="Variables.PlayerClan.DisplayName" xml:space="preserve">
+    <value>Player clan</value>
+  </data>
+  <data name="Variables.PlayerClan.Description" xml:space="preserve">
+    <value>Clan tag of the followed player, if any.</value>
+  </data>
+  <data name="Variables.FacingYaw.DisplayName" xml:space="preserve">
+    <value>Facing</value>
+  </data>
+  <data name="Variables.FacingYaw.Description" xml:space="preserve">
+    <value>Compass facing of the local player in degrees. Needs console tracking where the game permits it.</value>
+  </data>
+  <data name="Variables.GrenadesActive.DisplayName" xml:space="preserve">
+    <value>Grenades active</value>
+  </data>
+  <data name="Variables.GrenadesActive.Description" xml:space="preserve">
+    <value>How many grenades currently have an effect going.</value>
+  </data>
+  <data name="Variables.CtTimeouts.DisplayName" xml:space="preserve">
+    <value>CT timeouts</value>
+  </data>
+  <data name="Variables.CtTimeouts.Description" xml:space="preserve">
+    <value>Tactical timeouts the CT side has left.</value>
+  </data>
+  <data name="Variables.TTimeouts.DisplayName" xml:space="preserve">
+    <value>T timeouts</value>
+  </data>
+  <data name="Variables.TTimeouts.Description" xml:space="preserve">
+    <value>Tactical timeouts the T side has left.</value>
+  </data>
+  <data name="Variables.CountdownPhase.DisplayName" xml:space="preserve">
+    <value>Countdown phase</value>
+  </data>
+  <data name="Variables.CountdownPhase.Description" xml:space="preserve">
+    <value>Which game phase the countdown belongs to.</value>
+  </data>
+  <data name="Variables.KillStreak.DisplayName" xml:space="preserve">
+    <value>Kill streak</value>
+  </data>
+  <data name="Variables.KillStreak.Description" xml:space="preserve">
+    <value>Consecutive kills without dying in this session.</value>
+  </data>
+  <data name="Variables.BestStreak.DisplayName" xml:space="preserve">
+    <value>Best streak</value>
+  </data>
+  <data name="Variables.BestStreak.Description" xml:space="preserve">
+    <value>Longest kill streak in this session.</value>
+  </data>
+  <data name="Variables.TopWeapon.DisplayName" xml:space="preserve">
+    <value>Top weapon</value>
+  </data>
+  <data name="Variables.TopWeapon.Description" xml:space="preserve">
+    <value>Weapon with the most session kills.</value>
+  </data>
+  <data name="Variables.TopWeaponKills.DisplayName" xml:space="preserve">
+    <value>Top weapon kills</value>
+  </data>
+  <data name="Variables.TopWeaponKills.Description" xml:space="preserve">
+    <value>Kills with the top weapon in this session.</value>
+  </data>
+  <data name="Variables.RoundsPlayed.DisplayName" xml:space="preserve">
+    <value>Rounds played</value>
+  </data>
+  <data name="Variables.RoundsPlayed.Description" xml:space="preserve">
+    <value>Distinct rounds observed in this session.</value>
+  </data>
+  <data name="Variables.SessionDamage.DisplayName" xml:space="preserve">
+    <value>Session damage</value>
+  </data>
+  <data name="Variables.SessionDamage.Description" xml:space="preserve">
+    <value>Total damage dealt in this session.</value>
+  </data>
   <data name="Events.RoundStarted.Name" xml:space="preserve">
     <value>Round started</value>
   </data>
@@ -618,6 +690,12 @@
   <data name="Widget.Config.ShowScoreDescription" xml:space="preserve">
     <value>Team scores, round number and map phase.</value>
   </data>
+  <data name="Widget.Config.ShowHistory" xml:space="preserve">
+    <value>Round history</value>
+  </data>
+  <data name="Widget.Config.ShowHistoryDescription" xml:space="preserve">
+    <value>Win/loss dots for past rounds under the scorebug.</value>
+  </data>
   <data name="Widget.Config.ShowPlayer" xml:space="preserve">
     <value>Player plate</value>
   </data>
@@ -628,7 +706,13 @@
     <value>Status pills</value>
   </data>
   <data name="Widget.Config.ShowStatusDescription" xml:space="preserve">
-    <value>Alive state, place, bomb and effect pills plus session line.</value>
+    <value>Alive state, place, bomb and effect pills plus tracking.</value>
+  </data>
+  <data name="Widget.Config.ShowSession" xml:space="preserve">
+    <value>Session line</value>
+  </data>
+  <data name="Widget.Config.ShowSessionDescription" xml:space="preserve">
+    <value>Session kills, deaths and ratio footer.</value>
   </data>
   <data name="Widget.Config.CompactMode" xml:space="preserve">
     <value>Compact mode</value>
@@ -644,6 +728,20 @@
   </data>
   <data name="Widget.Config.ShowFeedDescription" xml:space="preserve">
     <value>Latest kills, deaths, bomb and round moments.</value>
+  </data>
+  <data name="Widget.Config.FeedCount" xml:space="preserve">
+    <value>Feed lines</value>
+  </data>
+  <data name="Widget.Config.FeedCountDescription" xml:space="preserve">
+    <value>How many event lines the feed keeps, from 1 to 5.</value>
+  </data>
+  <data name="Widget.Streak.Label" xml:space="preserve">
+    <value>STREAK ×{count}</value>
+    <comment>[count:int] Kill streak pill.</comment>
+  </data>
+  <data name="Widget.TopWeapon.Line" xml:space="preserve">
+    <value>Top {weapon} × {count}</value>
+    <comment>[count:int] Best session weapon line.</comment>
   </data>
   <data name="Widget.Effects.Flashed" xml:space="preserve">
     <value>FLASHED</value>

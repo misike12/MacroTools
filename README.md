@@ -129,9 +129,9 @@ Live Counter-Strike 2 match state on your deck via Game State Integration: the g
 
 Install GSI config / Reset session stats / Simulate a match (injects fake live data so the deck can be arranged without running the game).
 
-### Variables (50)
+### Variables (62)
 
-Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`), round (`round_phase`, `bomb_state`, `phase_ends_in`), player (`my_team`, `player_name`, `player_activity`, `alive`, `health`, `armor`, `helmet`, `defusekit`, `flashed`, `smoked`, `burning`, `money`, `equip_value`, `weapon`, `weapon_type`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `round_kills`, `round_headshots`, `round_damage`, `round_history`, `smokes_active`, `fire_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`, `position_source`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
+Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`, `ct_timeouts`, `t_timeouts`), round (`round_phase`, `bomb_state`, `phase_ends_in`, `countdown_phase`), player (`my_team`, `player_name`, `player_activity`, `player_clan`, `alive`, `health`, `armor`, `helmet`, `defusekit`, `flashed`, `smoked`, `burning`, `money`, `equip_value`, `weapon`, `weapon_type`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `round_kills`, `round_headshots`, `round_damage`, `round_history`, `smokes_active`, `fire_active`, `grenades_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`, `position_source`, `facing_yaw`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`, `session_damage`, `kill_streak`, `best_streak`, `top_weapon`, `top_weapon_kills`, `rounds_played`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
 
 Place names (`Mid`, `Bombsite A`, …) come from the map's own `env_cs_place` volumes, read out of the game files the same way community tools do it — every tagged official map is covered, workshop maps too when their mapper tagged them. Kills and deaths carry their place too.
 
@@ -143,7 +143,7 @@ One Valve rule shapes the position variables: the game only sends coordinates an
 
 ### Widget (1)
 
-Match HUD: a broadcast-style scorebug (team scores with team colors, round, phase, live clock and round-history dots), a player plate (health number with state-colored bar and armor bar, loadout, money, KDA and round line), health-trend and per-round-damage graphs, a bomb panel with a live-ticking countdown bar, status pills (alive state, place, bomb, smoke, fire, flash, helmet, kit), a tracking line (place, coordinates, source) and a three-line event feed. Sections, graphs, feed and compact mode are configurable per widget; sized for a 2 by 2 tile.
+Match HUD: a broadcast-style scorebug (team scores with team colors, round, phase, live clock and round-history dots), a player plate (name with clan tag, health number with state-colored bar and armor bar, loadout, money, KDA, round and top-weapon lines), health-trend, per-round-damage and economy graphs, a bomb panel with a live-ticking countdown bar, status pills (alive state, streak, place, bomb, smoke, fire, flash, helmet, kit), a tracking line (place, coordinates, facing) and a configurable event feed. Sections, graphs, feed length and compact mode are configurable per widget; sized for a 2 by 2 tile.
 
 Deliberately out of scope: Steam Web API history (needs an API key and offers no live data; GSI is the live API) and sending commands into the game (CS2 exposes no such channel).
 

@@ -16,10 +16,13 @@ public sealed class MatchHudWidgetTests
 
 		Assert.That(options, Is.EqualTo(MatchHudOptions.Default));
 		Assert.That(options.ShowScore, Is.True);
+		Assert.That(options.ShowHistory, Is.True);
 		Assert.That(options.ShowPlayer, Is.True);
 		Assert.That(options.ShowCharts, Is.True);
 		Assert.That(options.ShowStatus, Is.True);
+		Assert.That(options.ShowSession, Is.True);
 		Assert.That(options.ShowFeed, Is.True);
+		Assert.That(options.FeedCount, Is.EqualTo(3));
 		Assert.That(options.Compact, Is.False);
 	}
 
@@ -110,6 +113,7 @@ public sealed class MatchHudWidgetTests
 		Assert.That(content.Connected, Is.True);
 		Assert.That(content.MapLine, Is.EqualTo("MIRAGE · COMPETITIVE"));
 		Assert.That(content.RoundText, Is.EqualTo("R5"));
+		Assert.That(content.NameLine, Is.EqualTo("TestPlayer"));
 		Assert.That(content.CtScore, Is.EqualTo(3));
 		Assert.That(content.TScore, Is.EqualTo(1));
 		Assert.That(content.HpFrac, Is.EqualTo(1.0));
@@ -122,7 +126,10 @@ public sealed class MatchHudWidgetTests
 		Assert.That(content.RoundLine, Is.EqualTo("R5 · +0 · 0"));
 		Assert.That(content.HasHistory, Is.False);
 		Assert.That(content.HasHpHistory, Is.False);
+		Assert.That(content.HasMoneyHistory, Is.False);
 		Assert.That(content.HasFeed, Is.False);
+		Assert.That(content.HasStreak, Is.False);
+		Assert.That(content.TopWeaponLine, Is.Null);
 		Assert.That(content.Options, Is.EqualTo(MatchHudOptions.Default));
 	}
 

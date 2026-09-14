@@ -57,8 +57,20 @@ internal static class CsVariables
 		Eager("defusekit", VariableType.Boolean, Strings.Variables.Defusekit.DisplayName(), Strings.Variables.Defusekit.Description(), refresh: SlowRefresh),
 		Eager("equip-value", VariableType.Numeric, Strings.Variables.EquipValue.DisplayName(), Strings.Variables.EquipValue.Description(), unit: "$", refresh: FastRefresh),
 		Eager("player-activity", VariableType.Text, Strings.Variables.PlayerActivity.DisplayName(), Strings.Variables.PlayerActivity.Description(), refresh: SlowRefresh),
+		Eager("player-clan", VariableType.Text, Strings.Variables.PlayerClan.DisplayName(), Strings.Variables.PlayerClan.Description(), refresh: SlowRefresh),
 		Eager("weapon-type", VariableType.Text, Strings.Variables.WeaponType.DisplayName(), Strings.Variables.WeaponType.Description(), refresh: FastRefresh),
 		Eager("round-history", VariableType.Text, Strings.Variables.RoundHistory.DisplayName(), Strings.Variables.RoundHistory.Description(), refresh: SlowRefresh),
+		Eager("facing-yaw", VariableType.Numeric, Strings.Variables.FacingYaw.DisplayName(), Strings.Variables.FacingYaw.Description(), unit: "°", refresh: FastRefresh),
+		Eager("grenades-active", VariableType.Numeric, Strings.Variables.GrenadesActive.DisplayName(), Strings.Variables.GrenadesActive.Description(), refresh: FastRefresh),
+		Eager("ct-timeouts", VariableType.Numeric, Strings.Variables.CtTimeouts.DisplayName(), Strings.Variables.CtTimeouts.Description(), refresh: SlowRefresh),
+		Eager("t-timeouts", VariableType.Numeric, Strings.Variables.TTimeouts.DisplayName(), Strings.Variables.TTimeouts.Description(), refresh: SlowRefresh),
+		Eager("countdown-phase", VariableType.Text, Strings.Variables.CountdownPhase.DisplayName(), Strings.Variables.CountdownPhase.Description(), refresh: FastRefresh),
+		Eager("kill-streak", VariableType.Numeric, Strings.Variables.KillStreak.DisplayName(), Strings.Variables.KillStreak.Description(), refresh: FastRefresh),
+		Eager("best-streak", VariableType.Numeric, Strings.Variables.BestStreak.DisplayName(), Strings.Variables.BestStreak.Description(), refresh: FastRefresh),
+		Eager("top-weapon", VariableType.Text, Strings.Variables.TopWeapon.DisplayName(), Strings.Variables.TopWeapon.Description(), refresh: FastRefresh),
+		Eager("top-weapon-kills", VariableType.Numeric, Strings.Variables.TopWeaponKills.DisplayName(), Strings.Variables.TopWeaponKills.Description(), refresh: FastRefresh),
+		Eager("rounds-played", VariableType.Numeric, Strings.Variables.RoundsPlayed.DisplayName(), Strings.Variables.RoundsPlayed.Description(), refresh: SlowRefresh),
+		Eager("session-damage", VariableType.Numeric, Strings.Variables.SessionDamage.DisplayName(), Strings.Variables.SessionDamage.Description(), refresh: FastRefresh),
 	];
 
 	private static VariableDefinition Eager(
