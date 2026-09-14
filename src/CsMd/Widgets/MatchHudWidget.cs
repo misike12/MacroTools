@@ -345,13 +345,18 @@ internal static class MatchHudView
 				Digits = UiValue.Of(2.0),
 				Align = UiComponentAlignments.Center,
 			},
-			new UiTextRun
+			new UiWhen
 			{
-				Key = ct ? "ct-name" : "t-name",
-				Text = UiText.From(() => ct ? content.Value.CtName : content.Value.TName),
-				Size = micro,
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
+				Key = ct ? "ct-name-when" : "t-name-when",
+				Condition = () => !string.IsNullOrWhiteSpace(ct ? content.Value.CtName : content.Value.TName),
+				Content = () => new UiTextRun
+				{
+					Key = ct ? "ct-name" : "t-name",
+					Text = UiText.From(() => ct ? content.Value.CtName : content.Value.TName),
+					Size = micro,
+					Role = UiComponentTextRoles.Muted,
+					Align = UiComponentAlignments.Center,
+				},
 			},
 		],
 	};
@@ -926,8 +931,8 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		return new MatchHudContent(
 			true,
 			JoinParts(MapNames.DisplayName(snapshot.MapName).ToUpperInvariant(), (snapshot.MapMode ?? string.Empty).ToUpperInvariant()),
-			SanitizeDisplay(OrDash(snapshot.CtName)), snapshot.CtScore,
-			SanitizeDisplay(OrDash(snapshot.TName)), snapshot.TScore,
+			SanitizeDisplay(snapshot.CtName), snapshot.CtScore,
+			SanitizeDisplay(snapshot.TName), snapshot.TScore,
 			"R" + snapshot.MapRound.ToString(System.Globalization.CultureInfo.InvariantCulture),
 			(snapshot.MapPhase ?? string.Empty).ToUpperInvariant(),
 			snapshot.PhaseEndsIn is { } ends ? MatchHudContent.FormatClock(ends) : string.Empty,
@@ -1004,11 +1009,8 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			return string.Empty;
 		}
 
-		return value.Replace('<', '‹').Replace('>', '›');
+		return value.Replace('&', '＆').Replace('<', '‹').Replace('>', '›');
 	}
-
-	public static string OrDash(string? value) =>
-		string.IsNullOrWhiteSpace(value) ? "-" : value;
 
 	public static string NormalizeTeam(string? team) => team?.ToUpperInvariant() switch
 	{

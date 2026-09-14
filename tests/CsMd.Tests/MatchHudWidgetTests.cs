@@ -28,6 +28,7 @@ public sealed class MatchHudWidgetTests
 	{
 		Assert.That(MatchHudWidget.SanitizeDisplay("Mag1c <3"), Is.EqualTo("Mag1c ‹3"));
 		Assert.That(MatchHudWidget.SanitizeDisplay("a>b"), Is.EqualTo("a›b"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("Fish & Chips"), Is.EqualTo("Fish ＆ Chips"));
 		Assert.That(MatchHudWidget.SanitizeDisplay("plain"), Is.EqualTo("plain"));
 		Assert.That(MatchHudWidget.SanitizeDisplay(null), Is.Empty);
 		Assert.That(MatchHudWidget.SanitizeDisplay(string.Empty), Is.Empty);
@@ -72,8 +73,6 @@ public sealed class MatchHudWidgetTests
 		Assert.That(MatchHudContent.FormatMoney(4700), Is.EqualTo("$4,700"));
 		Assert.That(MatchHudWidget.JoinParts("a", "", "b"), Is.EqualTo("a · b"));
 		Assert.That(MatchHudWidget.JoinParts(null, " "), Is.Empty);
-		Assert.That(MatchHudWidget.OrDash(null), Is.EqualTo("-"));
-		Assert.That(MatchHudWidget.OrDash("CTs"), Is.EqualTo("CTs"));
 		Assert.That(MatchHudWidget.NormalizeTeam("ct"), Is.EqualTo("CT"));
 		Assert.That(MatchHudWidget.NormalizeTeam("nope"), Is.Empty);
 	}
