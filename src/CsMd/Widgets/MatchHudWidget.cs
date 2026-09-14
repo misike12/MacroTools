@@ -388,21 +388,36 @@ internal static class MatchHudView
 					},
 				],
 			},
-			new UiRangeBar
+			new UiStack
 			{
-				Key = "hp-bar",
-				Start = UiValue.Of(0.0),
-				End = UiValue.From(() => content.Value.HpFrac),
-				StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-				EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-				Thickness = 0.035,
-			},
-			new UiRangeBar
-			{
-				Key = "armor-bar",
-				Start = UiValue.Of(0.0),
-				End = UiValue.From(() => content.Value.ArmorFrac),
-				Thickness = 0.02,
+				Key = "bars",
+				Gap = 0.035,
+				Children =
+				[
+					new UiRangeBar
+					{
+						Key = "hp-bar",
+						Start = UiValue.Of(0.0),
+						End = UiValue.From(() => content.Value.HpFrac),
+						StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+						EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+						Thickness = 0.035,
+					},
+					new UiWhen
+					{
+						Key = "armor-bar-when",
+						Condition = () => content.Value.ArmorFrac > 0,
+						Content = () => new UiRangeBar
+						{
+							Key = "armor-bar",
+							Start = UiValue.Of(0.0),
+							End = UiValue.From(() => content.Value.ArmorFrac),
+							StartColor = UiValue.Of("#93C5FD"),
+							EndColor = UiValue.Of("#93C5FD"),
+							Thickness = 0.018,
+						},
+					},
+				],
 			},
 			MicroLine(content, "armor", () => content.Value.ArmorLine),
 			MicroLine(content, "loadout", () => content.Value.LoadoutLine),
@@ -922,7 +937,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			hp / 100.0,
 			hp.ToString(System.Globalization.CultureInfo.InvariantCulture),
 			armor / 100.0,
-			armor.ToString(System.Globalization.CultureInfo.InvariantCulture),
+			armor > 0 ? armor.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
 			loadout,
 			money,
 			"R" + snapshot.MapRound.ToString(System.Globalization.CultureInfo.InvariantCulture)
