@@ -27,6 +27,26 @@ public sealed class ConsolePositionWatcher
 		@"^\[(?<scope>[^\]]+)\]\s+(?<rest>.+)$",
 		RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+	// Match chat scopes per client language. The engine also logs [Server], [Client]
+	// and friends in the same shape, so anything outside this list is not chat.
+	// Best effort: locales not listed simply never produce chat lines.
+	private static readonly HashSet<string> ChatScopes = new(StringComparer.OrdinalIgnoreCase)
+	{
+		"ALL", "TEAM", "T", "CT", "SPEC", "SPECTATOR", "COACH", "PARTY", "LOBBY",
+		"MINDENKI", "CSAPAT",
+		"ALLE",
+		"TOUS", "EQUIPE",
+		"TODOS", "EQUIPO", "EQUIPE",
+		"ВСЕ", "КОМАНДА",
+		"WSZYSCY", "DRUZYNA",
+		"HERKES", "TAKIM",
+	};
+
+	private static readonly HashSet<string> SystemSenders = new(StringComparer.OrdinalIgnoreCase)
+	{
+		"SV", "CL",
+	};
+
 	private const long TailBytes = 64 * 1024;
 
 	private readonly object _gate = new();
@@ -221,9 +241,15 @@ public sealed class ConsolePositionWatcher
 				continue;
 			}
 
+			var scope = DisplayText.Sanitize(chat.Groups["scope"].Value);
+			if (!ChatScopes.Contains(scope) || scope.Length == 0)
+			{
+				continue;
+			}
+
 			var player = DisplayText.Sanitize(rest.Substring(0, separator));
 			var message = DisplayText.Sanitize(rest.Substring(separator + 2));
-			if (player.Length == 0 || message.Length == 0)
+			if (player.Length == 0 || message.Length == 0 || SystemSenders.Contains(player))
 			{
 				continue;
 			}
@@ -231,7 +257,7 @@ public sealed class ConsolePositionWatcher
 			var at = ParseLineStamp(line, observedAt);
 			if (best is null || at >= best.Value.At)
 			{
-				best = (at, player, DisplayText.Sanitize(chat.Groups["scope"].Value), message);
+				best = (at, player, scope, message);
 			}
 		}
 

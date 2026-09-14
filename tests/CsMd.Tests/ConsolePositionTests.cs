@@ -113,6 +113,39 @@ public sealed class ConsolePositionTests
 	}
 
 	[Test]
+	public void Chat_rejects_engine_lines_and_accepts_other_locales()
+	{
+		var now = DateTimeOffset.UtcNow;
+		WriteLog(string.Join("\n",
+			Stamp(now.AddSeconds(-40)) + " [Server] SV: Spawn Server: de_overpass",
+			Stamp(now.AddSeconds(-30)) + " [Client] CL: Connected to 'loopback:1'",
+			Stamp(now.AddSeconds(-25)) + " [ALL] SV: fake",
+			Stamp(now.AddSeconds(-20)) + " [RenderSystem] TEXTURESTREAMING: Extremely low memory",
+			Stamp(now.AddSeconds(-10)) + " [ALLE] Hans: weiter so",
+			Stamp(now) + " [TOUS] Pierre: bien joue"));
+		var watcher = new ConsolePositionWatcher(() => _log);
+		watcher.Poll();
+
+		var chat = watcher.LatestChat;
+		Assert.That(chat, Is.Not.Null);
+		Assert.That(chat!.Value.Player, Is.EqualTo("Pierre"));
+		Assert.That(chat.Value.Scope, Is.EqualTo("TOUS"));
+	}
+
+	[Test]
+	public void Chat_stays_empty_without_real_chat()
+	{
+		var now = DateTimeOffset.UtcNow;
+		WriteLog(string.Join("\n",
+			Stamp(now.AddSeconds(-20)) + " [Server] SV: Spawn Server: de_overpass",
+			Stamp(now) + " [RenderSystem] TEXTURESTREAMING: Extremely low memory: hot"));
+		var watcher = new ConsolePositionWatcher(() => _log);
+		watcher.Poll();
+
+		Assert.That(watcher.LatestChat, Is.Null);
+	}
+
+	[Test]
 	public void Newest_line_wins_and_plain_setpos_parses()
 	{
 		WriteLog(string.Join("\n",
