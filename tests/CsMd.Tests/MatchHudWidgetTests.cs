@@ -24,6 +24,16 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Display_text_neutralizes_markup_brackets()
+	{
+		Assert.That(MatchHudWidget.SanitizeDisplay("Mag1c <3"), Is.EqualTo("Mag1c ‹3"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("a>b"), Is.EqualTo("a›b"));
+		Assert.That(MatchHudWidget.SanitizeDisplay("plain"), Is.EqualTo("plain"));
+		Assert.That(MatchHudWidget.SanitizeDisplay(null), Is.Empty);
+		Assert.That(MatchHudWidget.SanitizeDisplay(string.Empty), Is.Empty);
+	}
+
+	[Test]
 	public void Weapon_display_names_cover_arsenal()
 	{
 		Assert.That(WeaponNames.DisplayName("weapon_ak47"), Is.EqualTo("AK-47"));

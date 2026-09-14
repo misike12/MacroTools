@@ -750,7 +750,9 @@ public static class MatchHudFeed
 			: Strings.Widget.Feed.BombPlanted(site);
 
 	private static string TextOf(IReadOnlyDictionary<string, object?> payload, string key) =>
-		payload.TryGetValue(key, out var value) ? value?.ToString() ?? string.Empty : string.Empty;
+		payload.TryGetValue(key, out var value)
+			? MatchHudWidget.SanitizeDisplay(value?.ToString() ?? string.Empty)
+			: string.Empty;
 }
 
 public static class MatchHudPreviews
@@ -924,14 +926,14 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		return new MatchHudContent(
 			true,
 			JoinParts(MapNames.DisplayName(snapshot.MapName).ToUpperInvariant(), (snapshot.MapMode ?? string.Empty).ToUpperInvariant()),
-			OrDash(snapshot.CtName), snapshot.CtScore,
-			OrDash(snapshot.TName), snapshot.TScore,
+			SanitizeDisplay(OrDash(snapshot.CtName)), snapshot.CtScore,
+			SanitizeDisplay(OrDash(snapshot.TName)), snapshot.TScore,
 			"R" + snapshot.MapRound.ToString(System.Globalization.CultureInfo.InvariantCulture),
 			(snapshot.MapPhase ?? string.Empty).ToUpperInvariant(),
 			snapshot.PhaseEndsIn is { } ends ? MatchHudContent.FormatClock(ends) : string.Empty,
 			snapshot.PhaseEndsIn is not null,
 			dots, dots.Count > 0,
-			snapshot.PlayerName ?? string.Empty,
+			SanitizeDisplay(snapshot.PlayerName),
 			team,
 			snapshot.Alive,
 			snapshot.HasPlayer,
@@ -944,7 +946,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			"R" + snapshot.MapRound.ToString(System.Globalization.CultureInfo.InvariantCulture)
 				+ " · +" + snapshot.RoundKills.ToString(System.Globalization.CultureInfo.InvariantCulture)
 				+ " · " + snapshot.RoundDamage.ToString(System.Globalization.CultureInfo.InvariantCulture),
-			snapshot.PlaceName ?? string.Empty,
+			SanitizeDisplay(snapshot.PlaceName),
 			!string.IsNullOrEmpty(snapshot.PlaceName),
 			coords,
 			!string.IsNullOrEmpty(coords),
@@ -994,6 +996,16 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 
 	public static string JoinParts(params string?[] parts) =>
 		string.Join(" · ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+	public static string SanitizeDisplay(string? value)
+	{
+		if (string.IsNullOrEmpty(value))
+		{
+			return string.Empty;
+		}
+
+		return value.Replace('<', '‹').Replace('>', '›');
+	}
 
 	public static string OrDash(string? value) =>
 		string.IsNullOrWhiteSpace(value) ? "-" : value;
