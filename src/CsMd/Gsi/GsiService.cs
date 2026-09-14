@@ -1215,7 +1215,7 @@ public sealed class GsiService : IDisposable
 	private static string ActiveWeaponName(GsiPlayer player)
 	{
 		var entry = ActiveWeaponEntry(player);
-		return entry is null ? string.Empty : StripWeaponPrefix(entry.Name ?? string.Empty);
+		return entry is null ? string.Empty : WeaponNames.DisplayName(entry.Name);
 	}
 
 	private static GsiWeapon? ActiveWeaponEntry(GsiPlayer player)
@@ -1249,9 +1249,6 @@ public sealed class GsiService : IDisposable
 		return reloading ?? first;
 	}
 
-	private static string StripWeaponPrefix(string name) =>
-		name.StartsWith("weapon_", StringComparison.OrdinalIgnoreCase) ? name[7..] : name;
-
 	private static GsiSnapshot EmptySnapshot(bool connected) => new(
 		connected, null, null, null, 0, 0, 0, null, null, null, null, null,
 		false, null, null, false, 0, 0, false, false, 0, null, -1, -1,
@@ -1265,7 +1262,7 @@ public sealed class GsiService : IDisposable
 		var state = focus?.State;
 		var stats = focus?.MatchStats;
 		var entry = focus is not null ? ActiveWeaponEntry(focus) : null;
-		var active = entry is not null ? StripWeaponPrefix(entry.Name ?? string.Empty) : string.Empty;
+		var active = WeaponNames.DisplayName(entry?.Name);
 		var ammoClip = entry?.AmmoClip ?? -1;
 		var ammoReserve = entry?.AmmoReserve ?? -1;
 		var weaponType = PlaceStore.Prettify(entry?.Type ?? string.Empty);

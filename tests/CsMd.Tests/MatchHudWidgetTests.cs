@@ -24,6 +24,23 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Weapon_display_names_cover_arsenal()
+	{
+		Assert.That(WeaponNames.DisplayName("weapon_ak47"), Is.EqualTo("AK-47"));
+		Assert.That(WeaponNames.DisplayName("weapon_m4a1_silencer"), Is.EqualTo("M4A1-S"));
+		Assert.That(WeaponNames.DisplayName("weapon_usp_silencer"), Is.EqualTo("USP-S"));
+		Assert.That(WeaponNames.DisplayName("weapon_deagle"), Is.EqualTo("Desert Eagle"));
+		Assert.That(WeaponNames.DisplayName("weapon_cz75a"), Is.EqualTo("CZ75-Auto"));
+		Assert.That(WeaponNames.DisplayName("weapon_knife_karambit"), Is.EqualTo("Karambit"));
+		Assert.That(WeaponNames.DisplayName("weapon_hegrenade"), Is.EqualTo("HE Grenade"));
+		Assert.That(WeaponNames.DisplayName("weapon_c4"), Is.EqualTo("C4"));
+		Assert.That(WeaponNames.DisplayName("weapon_xm1014"), Is.EqualTo("XM1014"));
+		Assert.That(WeaponNames.DisplayName("weapon_sg556"), Is.EqualTo("SG 553"));
+		Assert.That(WeaponNames.DisplayName("something_new"), Is.EqualTo("something_new"));
+		Assert.That(WeaponNames.DisplayName(null), Is.Empty);
+	}
+
+	[Test]
 	public void Map_display_names_cover_known_and_fallback()
 	{
 		Assert.That(MapNames.DisplayName("de_dust2"), Is.EqualTo("Dust II"));
@@ -79,7 +96,7 @@ public sealed class MatchHudWidgetTests
 		Assert.That(content.CtScore, Is.EqualTo(3));
 		Assert.That(content.TScore, Is.EqualTo(1));
 		Assert.That(content.HpFrac, Is.EqualTo(1.0));
-		Assert.That(content.LoadoutLine, Is.EqualTo("ak47 · Rifle · 30 / 90"));
+		Assert.That(content.LoadoutLine, Is.EqualTo("AK-47 · Rifle · 30 / 90"));
 		Assert.That(content.MoneyLine, Is.EqualTo("$800 · 4 / 2 / 1"));
 		Assert.That(content.BombText, Is.EqualTo("CARRIED"));
 		Assert.That(content.HasBomb, Is.True);

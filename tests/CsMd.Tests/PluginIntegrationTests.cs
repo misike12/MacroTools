@@ -47,7 +47,7 @@ public sealed class PluginIntegrationTests
 
 		Assert.That(simulate.Succeeded, Is.True);
 		Assert.That((await integration.ReadAsync("health")).Value, Is.EqualTo(100.0));
-		Assert.That((await integration.ReadAsync("weapon")).Value, Is.EqualTo("ak47"));
+		Assert.That((await integration.ReadAsync("weapon")).Value, Is.EqualTo("AK-47"));
 		Assert.That((await integration.ReadAsync("weapon-type")).Value, Is.EqualTo("Rifle"));
 		Assert.That((await integration.ReadAsync("map-name")).Value, Is.EqualTo("de_mirage"));
 		Assert.That((await integration.ReadAsync("player-activity")).Value, Is.EqualTo("playing"));

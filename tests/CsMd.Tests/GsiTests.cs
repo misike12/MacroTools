@@ -372,7 +372,7 @@ public sealed class GsiTests
 		Assert.That(snapshot.Connected, Is.True);
 		Assert.That(snapshot.MapName, Is.EqualTo("de_mirage"));
 		Assert.That(snapshot.Health, Is.EqualTo(87));
-		Assert.That(snapshot.Weapon, Is.EqualTo("m4a1"));
+		Assert.That(snapshot.Weapon, Is.EqualTo("M4A4"));
 		Assert.That(snapshot.AmmoClip, Is.EqualTo(20));
 		Assert.That(snapshot.Kills, Is.EqualTo(5));
 		gsi.Stop();
@@ -463,7 +463,7 @@ public sealed class GsiTests
 		Assert.That(finalPlanted, Is.EqualTo(1));
 		Assert.That(finalExploded, Is.EqualTo(1));
 		Assert.That(kill, Is.Not.Null);
-		Assert.That(kill!.Payload["weapon"], Is.EqualTo("ak47"));
+		Assert.That(kill!.Payload["weapon"], Is.EqualTo("AK-47"));
 
 		Assert.That(gsi.Snapshot().SessionKills, Is.EqualTo(2));
 		Assert.That(gsi.Snapshot().SessionDeaths, Is.EqualTo(1));
