@@ -229,6 +229,11 @@ internal static class MatchHudView
 
 		if (options.ShowPlayer)
 		{
+			if (body.Count > 0)
+			{
+				body.Add(Divider("div-score-player"));
+			}
+
 			body.Add(new UiWhen
 			{
 				Key = "player-when",
@@ -249,6 +254,11 @@ internal static class MatchHudView
 
 		if (options.ShowStatus)
 		{
+			if (body.Count > 0)
+			{
+				body.Add(Divider("div-player-status"));
+			}
+
 			body.Add(StatusRow(content, options));
 		}
 
@@ -397,41 +407,56 @@ internal static class MatchHudView
 	{
 		var body = new List<UiElement>
 		{
-			new UiStack
+			new UiTextRun
 			{
-				Key = "name-row",
-				Direction = UiComponentDirections.Horizontal,
-				Justify = UiComponentJustify.SpaceBetween,
+				Key = "player-name",
+				Text = UiText.From(() => content.Value.NameLine),
+				Size = options.Compact ? UiSize.Capped(0.11, 14) : UiSize.Capped(0.13, 17),
+				Weight = UiComponentTextWeights.SemiBold,
+				Align = UiComponentAlignments.Center,
+			},
+			new UiLayer
+			{
+				Key = "hp-gauge-layer",
+				MainSize = UiSize.Capped(0.26, 104),
 				Children =
 				[
-					new UiTextRun
+					new UiGauge
 					{
-						Key = "player-name",
-						Text = UiText.From(() => content.Value.NameLine),
-						Size = options.Compact ? UiSize.Capped(0.11, 14) : UiSize.Capped(0.13, 17),
-						Weight = UiComponentTextWeights.SemiBold,
-						Align = UiComponentAlignments.Center,
+						Key = "hp-gauge",
+						Level = UiValue.From(() => content.Value.HpFrac),
+						LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+						Thickness = 0.045,
+						Fallback = new UiRangeBar
+						{
+							Key = "hp-gauge-fallback",
+							Start = UiValue.Of(0.0),
+							End = UiValue.From(() => content.Value.HpFrac),
+							StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+							EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+							Thickness = 0.035,
+						},
 					},
-					new UiTextRun
+					new UiStack
 					{
-						Key = "hp-line",
-						Text = UiText.From(() => content.Value.HpText),
-						Size = options.Compact ? UiSize.Capped(0.16, 22) : UiSize.Capped(0.2, 30),
-						Weight = UiComponentTextWeights.SemiBold,
-						Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
-						Digits = UiValue.Of(3.0),
+						Key = "hp-gauge-label",
+						Justify = UiComponentJustify.Center,
 						Align = UiComponentAlignments.Center,
+						Children =
+						[
+							new UiTextRun
+							{
+								Key = "hp-gauge-number",
+								Text = UiText.From(() => content.Value.HpText),
+								Size = options.Compact ? UiSize.Capped(0.14, 20) : UiSize.Capped(0.17, 26),
+								Weight = UiComponentTextWeights.SemiBold,
+								Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
+								Digits = UiValue.Of(3.0),
+								Align = UiComponentAlignments.Center,
+							},
+						],
 					},
 				],
-			},
-			new UiRangeBar
-			{
-				Key = "hp-bar",
-				Start = UiValue.Of(0.0),
-				End = UiValue.From(() => content.Value.HpFrac),
-				StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-				EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-				Thickness = 0.035,
 			},
 			new UiWhen
 			{
@@ -484,70 +509,86 @@ internal static class MatchHudView
 	private static string HpColor(double frac) =>
 		frac > 0.5 ? MatchHudColors.Good : frac > 0.25 ? MatchHudColors.Warn : MatchHudColors.Bad;
 
-	private static UiStack Charts(UiState<MatchHudContent> content) => new UiStack
+	private static UiGrid Charts(UiState<MatchHudContent> content)
 	{
-		Key = "charts",
-		Direction = UiComponentDirections.Horizontal,
-		Gap = 0.04,
-		Children =
-		[
-			new UiStack
+		return new UiGrid
+		{
+			Key = "charts",
+			Columns = UiValue.Of(3),
+			Gap = 0.04,
+			MainSize = UiSize.Capped(0.18, 64),
+			Children =
+			[
+				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
+				ChartBox(content, "dmg-chart", MatchHudColors.T, static c => c.DmgHistory, static c => c.DmgCaption),
+				ChartBox(content, "money-chart", MatchHudColors.Ct, static c => c.MoneyHistory, null),
+			],
+			Fallback = new UiStack
 			{
-				Key = "hp-chart-box",
-				Fill = true,
+				Key = "charts-fallback",
+				Direction = UiComponentDirections.Horizontal,
+				Gap = 0.04,
 				Children =
 				[
-					new UiChart
-					{
-						Key = "hp-chart",
-						Points = UiValue.From(() => content.Value.HpHistory),
-						Color = UiValue.Of(MatchHudColors.Good),
-						Thickness = 0.02,
-						MainSize = UiSize.Capped(0.1, 36),
-					},
+					FilledBox("hp-chart-fallback", ChartBox(content, "hp-chart-fb", MatchHudColors.Good, static c => c.HpHistory, null)),
+					FilledBox("dmg-chart-fallback", ChartBox(content, "dmg-chart-fb", MatchHudColors.T, static c => c.DmgHistory, static c => c.DmgCaption)),
+					FilledBox("money-chart-fallback", ChartBox(content, "money-chart-fb", MatchHudColors.Ct, static c => c.MoneyHistory, null)),
 				],
 			},
-			new UiStack
+		};
+	}
+
+	private static UiStack FilledBox(string key, UiElement child) => new UiStack
+	{
+		Key = key,
+		Fill = true,
+		Children = [child],
+	};
+
+	private static UiStack ChartBox(
+		UiState<MatchHudContent> content,
+		string prefix,
+		string color,
+		Func<MatchHudContent, IReadOnlyList<double>> points,
+		Func<MatchHudContent, string>? caption)
+	{
+		var children = new List<UiElement>
+		{
+			new UiChart
 			{
-				Key = "dmg-chart-box",
-				Fill = true,
-				Children =
-				[
-					new UiChart
-					{
-						Key = "dmg-chart",
-						Points = UiValue.From(() => content.Value.DmgHistory),
-						Color = UiValue.Of(MatchHudColors.T),
-						Thickness = 0.02,
-						MainSize = UiSize.Capped(0.1, 36),
-					},
-					new UiTextRun
-					{
-						Key = "dmg-caption",
-						Text = UiText.From(() => content.Value.DmgCaption),
-						Size = UiSize.Capped(0.07, 9),
-						Role = UiComponentTextRoles.Muted,
-						Align = UiComponentAlignments.Center,
-					},
-				],
+				Key = prefix,
+				Points = UiValue.From(() => points(content.Value)),
+				Color = UiValue.Of(color),
+				Thickness = 0.02,
+				MainSize = UiSize.Capped(0.1, 36),
 			},
-			new UiStack
+		};
+
+		if (caption is not null)
+		{
+			children.Add(new UiTextRun
 			{
-				Key = "money-chart-box",
-				Fill = true,
-				Children =
-				[
-					new UiChart
-					{
-						Key = "money-chart",
-						Points = UiValue.From(() => content.Value.MoneyHistory),
-						Color = UiValue.Of(MatchHudColors.Ct),
-						Thickness = 0.02,
-						MainSize = UiSize.Capped(0.1, 36),
-					},
-				],
-			},
-		],
+				Key = prefix + "-caption",
+				Text = UiText.From(() => caption(content.Value)),
+				Size = UiSize.Capped(0.07, 9),
+				Role = UiComponentTextRoles.Muted,
+				Align = UiComponentAlignments.Center,
+			});
+		}
+
+		return new UiStack
+		{
+			Key = prefix + "-box",
+			Children = children,
+		};
+	}
+
+	private static UiShape Divider(string key) => new UiShape
+	{
+		Key = key,
+		Shape = UiComponentShapes.Capsule,
+		Color = UiValue.Of("#4B5563"),
+		MainSize = 0.006,
 	};
 
 	private static UiStack StatusRow(UiState<MatchHudContent> content, MatchHudOptions options)

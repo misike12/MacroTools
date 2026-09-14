@@ -97,6 +97,21 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Install_action_reports_game_presence_as_states()
+	{
+		using var gsi = new GsiService(TestLogger());
+		var action = new CsMd.Actions.InstallGsiConfigAction(new CsSettingsProvider(), gsi);
+
+		Assert.That(action, Is.InstanceOf<MacroDeck.Sdk.Actions.IStateProviderActionDefinition>());
+		var snapshot = await ((MacroDeck.Sdk.Actions.IStateProviderActionDefinition)action)
+			.GetActionStateAsync(new Dictionary<string, object?>(), TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(snapshot, Is.Not.Null);
+		Assert.That(snapshot!.States.Select(state => state.Id), Is.EquivalentTo(["ready", "missing"]));
+		Assert.That(snapshot.ActiveStateId, Is.EqualTo("ready").Or.EqualTo("missing"));
+	}
+
+	[Test]
 	public async Task New_computed_variables_read()
 	{
 		using var gsi = new GsiService(TestLogger());

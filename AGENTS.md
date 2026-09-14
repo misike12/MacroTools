@@ -364,7 +364,7 @@ check going from pass to fail as a blocking regression. Most checks `SKIP` until
 capabilities.
 
 The Macro Deck packages are pinned to the host line in use (`MacroDeckSdkVersion` in
-`Directory.Packages.props`, currently `3.0.0-beta.4`), so the commands above need no version
+`Directory.Packages.props`, currently `3.0.0-beta.5`), so the commands above need no version
 argument. Only to test against SDK surface that is not published yet, pack it into `local-feed/` and
 pass `-p:MacroDeckSdkVersion=<version>` - see "Building against a local SDK build" in
 [README.md](README.md).

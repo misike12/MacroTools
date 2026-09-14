@@ -18,6 +18,12 @@
   <data name="Actions.InstallGsiConfig.Description" xml:space="preserve">
     <value>Find Counter-Strike 2 and write the Game State Integration file so the game pushes live data here. Also writes the position helper file used by position tracking. Restarts the listener.</value>
   </data>
+  <data name="Actions.InstallGsiConfig.States.Ready" xml:space="preserve">
+    <value>Game found</value>
+  </data>
+  <data name="Actions.InstallGsiConfig.States.Missing" xml:space="preserve">
+    <value>Game not found</value>
+  </data>
   <data name="Actions.ResetSessionStats.Name" xml:space="preserve">
     <value>Reset session stats</value>
   </data>

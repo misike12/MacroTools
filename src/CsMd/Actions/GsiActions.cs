@@ -15,7 +15,7 @@ internal static class CsActionResults
 		ActionResult.Failed(ActionErrorCodes.ProviderError, Strings.Errors.CommandFailed());
 }
 
-public sealed class InstallGsiConfigAction(CsSettingsProvider settings, GsiService gsi) : IActionDefinition
+public sealed class InstallGsiConfigAction(CsSettingsProvider settings, GsiService gsi) : IActionDefinition, IStateProviderActionDefinition
 {
 	public string Id => "install-gsi-config";
 	public LocalizedText Name => Strings.Actions.InstallGsiConfig.Name();
@@ -23,6 +23,15 @@ public sealed class InstallGsiConfigAction(CsSettingsProvider settings, GsiServi
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
 	public IActionExecutor CreateExecutor() => new Executor(settings, gsi);
+
+	public Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken) => Task.FromResult<ActionStateSnapshot?>(new ActionStateSnapshot(
+		[
+			new ActionStateDefinition("ready", Strings.Actions.InstallGsiConfig.States.Ready()),
+			new ActionStateDefinition("missing", Strings.Actions.InstallGsiConfig.States.Missing()),
+		],
+		GsiConfig.FindCsDirectory() is null ? "missing" : "ready"));
 
 	private sealed class Executor(CsSettingsProvider settings, GsiService gsi) : IActionExecutor
 	{
