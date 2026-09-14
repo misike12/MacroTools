@@ -117,7 +117,7 @@ public sealed class MatchHudWidgetTests
 		Assert.That(content.MoneyLine, Is.EqualTo("$800 · 4 / 2 / 1"));
 		Assert.That(content.BombText, Is.EqualTo("CARRIED"));
 		Assert.That(content.HasBomb, Is.True);
-		Assert.That(content.SessionLine, Is.EqualTo("0 / 0 · 0.00"));
+		Assert.That(content.SessionLine, Is.EqualTo("K 0 · D 0 · 0.00"));
 		Assert.That(content.ArmorLine, Is.EqualTo("100"));
 		Assert.That(content.RoundLine, Is.EqualTo("R5 · +0 · 0"));
 		Assert.That(content.HasHistory, Is.False);

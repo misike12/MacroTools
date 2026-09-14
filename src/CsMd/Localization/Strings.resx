@@ -652,16 +652,16 @@
     <value>HELM</value>
   </data>
   <data name="Widget.Feed.Kill" xml:space="preserve">
-    <value>{player} +1 · {weapon} · {place}</value>
+    <value>{player} ▲ · {weapon} · {place}</value>
   </data>
   <data name="Widget.Feed.KillBare" xml:space="preserve">
-    <value>{player} +1 · {weapon}</value>
+    <value>{player} ▲ · {weapon}</value>
   </data>
   <data name="Widget.Feed.Death" xml:space="preserve">
-    <value>{player} −1 · {place}</value>
+    <value>{player} ▼ · {place}</value>
   </data>
   <data name="Widget.Feed.DeathBare" xml:space="preserve">
-    <value>{player} −1</value>
+    <value>{player} ▼</value>
   </data>
   <data name="Widget.Feed.BombPlanted" xml:space="preserve">
     <value>Bomb planted · {site}</value>

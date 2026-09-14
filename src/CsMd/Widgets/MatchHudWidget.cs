@@ -115,7 +115,7 @@ public sealed record MatchHudContent(
 		[new RoundDot("1", "●", "#4ADE80"), new RoundDot("2", "●", "#4ADE80"), new RoundDot("3", "●", "#F87171")], true,
 		"s1mple", "CT", true, true, 0.87, "87", 1.0, "100", "AWP · Rifle · 5 / 30", "$4,700 · 18 / 9 / 4", "R17 · +2 · 250",
 		"Middle", true, "512 · -735 · -148", true, "CONSOLE", "CARRIED", false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
-		false, false, false, true, true, "18 / 9 · 2.00",
+		false, false, false, true, true, "K 18 · D 9 · 2.00",
 		[0.9, 0.85, 0.87, 0.6, 0.62, 0.87], true, [0.2, 0.5, 0.3], "250 / 400", true,
 		[new FeedItem("f2", Strings.Widget.Feed.Kill("s1mple", "AWP", "Middle")), new FeedItem("f1", Strings.Widget.Feed.RoundWon())], true,
 		MatchHudOptions.Default);
@@ -126,7 +126,7 @@ public sealed record MatchHudContent(
 		"misuuu", "T", false, true, 0, "0", 0, "0", "AK-47 · Rifle · 0 / 90", "$800 · 14 / 12 / 3", "R21 · +0 · 0",
 		"Bombsite A", true, string.Empty, false, string.Empty, "PLANTED", true,
 		new UiProgressReference { PositionMs = 8000, Anchor = DateTimeOffset.UtcNow, DurationMs = 40000, Rate = 1 }, true,
-		false, false, false, false, false, "14 / 12 · 1.17",
+		false, false, false, false, false, "K 14 · D 12 · 1.17",
 		[], false, [], string.Empty, false, [new FeedItem("f1", Strings.Widget.Feed.BombPlanted("B"))], true,
 		MatchHudOptions.Default);
 
@@ -965,7 +965,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			snapshot.Flashed,
 			snapshot.Helmet,
 			snapshot.DefuseKit,
-			$"{snapshot.SessionKills} / {snapshot.SessionDeaths} · {snapshot.SessionKd.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}",
+			$"K {snapshot.SessionKills} · D {snapshot.SessionDeaths} · {snapshot.SessionKd.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}",
 			hpHistory,
 			hpHistory.Count > 0,
 			dmgHistory,
