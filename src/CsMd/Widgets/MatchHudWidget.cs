@@ -13,6 +13,7 @@ using MacroDeck.Ui.Model.Surfaces;
 using MacroDeck.Ui.Previews;
 using MacroDeck.Ui.Runtime;
 using CsMd.Gsi;
+using CsMd.Places;
 
 namespace CsMd.Widgets;
 
@@ -922,7 +923,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 
 		return new MatchHudContent(
 			true,
-			JoinParts((snapshot.MapName ?? string.Empty).ToUpperInvariant(), (snapshot.MapMode ?? string.Empty).ToUpperInvariant()),
+			JoinParts(MapNames.DisplayName(snapshot.MapName).ToUpperInvariant(), (snapshot.MapMode ?? string.Empty).ToUpperInvariant()),
 			OrDash(snapshot.CtName), snapshot.CtScore,
 			OrDash(snapshot.TName), snapshot.TScore,
 			"R" + snapshot.MapRound.ToString(System.Globalization.CultureInfo.InvariantCulture),

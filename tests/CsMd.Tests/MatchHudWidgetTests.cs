@@ -1,4 +1,5 @@
 using CsMd.Gsi;
+using CsMd.Places;
 using CsMd.Widgets;
 using NUnit.Framework;
 using Serilog;
@@ -20,6 +21,20 @@ public sealed class MatchHudWidgetTests
 		Assert.That(options.ShowStatus, Is.True);
 		Assert.That(options.ShowFeed, Is.True);
 		Assert.That(options.Compact, Is.False);
+	}
+
+	[Test]
+	public void Map_display_names_cover_known_and_fallback()
+	{
+		Assert.That(MapNames.DisplayName("de_dust2"), Is.EqualTo("Dust II"));
+		Assert.That(MapNames.DisplayName("de_mirage"), Is.EqualTo("Mirage"));
+		Assert.That(MapNames.DisplayName("de_cbble"), Is.EqualTo("Cobblestone"));
+		Assert.That(MapNames.DisplayName("cs_office"), Is.EqualTo("Office"));
+		Assert.That(MapNames.DisplayName("dz_frostbite"), Is.EqualTo("Frostbite"));
+		Assert.That(MapNames.DisplayName("workshop/123456/de_newbloom"), Is.EqualTo("Newbloom"));
+		Assert.That(MapNames.DisplayName("de_stmarc"), Is.EqualTo("St. Marc"));
+		Assert.That(MapNames.DisplayName(null), Is.Empty);
+		Assert.That(MapNames.DisplayName("  "), Is.Empty);
 	}
 
 	[Test]
@@ -59,8 +74,7 @@ public sealed class MatchHudWidgetTests
 		var content = widget.BuildContent(MatchHudOptions.Default);
 
 		Assert.That(content.Connected, Is.True);
-		Assert.That(content.MapLine, Is.EqualTo("DE_MIRAGE · COMPETITIVE"));
-		Assert.That(content.MapLine, Is.EqualTo("DE_MIRAGE · COMPETITIVE"));
+		Assert.That(content.MapLine, Is.EqualTo("MIRAGE · COMPETITIVE"));
 		Assert.That(content.RoundText, Is.EqualTo("R5"));
 		Assert.That(content.CtScore, Is.EqualTo(3));
 		Assert.That(content.TScore, Is.EqualTo(1));
