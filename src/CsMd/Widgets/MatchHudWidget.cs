@@ -98,7 +98,7 @@ public sealed record MatchHudContent(
 	string ArmorLine,
 	string LoadoutLine,
 	string MoneyLine,
-	string RoundLine,
+	MacroDeck.Localization.LocalizedString RoundLine,
 	MacroDeck.Localization.LocalizedString? TopWeaponLine,
 	string PlaceText,
 	bool HasPlace,
@@ -116,7 +116,7 @@ public sealed record MatchHudContent(
 	bool DefuseKit,
 	int Streak,
 	bool HasStreak,
-	string SessionLine,
+	MacroDeck.Localization.LocalizedString SessionLine,
 	IReadOnlyList<double> HpHistory,
 	bool HasHpHistory,
 	IReadOnlyList<double> DmgHistory,
@@ -131,18 +131,18 @@ public sealed record MatchHudContent(
 	public static MatchHudContent Empty { get; } = new(
 		false, string.Empty, "CT", 0, "T", 0, string.Empty, string.Empty, string.Empty, false,
 		[], false,
-		string.Empty, string.Empty, false, false, 0, string.Empty, 0, string.Empty, string.Empty, string.Empty, string.Empty, null,
+		string.Empty, string.Empty, false, false, 0, string.Empty, 0, string.Empty, string.Empty, string.Empty, Strings.Widget.Round.Line(0, 0, 0), null,
 		string.Empty, false, string.Empty, false, string.Empty, string.Empty, false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
-		false, false, false, false, false, 0, false, string.Empty,
+		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(0, 0, "0.00"),
 		[], false, [], string.Empty, false, [], false, [], false,
 		MatchHudOptions.Default);
 
 	public static MatchHudContent SampleLive { get; } = new(
 		true, "DE_MIRAGE · COMPETITIVE", "NAVI", 9, "FAZE", 7, "R17", "LIVE", "1:23", true,
 		[new RoundDot("1", "●", "#4ADE80"), new RoundDot("2", "●", "#4ADE80"), new RoundDot("3", "●", "#F87171")], true,
-		"s1mple [NAVI]", "CT", true, true, 0.87, "87", 1.0, "100", "AWP · Rifle · 5 / 30", "$4,700 · 18 / 9 / 4", "R17 · +2 · 250", Strings.Widget.TopWeapon.Line("AWP", 14),
+		"s1mple [NAVI]", "CT", true, true, 0.87, "87", 1.0, "100", "AWP · Rifle · 5 / 30", "$4,700 · 18 / 9 / 4", Strings.Widget.Round.Line(17, 2, 250), Strings.Widget.TopWeapon.Line("AWP", 14),
 		"Middle", true, "512 · -735 · -148", true, "CONSOLE", "CARRIED", false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
-		false, false, false, true, true, 4, true, "K 18 · D 9 · 2.00",
+		false, false, false, true, true, 4, true, Strings.Widget.Session.Line(18, 9, "2.00"),
 		[0.9, 0.85, 0.87, 0.6, 0.62, 0.87], true, [0.2, 0.5, 0.3], "250 / 400", true, [0.1, 0.2, 0.29], true,
 		[new FeedItem("f2", Strings.Widget.Feed.Kill("s1mple", "AWP", "Middle")), new FeedItem("f1", Strings.Widget.Feed.RoundWon())], true,
 		MatchHudOptions.Default);
@@ -150,10 +150,10 @@ public sealed record MatchHudContent(
 	public static MatchHudContent SampleBomb { get; } = new(
 		true, "DE_DUST2 · COMPETITIVE", "CTs", 11, "Ts", 9, "R21", "LIVE", "0:32", true,
 		[], false,
-		"misuuu", "T", false, true, 0, "0", 0, "0", "AK-47 · Rifle · 0 / 90", "$800 · 14 / 12 / 3", "R21 · +0 · 0", null,
+		"misuuu", "T", false, true, 0, "0", 0, "0", "AK-47 · Rifle · 0 / 90", "$800 · 14 / 12 / 3", Strings.Widget.Round.Line(21, 0, 0), null,
 		"Bombsite A", true, string.Empty, false, string.Empty, "PLANTED", true,
 		new UiProgressReference { PositionMs = 8000, Anchor = DateTimeOffset.UtcNow, DurationMs = 40000, Rate = 1 }, true,
-		false, false, false, false, false, 0, false, "K 14 · D 12 · 1.17",
+		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(14, 12, "1.17"),
 		[], false, [], string.Empty, false, [], false, [new FeedItem("f1", Strings.Widget.Feed.BombPlanted("B"))], true,
 		MatchHudOptions.Default);
 
@@ -450,7 +450,14 @@ internal static class MatchHudView
 			MicroLine(content, "armor", () => content.Value.ArmorLine),
 			MicroLine(content, "loadout", () => content.Value.LoadoutLine),
 			MicroLine(content, "money", () => content.Value.MoneyLine),
-			MicroLine(content, "round-line", () => content.Value.RoundLine),
+			new UiTextRun
+			{
+				Key = "round-line",
+				Text = UiText.FromLocalized(() => content.Value.RoundLine),
+				Size = UiSize.Capped(0.08, 10),
+				Role = UiComponentTextRoles.Muted,
+				Align = UiComponentAlignments.Center,
+			},
 			new UiWhen
 			{
 				Key = "topweapon-when",
@@ -584,7 +591,7 @@ internal static class MatchHudView
 			children.Add(new UiTextRun
 			{
 				Key = "session",
-				Text = UiText.From(() => content.Value.SessionLine),
+				Text = UiText.FromLocalized(() => content.Value.SessionLine),
 				Size = UiSize.Capped(0.07, 9),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
@@ -788,6 +795,9 @@ public static class MatchHudFeed
 		GsiEventIds.BombExploded => Strings.Widget.Feed.BombExploded(),
 		GsiEventIds.RoundWon => Strings.Widget.Feed.RoundWon(),
 		GsiEventIds.RoundLost => Strings.Widget.Feed.RoundLost(),
+		GsiEventIds.StreakMilestone => Strings.Widget.Feed.Streak(NumberOf(payload, "streak")),
+		GsiEventIds.PlaceChanged => Strings.Widget.Feed.Place(TextOf(payload, "place")),
+		GsiEventIds.ChatMessage => Strings.Widget.Feed.Chat(TextOf(payload, "player"), TextOf(payload, "text")),
 		_ => null,
 	};
 
@@ -810,6 +820,24 @@ public static class MatchHudFeed
 		payload.TryGetValue(key, out var value)
 			? MatchHudWidget.SanitizeDisplay(value?.ToString() ?? string.Empty)
 			: string.Empty;
+
+	private static int NumberOf(IReadOnlyDictionary<string, object?> payload, string key)
+	{
+		if (!payload.TryGetValue(key, out var value))
+		{
+			return 0;
+		}
+
+		return value switch
+		{
+			double d => (int)d,
+			float f => (int)f,
+			int i => i,
+			long l => (int)l,
+			string s when int.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed) => parsed,
+			_ => 0,
+		};
+	}
 }
 
 public static class MatchHudPreviews
@@ -966,6 +994,11 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		var money = JoinParts(
 			MatchHudContent.FormatMoney(snapshot.Money),
 			$"{snapshot.Kills} / {snapshot.Deaths} / {snapshot.Assists}");
+		var roundLine = Strings.Widget.Round.Line(snapshot.MapRound, snapshot.RoundKills, snapshot.RoundDamage);
+		var sessionLine = Strings.Widget.Session.Line(
+			snapshot.SessionKills,
+			snapshot.SessionDeaths,
+			snapshot.SessionKd.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
 		var bomb = snapshot.BombState;
 		if (!string.IsNullOrEmpty(bomb) && snapshot.BombCountdown is { } countdown)
 		{
@@ -1002,9 +1035,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			armor > 0 ? armor.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
 			loadout,
 			money,
-			"R" + snapshot.MapRound.ToString(System.Globalization.CultureInfo.InvariantCulture)
-				+ " · +" + snapshot.RoundKills.ToString(System.Globalization.CultureInfo.InvariantCulture)
-				+ " · " + snapshot.RoundDamage.ToString(System.Globalization.CultureInfo.InvariantCulture),
+			roundLine,
 			!string.IsNullOrEmpty(snapshot.TopWeapon)
 				? Strings.Widget.TopWeapon.Line(snapshot.TopWeapon, snapshot.TopWeaponKills)
 				: null,
@@ -1024,7 +1055,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			snapshot.DefuseKit,
 			snapshot.KillStreak,
 			snapshot.KillStreak >= 2,
-			$"K {snapshot.SessionKills} · D {snapshot.SessionDeaths} · {snapshot.SessionKd.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}",
+			sessionLine,
 			hpHistory,
 			hpHistory.Count > 0,
 			dmgHistory,
@@ -1069,51 +1100,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		return clean.Length == 0 ? string.Empty : "[" + clean + "]";
 	}
 
-	public static string SanitizeDisplay(string? value)
-	{
-		if (string.IsNullOrEmpty(value))
-		{
-			return string.Empty;
-		}
-
-		var builder = new System.Text.StringBuilder(value.Length);
-		foreach (var ch in value)
-		{
-			switch (ch)
-			{
-				case '<':
-					builder.Append('‹');
-					break;
-				case '>':
-					builder.Append('›');
-					break;
-				case '&':
-					builder.Append('＆');
-					break;
-				case '"':
-					builder.Append('″');
-					break;
-				case '\'':
-					builder.Append('′');
-					break;
-				default:
-					if (!char.IsControl(ch) && !IsInvisibleFormat(ch))
-					{
-						builder.Append(ch);
-					}
-
-					break;
-			}
-		}
-
-		return builder.ToString().Trim();
-	}
-
-	private static bool IsInvisibleFormat(char ch) =>
-		(ch >= (char)0x200B && ch <= (char)0x200F)
-		|| (ch >= (char)0x202A && ch <= (char)0x202E)
-		|| (ch >= (char)0x2066 && ch <= (char)0x2069)
-		|| ch == (char)0xFEFF;
+	public static string SanitizeDisplay(string? value) => DisplayText.Sanitize(value);
 
 	public static string NormalizeTeam(string? team) => team?.ToUpperInvariant() switch
 	{
@@ -1508,3 +1495,4 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			Faulted?.Invoke(this, new UiSessionFaultedEventArgs("handler-fault", e.Exception));
 	}
 }
+

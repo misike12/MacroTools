@@ -101,3 +101,72 @@ public sealed class SimulateMatchAction(GsiService gsi) : IActionDefinition
 		}
 	}
 }
+
+public sealed class SimulateEventAction(Func<string, Task> publish) : IActionDefinition
+{
+	public static readonly IReadOnlyList<string> KnownEvents =
+	[
+		"round-started", "round-ended", "round-won", "round-lost",
+		"bomb-planted", "bomb-defused", "bomb-exploded",
+		"player-died", "player-kill",
+		"match-started", "match-ended",
+		"streak-milestone", "place-changed",
+	];
+
+	public string Id => "simulate-event";
+	public LocalizedText Name => Strings.Actions.SimulateEvent.Name();
+	public LocalizedText Description => Strings.Actions.SimulateEvent.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } =
+	[
+		ActionParameter.Choice(
+			"event",
+			[
+				new ActionParameterOption { Value = "round-started", Label = Strings.Events.RoundStarted.Name() },
+				new ActionParameterOption { Value = "round-ended", Label = Strings.Events.RoundEnded.Name() },
+				new ActionParameterOption { Value = "round-won", Label = Strings.Events.RoundWon.Name() },
+				new ActionParameterOption { Value = "round-lost", Label = Strings.Events.RoundLost.Name() },
+				new ActionParameterOption { Value = "bomb-planted", Label = Strings.Events.BombPlanted.Name() },
+				new ActionParameterOption { Value = "bomb-defused", Label = Strings.Events.BombDefused.Name() },
+				new ActionParameterOption { Value = "bomb-exploded", Label = Strings.Events.BombExploded.Name() },
+				new ActionParameterOption { Value = "player-died", Label = Strings.Events.PlayerDied.Name() },
+				new ActionParameterOption { Value = "player-kill", Label = Strings.Events.PlayerKill.Name() },
+				new ActionParameterOption { Value = "match-started", Label = Strings.Events.MatchStarted.Name() },
+				new ActionParameterOption { Value = "match-ended", Label = Strings.Events.MatchEnded.Name() },
+				new ActionParameterOption { Value = "streak-milestone", Label = Strings.Events.StreakMilestone.Name() },
+				new ActionParameterOption { Value = "place-changed", Label = Strings.Events.PlaceChanged.Name() },
+			],
+			Strings.Actions.SimulateEvent.Event.Label(),
+			Strings.Actions.SimulateEvent.Event.Description(),
+			"player-kill"),
+	];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.All;
+	public IActionExecutor CreateExecutor() => new Executor(publish);
+
+	private sealed class Executor(Func<string, Task> publish) : IActionExecutor
+	{
+		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			string? eventId = null;
+			if (context.Parameters.TryGetValue("event", out var raw))
+			{
+				var text = raw?.ToString();
+				eventId = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+			}
+
+			if (eventId is null || !KnownEvents.Contains(eventId, StringComparer.Ordinal))
+			{
+				return ActionResult.Failed(ActionErrorCodes.InvalidParameter, Strings.Errors.FieldInvalid());
+			}
+
+			try
+			{
+				await publish(eventId);
+				return ActionResult.Success();
+			}
+			catch (Exception)
+			{
+				return CsActionResults.ProviderError();
+			}
+		}
+	}
+}

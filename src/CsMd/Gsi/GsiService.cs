@@ -24,6 +24,9 @@ public static class GsiEventIds
 	public const string PlayerKill = "player-kill";
 	public const string MatchStarted = "match-started";
 	public const string MatchEnded = "match-ended";
+	public const string StreakMilestone = "streak-milestone";
+	public const string PlaceChanged = "place-changed";
+	public const string ChatMessage = "chat-message";
 }
 
 public sealed record GsiSnapshot(
@@ -90,7 +93,10 @@ public sealed record GsiSnapshot(
 	string? TopWeapon,
 	int TopWeaponKills,
 	int RoundsPlayed,
-	int SessionDamage);
+	int SessionDamage,
+	int SessionHs,
+	double MatchElapsed,
+	string? LastChat);
 
 public sealed record PositionOptions(bool Enabled, int IntervalSeconds, int KeyCode)
 {
@@ -141,6 +147,10 @@ public sealed class GsiService : IDisposable
 	private readonly Dictionary<string, int> _weaponKills = new(StringComparer.OrdinalIgnoreCase);
 	private readonly HashSet<int> _roundsSeen = [];
 	private int _sessionDamage;
+	private int _sessionHs;
+	private DateTimeOffset? _matchStartUtc;
+	private string? _lastPlace;
+	private DateTimeOffset? _lastChatAt;
 
 	public GsiService(ILogger logger)
 		: this(logger, new PlaceStore(logger))
@@ -249,6 +259,8 @@ public sealed class GsiService : IDisposable
 		}
 	}
 
+	private static readonly int[] StreakMilestones = [3, 5, 10, 15, 20, 25, 30];
+
 	private void ResetSessionLocked()
 	{
 		_sessionKills = 0;
@@ -258,6 +270,10 @@ public sealed class GsiService : IDisposable
 		_weaponKills.Clear();
 		_roundsSeen.Clear();
 		_sessionDamage = 0;
+		_sessionHs = 0;
+		_matchStartUtc = null;
+		_lastPlace = null;
+		_lastChatAt = null;
 	}
 
 	public void InjectTestState() => ApplyPayload(TestPayload(), bypassAuth: true);
@@ -266,9 +282,11 @@ public sealed class GsiService : IDisposable
 	{
 		GsiPayload? payload;
 		SessionStats stats;
+		bool connected;
 		lock (_gate)
 		{
-			var connected = _lastReceivedAt is { } seen && DateTimeOffset.UtcNow - seen <= ConnectedWindow;
+			var now = DateTimeOffset.UtcNow;
+			connected = _lastReceivedAt is { } seen && now - seen <= ConnectedWindow;
 			payload = _last;
 			stats = new SessionStats(
 				_sessionKills,
@@ -277,7 +295,9 @@ public sealed class GsiService : IDisposable
 				_bestStreak,
 				_weaponKills.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
 				_roundsSeen.Count,
-				_sessionDamage);
+				_sessionDamage,
+				_sessionHs,
+				connected && _matchStartUtc is { } started ? Math.Max(0, (now - started).TotalSeconds) : 0);
 			if (!connected || payload is null)
 			{
 				return EmptySnapshot(false);
@@ -297,7 +317,9 @@ public sealed class GsiService : IDisposable
 		int BestStreak,
 		Dictionary<string, int> WeaponKills,
 		int RoundsPlayed,
-		int Damage);
+		int Damage,
+		int Hs,
+		double Elapsed);
 
 	public void Dispose()
 	{
@@ -733,7 +755,14 @@ public sealed class GsiService : IDisposable
 			}
 
 			Interlocked.Increment(ref _sequence);
-			_lastReceivedAt = DateTimeOffset.UtcNow;
+			var now = DateTimeOffset.UtcNow;
+			if (_matchStartUtc is null
+				|| (_lastReceivedAt is { } seen && now - seen > TimeSpan.FromMinutes(5)))
+			{
+				_matchStartUtc = now;
+			}
+
+			_lastReceivedAt = now;
 
 			var previous = _last;
 			_last = payload;
@@ -746,22 +775,29 @@ public sealed class GsiService : IDisposable
 			events.AddRange(DiffLocked(previous, payload));
 		}
 
-		if (events.Count > 0)
+		EmitEvents(events);
+	}
+
+	private void EmitEvents(List<GsiMatchEvent> events)
+	{
+		if (events.Count == 0)
 		{
-			Task.Run(() =>
-			{
-				foreach (var matchEvent in events)
-				{
-					try
-					{
-						MatchEvent?.Invoke(this, matchEvent);
-					}
-					catch (Exception)
-					{
-					}
-				}
-			});
+			return;
 		}
+
+		Task.Run(() =>
+		{
+			foreach (var matchEvent in events)
+			{
+				try
+				{
+					MatchEvent?.Invoke(this, matchEvent);
+				}
+				catch (Exception)
+				{
+				}
+			}
+		});
 	}
 
 	private List<GsiMatchEvent> DiffLocked(GsiPayload? previous, GsiPayload current)
@@ -847,7 +883,7 @@ public sealed class GsiService : IDisposable
 			}
 		}
 
-		var focus = FocusedPlayer(current, previous);
+			var focus = FocusedPlayer(current, previous);
 		var previousFocus = previous is not null ? FocusedPlayer(previous, null) : null;
 		if (focus is not null)
 		{
@@ -855,6 +891,18 @@ public sealed class GsiService : IDisposable
 			var place = position is not null
 				? SafeFindPlace(current.Map?.Name, position.X, position.Y, position.Z)
 				: null;
+			if (!string.IsNullOrEmpty(place) && !string.Equals(place, _lastPlace, StringComparison.Ordinal))
+			{
+				if (_lastPlace is not null)
+				{
+					events.Add(new GsiMatchEvent(GsiEventIds.PlaceChanged, new Dictionary<string, object?>
+					{
+						["place"] = place,
+					}));
+				}
+
+				_lastPlace = place;
+			}
 			var deaths = focus.MatchStats?.Deaths ?? 0;
 			var previousDeaths = previousFocus?.MatchStats?.Deaths ?? 0;
 			if (previous is not null && deaths > previousDeaths)
@@ -889,10 +937,22 @@ public sealed class GsiService : IDisposable
 				}
 
 				_sessionKills += kills - previousKills;
+				var previousStreak = _streak;
 				_streak += kills - previousKills;
 				if (_streak > _bestStreak)
 				{
 					_bestStreak = _streak;
+				}
+
+				foreach (var milestone in StreakMilestones)
+				{
+					if (previousStreak < milestone && _streak >= milestone)
+					{
+						events.Add(new GsiMatchEvent(GsiEventIds.StreakMilestone, new Dictionary<string, object?>
+						{
+							["streak"] = (double)milestone,
+						}));
+					}
 				}
 
 				if (!string.IsNullOrEmpty(weapon))
@@ -917,6 +977,7 @@ public sealed class GsiService : IDisposable
 			if (previousRound > 0 && round != previousRound)
 			{
 				_sessionDamage += previousFocus?.State?.RoundDamage ?? 0;
+				_sessionHs += previousFocus?.State?.RoundHeadshots ?? 0;
 			}
 		}
 
@@ -980,12 +1041,19 @@ public sealed class GsiService : IDisposable
 				connected = _lastReceivedAt is { } seen && DateTimeOffset.UtcNow - seen <= ConnectedWindow;
 			}
 
-			if (!options.Enabled || !connected)
+			if (!connected)
 			{
 				return;
 			}
 
 			_console.Poll();
+			EmitChatIfNew();
+
+			if (!options.Enabled)
+			{
+				return;
+			}
+
 			if (!_console.LogPresent || !LogActive())
 			{
 				return;
@@ -1001,6 +1069,39 @@ public sealed class GsiService : IDisposable
 		catch (Exception ex)
 		{
 			_logger.Debug(ex, "Position poll failed.");
+		}
+	}
+
+	private void EmitChatIfNew()
+	{
+		try
+		{
+			var chat = _console.LatestChat;
+			if (chat is null)
+			{
+				return;
+			}
+
+			lock (_gate)
+			{
+				if (_lastChatAt is not null && chat.Value.At <= _lastChatAt)
+				{
+					return;
+				}
+
+				_lastChatAt = chat.Value.At;
+			}
+
+			EmitEvents([new GsiMatchEvent(GsiEventIds.ChatMessage, new Dictionary<string, object?>
+			{
+				["player"] = chat.Value.Player,
+				["scope"] = chat.Value.Scope,
+				["text"] = chat.Value.Text,
+			})]);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Chat poll failed.");
 		}
 	}
 
@@ -1276,6 +1377,42 @@ public sealed class GsiService : IDisposable
 		}
 	}
 
+	private string? ConsoleChatLine()
+	{
+		var chat = _console.LatestChat;
+		if (chat is null || DateTimeOffset.UtcNow - chat.Value.At > TimeSpan.FromMinutes(5))
+		{
+			return null;
+		}
+
+		return $"{chat.Value.Player}: {chat.Value.Text}";
+	}
+
+	public static int LossBonusOf(string history, string? team)
+	{
+		if (string.IsNullOrEmpty(history) || (team != "CT" && team != "T"))
+		{
+			return 0;
+		}
+
+		var losses = 0;
+		for (var i = history.Length - 1; i >= 0; i--)
+		{
+			var mine = (history[i] == 'C' && team == "CT") || (history[i] == 'T' && team == "T");
+			if (mine)
+			{
+				break;
+			}
+
+			if (history[i] is 'C' or 'T')
+			{
+				losses++;
+			}
+		}
+
+		return losses == 0 ? 0 : Math.Min(1900 + 500 * losses, 3400);
+	}
+
 	private static (string? Weapon, int Kills) TopWeaponOf(Dictionary<string, int> weaponKills)
 	{
 		string? best = null;
@@ -1336,7 +1473,7 @@ public sealed class GsiService : IDisposable
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
 		0, 0, 0, false, PositionSources.Off, null, null, null,
 		0, 0, 0, false, false, false, 0, null, null, string.Empty,
-		null, null, 0, 0, null, 0, 0, 0, null, 0, 0, 0);
+		null, null, 0, 0, null, 0, 0, 0, null, 0, 0, 0, 0, 0.0, null);
 
 	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected, SessionStats session)
 	{
@@ -1402,7 +1539,10 @@ public sealed class GsiService : IDisposable
 			topWeapon.Weapon,
 			topWeapon.Kills,
 			session.RoundsPlayed,
-			session.Damage);
+			session.Damage,
+			session.Hs,
+			session.Elapsed,
+			ConsoleChatLine());
 	}
 
 	private static GsiPayload TestPayload() => new(

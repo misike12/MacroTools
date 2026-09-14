@@ -93,6 +93,26 @@ public sealed class ConsolePositionTests
 	}
 
 	[Test]
+	public void Chat_lines_parse_with_scope_and_reject_noise()
+	{
+		var now = DateTimeOffset.UtcNow;
+		WriteLog(string.Join("\n",
+			Stamp(now.AddSeconds(-30)) + " [MINDENKI] misuuu5: what you doing man",
+			Stamp(now.AddSeconds(-20)) + " ChangeGameUIState: CSGO_GAME_UI_STATE_INGAME -> CSGO_GAME_UI_STATE_PAUSEMENU",
+			Stamp(now.AddSeconds(-10)) + " [Console] Unknown command 'single_player_pause'!",
+			Stamp(now) + " [CSAPAT] Havoc: megyek A-ra",
+			"misuuu5 csatlakozott."));
+		var watcher = new ConsolePositionWatcher(() => _log);
+		watcher.Poll();
+
+		var chat = watcher.LatestChat;
+		Assert.That(chat, Is.Not.Null);
+		Assert.That(chat!.Value.Player, Is.EqualTo("Havoc"));
+		Assert.That(chat.Value.Scope, Is.EqualTo("CSAPAT"));
+		Assert.That(chat.Value.Text, Is.EqualTo("megyek A-ra"));
+	}
+
+	[Test]
 	public void Newest_line_wins_and_plain_setpos_parses()
 	{
 		WriteLog(string.Join("\n",
@@ -202,6 +222,58 @@ public sealed class ConsolePositionTests
 	}
 
 	private void WriteLog(string text) => File.WriteAllText(_log, text + "\n");
+
+	[Test]
+	public async Task Console_chat_lines_raise_chat_events()
+	{
+		WriteLog(Stamp(DateTimeOffset.UtcNow) + " [ALL] Buddy: gl hf");
+		var trigger = new StubTrigger();
+		using var gsi = new GsiService(TestLogger(), new PlaceStore(TestLogger()), trigger, () => _log);
+		gsi.UpdatePositionOptions(false, 1, 124);
+		Assert.That(gsi.Start(0, null), Is.True);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var seen = new List<GsiMatchEvent>();
+		gsi.MatchEvent += (_, e) =>
+		{
+			lock (seen)
+			{
+				seen.Add(e);
+			}
+		};
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "casual", name = "de_dust2", phase = "live", round = 1 },
+			round = new { phase = "live" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		}), ct);
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(15);
+		GsiMatchEvent? chat = null;
+		while (DateTimeOffset.UtcNow < deadline && chat is null)
+		{
+			await Task.Delay(100, ct);
+			lock (seen)
+			{
+				chat = seen.FirstOrDefault(e => e.EventId == GsiEventIds.ChatMessage);
+			}
+		}
+
+		Assert.That(chat, Is.Not.Null);
+		Assert.That(chat!.Payload["player"], Is.EqualTo("Buddy"));
+		Assert.That(chat.Payload["scope"], Is.EqualTo("ALL"));
+		Assert.That(chat.Payload["text"], Is.EqualTo("gl hf"));
+		Assert.That(gsi.Snapshot().LastChat, Is.EqualTo("Buddy: gl hf"));
+	}
 
 	private static string Stamp(DateTimeOffset at)
 	{

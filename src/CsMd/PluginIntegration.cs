@@ -34,6 +34,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new InstallGsiConfigAction(settings, gsi),
 			new ResetSessionStatsAction(gsi),
 			new SimulateMatchAction(gsi),
+			new SimulateEventAction(PublishTestEvent),
 		];
 		Variables = CsVariables.CreateDefinitions();
 		DeclaredVariables = Variables;
@@ -86,6 +87,17 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				Param("winner", ActionParameterType.String, Strings.Events.MatchEnded.WinnerParameter.Label()),
 				Param("ct-score", ActionParameterType.Number, Strings.Events.MatchEnded.CtScoreParameter.Label()),
 				Param("t-score", ActionParameterType.Number, Strings.Events.MatchEnded.TScoreParameter.Label())),
+			Event("streak-milestone",
+				Strings.Events.StreakMilestone.Name(), Strings.Events.StreakMilestone.Description(),
+				Param("streak", ActionParameterType.Number, Strings.Events.StreakMilestone.StreakParameter.Label())),
+			Event("place-changed",
+				Strings.Events.PlaceChanged.Name(), Strings.Events.PlaceChanged.Description(),
+				Param("place", ActionParameterType.String, Strings.Events.PlaceChanged.PlaceParameter.Label())),
+			Event("chat-message",
+				Strings.Events.ChatMessage.Name(), Strings.Events.ChatMessage.Description(),
+				Param("player", ActionParameterType.String, Strings.Events.ChatMessage.PlayerParameter.Label()),
+				Param("scope", ActionParameterType.String, Strings.Events.ChatMessage.ScopeParameter.Label()),
+				Param("text", ActionParameterType.String, Strings.Events.ChatMessage.TextParameter.Label())),
 		];
 	}
 
@@ -190,6 +202,70 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		}
 	}
 
+	private Task PublishTestEvent(string eventId)
+	{
+		GsiSnapshot snapshot;
+		try
+		{
+			snapshot = _gsi.Snapshot();
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Test event snapshot failed.");
+			return Task.CompletedTask;
+		}
+
+		var player = snapshot.PlayerName ?? string.Empty;
+		var place = snapshot.PlaceName ?? string.Empty;
+		Dictionary<string, object?> payload = eventId switch
+		{
+			GsiEventIds.PlayerKill => new()
+			{
+				["player"] = player,
+				["weapon"] = snapshot.Weapon ?? string.Empty,
+				["pos-x"] = snapshot.PosX,
+				["pos-y"] = snapshot.PosY,
+				["pos-z"] = snapshot.PosZ,
+				["place"] = place,
+			},
+			GsiEventIds.PlayerDied => new()
+			{
+				["player"] = player,
+				["pos-x"] = snapshot.PosX,
+				["pos-y"] = snapshot.PosY,
+				["pos-z"] = snapshot.PosZ,
+				["place"] = place,
+			},
+			GsiEventIds.BombPlanted => new() { ["site"] = string.Empty },
+			GsiEventIds.RoundStarted or GsiEventIds.RoundEnded or GsiEventIds.RoundWon or GsiEventIds.RoundLost => new()
+			{
+				["round"] = (double)snapshot.MapRound,
+				["winner"] = snapshot.PlayerTeam ?? string.Empty,
+			},
+			GsiEventIds.MatchStarted => new()
+			{
+				["map"] = snapshot.MapName ?? string.Empty,
+				["mode"] = snapshot.MapMode ?? string.Empty,
+			},
+			GsiEventIds.MatchEnded => new()
+			{
+				["map"] = snapshot.MapName ?? string.Empty,
+				["winner"] = string.Empty,
+				["ct-score"] = (double)snapshot.CtScore,
+				["t-score"] = (double)snapshot.TScore,
+			},
+			GsiEventIds.StreakMilestone => new()
+			{
+				["streak"] = (double)(snapshot.KillStreak > 0 ? snapshot.KillStreak : 3),
+			},
+			GsiEventIds.PlaceChanged => new() { ["place"] = place },
+			_ => [],
+		};
+
+		OnMatchEvent(this, new GsiMatchEvent(eventId, payload));
+		return Task.CompletedTask;
+	}
+
 	private bool EventEnabled(string eventId)
 	{
 		var settings = _settings.Current;
@@ -200,6 +276,9 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			GsiEventIds.RoundStarted or GsiEventIds.RoundEnded or GsiEventIds.RoundWon or GsiEventIds.RoundLost => settings.RoundEvents,
 			GsiEventIds.BombPlanted or GsiEventIds.BombDefused or GsiEventIds.BombExploded => settings.BombEvents,
 			GsiEventIds.MatchStarted or GsiEventIds.MatchEnded => settings.MatchEvents,
+			GsiEventIds.StreakMilestone => settings.StreakEvents,
+			GsiEventIds.PlaceChanged => settings.PlaceEvents,
+			GsiEventIds.ChatMessage => settings.ChatEvents,
 			_ => true,
 		};
 	}
@@ -281,6 +360,20 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"top-weapon-kills" => NumberOrUnavailable(snapshot.TopWeaponKills, snapshot.TopWeapon is not null),
 			"rounds-played" => VariableReading.Of((double)snapshot.RoundsPlayed),
 			"session-damage" => VariableReading.Of((double)snapshot.SessionDamage),
+			"loss-bonus" => GsiService.LossBonusOf(snapshot.RoundHistory, snapshot.PlayerTeam) is { } bonus and > 0
+				? VariableReading.Of((double)bonus)
+				: VariableReading.Unavailable,
+			"session-adr" => snapshot.RoundsPlayed > 0
+				? VariableReading.Of((double)snapshot.SessionDamage / snapshot.RoundsPlayed)
+				: VariableReading.Of(0.0),
+			"session-hs" => VariableReading.Of((double)snapshot.SessionHs),
+			"hs-rate" => snapshot.SessionKills > 0
+				? VariableReading.Of((double)snapshot.SessionHs / snapshot.SessionKills)
+				: VariableReading.Of(0.0),
+			"match-elapsed" => snapshot.Connected
+				? VariableReading.Of(snapshot.MatchElapsed)
+				: VariableReading.Unavailable,
+			"last-chat" => TextOrUnavailable(snapshot.LastChat),
 			_ => VariableReading.Unavailable,
 		});
 	}

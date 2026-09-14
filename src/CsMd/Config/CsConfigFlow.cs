@@ -122,6 +122,9 @@ public sealed class CsConfigFlow : IConfigFlow
 			RoundEvents: ReadBool(CsKeys.RoundEvents) ?? fallback.RoundEvents,
 			BombEvents: ReadBool(CsKeys.BombEvents) ?? fallback.BombEvents,
 			MatchEvents: ReadBool(CsKeys.MatchEvents) ?? fallback.MatchEvents,
+			StreakEvents: ReadBool(CsKeys.StreakEvents) ?? fallback.StreakEvents,
+			PlaceEvents: ReadBool(CsKeys.PlaceEvents) ?? fallback.PlaceEvents,
+			ChatEvents: ReadBool(CsKeys.ChatEvents) ?? fallback.ChatEvents,
 			PositionTracking: ReadBool(CsKeys.PositionTracking) ?? fallback.PositionTracking,
 			PositionIntervalSeconds: (int)Math.Round(ReadNumber(CsKeys.PositionInterval) ?? fallback.PositionIntervalSeconds),
 			PositionKeyCode: (int)Math.Round(ReadNumber(CsKeys.PositionKey) ?? fallback.PositionKeyCode));
@@ -217,6 +220,9 @@ public sealed class CsConfigFlow : IConfigFlow
 			Toggle(CsKeys.RoundEvents, Strings.Config.Events.Rounds.Label(), Strings.Config.Events.Rounds.Description(), CsSettings.Default.RoundEvents),
 			Toggle(CsKeys.BombEvents, Strings.Config.Events.Bombs.Label(), Strings.Config.Events.Bombs.Description(), CsSettings.Default.BombEvents),
 			Toggle(CsKeys.MatchEvents, Strings.Config.Events.Matches.Label(), Strings.Config.Events.Matches.Description(), CsSettings.Default.MatchEvents),
+			Toggle(CsKeys.StreakEvents, Strings.Config.Events.Streaks.Label(), Strings.Config.Events.Streaks.Description(), CsSettings.Default.StreakEvents),
+			Toggle(CsKeys.PlaceEvents, Strings.Config.Events.Places.Label(), Strings.Config.Events.Places.Description(), CsSettings.Default.PlaceEvents),
+			Toggle(CsKeys.ChatEvents, Strings.Config.Events.Chat.Label(), Strings.Config.Events.Chat.Description(), CsSettings.Default.ChatEvents),
 		],
 	};
 

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using CsMd;
 
 namespace CsMd.Console;
 
@@ -22,11 +23,16 @@ public sealed class ConsolePositionWatcher
 		@"^(?<mo>\d{2})/(?<day>\d{2}) (?<h>\d{2}):(?<mi>\d{2}):(?<s>\d{2})\s",
 		RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+	private static readonly Regex ChatLine = new(
+		@"^\[(?<scope>[^\]]+)\]\s+(?<rest>.+)$",
+		RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
 	private const long TailBytes = 64 * 1024;
 
 	private readonly object _gate = new();
 	private readonly Func<string?> _logPath;
 	private (double X, double Y, double Z, double Yaw, DateTimeOffset At)? _fix;
+	private (string Player, string Scope, string Text, DateTimeOffset At)? _chat;
 	private bool _logPresent;
 	private DateTimeOffset? _logModifiedUtc;
 
@@ -69,6 +75,17 @@ public sealed class ConsolePositionWatcher
 			lock (_gate)
 			{
 				return _logModifiedUtc;
+			}
+		}
+	}
+
+	public (string Player, string Scope, string Text, DateTimeOffset At)? LatestChat
+	{
+		get
+		{
+			lock (_gate)
+			{
+				return _chat;
 			}
 		}
 	}
@@ -168,6 +185,57 @@ public sealed class ConsolePositionWatcher
 				}
 			}
 		}
+
+		var chat = ParseChat(text, observedAt);
+		if (chat is not null)
+		{
+			lock (_gate)
+			{
+				var current = _chat;
+				if (current is null || chat.Value.At >= current.Value.At)
+				{
+					_chat = chat;
+				}
+			}
+		}
+	}
+
+	private static (string Player, string Scope, string Text, DateTimeOffset At)? ParseChat(string text, DateTimeOffset observedAt)
+	{
+		(DateTimeOffset At, string Player, string Scope, string Text)? best = null;
+		foreach (var raw in text.Split('\n'))
+		{
+			var line = raw.Trim();
+			var stamp = LineStamp.Match(line);
+			var body = stamp.Success ? line.Substring(stamp.Length).TrimStart() : line;
+			var chat = ChatLine.Match(body);
+			if (!chat.Success)
+			{
+				continue;
+			}
+
+			var rest = chat.Groups["rest"].Value;
+			var separator = rest.IndexOf(": ", StringComparison.Ordinal);
+			if (separator <= 0)
+			{
+				continue;
+			}
+
+			var player = DisplayText.Sanitize(rest.Substring(0, separator));
+			var message = DisplayText.Sanitize(rest.Substring(separator + 2));
+			if (player.Length == 0 || message.Length == 0)
+			{
+				continue;
+			}
+
+			var at = ParseLineStamp(line, observedAt);
+			if (best is null || at >= best.Value.At)
+			{
+				best = (at, player, DisplayText.Sanitize(chat.Groups["scope"].Value), message);
+			}
+		}
+
+		return best is null ? null : (best.Value.Player, best.Value.Scope, best.Value.Text, best.Value.At);
 	}
 
 	private void MarkMissing()

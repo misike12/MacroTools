@@ -148,6 +148,139 @@ public sealed class GsiTests
 	}
 
 	[Test]
+	public void Loss_bonus_follows_consecutive_losses()
+	{
+		Assert.That(GsiService.LossBonusOf(string.Empty, "CT"), Is.EqualTo(0));
+		Assert.That(GsiService.LossBonusOf("CCT", null), Is.EqualTo(0));
+		Assert.That(GsiService.LossBonusOf("CCT", "CT"), Is.EqualTo(2400));
+		Assert.That(GsiService.LossBonusOf("CCT", "T"), Is.EqualTo(0));
+		Assert.That(GsiService.LossBonusOf("TT", "T"), Is.EqualTo(0));
+		Assert.That(GsiService.LossBonusOf("CTT", "CT"), Is.EqualTo(2900));
+		Assert.That(GsiService.LossBonusOf("TTT", "CT"), Is.EqualTo(3400));
+		Assert.That(GsiService.LossBonusOf("TTTTTTTT", "CT"), Is.EqualTo(3400));
+		Assert.That(GsiService.LossBonusOf("CT?", "T"), Is.EqualTo(0));
+	}
+
+	[Test]
+	public async Task Streak_milestones_fire_at_thresholds()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var seen = new List<GsiMatchEvent>();
+		gsi.MatchEvent += (_, e) =>
+		{
+			lock (seen)
+			{
+				seen.Add(e);
+			}
+		};
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		Task<HttpResponseMessage> Post(int kills) => http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "competitive", name = "de_mirage", phase = "live", round = 5 },
+			round = new { phase = "live" },
+			player = new
+			{
+				steamid = "76561198000000000",
+				name = "Me",
+				team = "CT",
+				state = new { health = 100 },
+				weapons = new Dictionary<string, object>
+				{
+					["weapon_0"] = new { name = "weapon_ak47", state = "active", ammo_clip = 30, ammo_reserve = 90 },
+				},
+				match_stats = new { kills, assists = 0, deaths = 0, mvps = 0, score = kills * 2 },
+			},
+		}), ct);
+
+		await Post(0);
+		await Post(3);
+		await Post(5);
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		List<GsiMatchEvent> copy;
+		do
+		{
+			await Task.Delay(50, ct);
+			lock (seen)
+			{
+				copy = seen.ToList();
+			}
+		}
+		while (copy.Count(e => e.EventId == GsiEventIds.StreakMilestone) < 2 && DateTimeOffset.UtcNow < deadline);
+
+		var milestones = copy
+			.Where(e => e.EventId == GsiEventIds.StreakMilestone)
+			.Select(e => (double)e.Payload["streak"]!)
+			.OrderBy(streak => streak)
+			.ToList();
+
+		Assert.That(milestones, Is.EqualTo([3.0, 5.0]));
+	}
+
+	[Test]
+	public async Task Place_changes_fire_once_per_area()
+	{
+		var maps = new Dictionary<string, IReadOnlyList<PlaceVolume>>
+		{
+			["de_test"] = [
+				new PlaceVolume("Middle", "Middle", new Vector3(-100, -100, -50), new Vector3(100, 100, 50)),
+				new PlaceVolume("Site", "Site", new Vector3(200, 200, -50), new Vector3(300, 300, 50)),
+			],
+		};
+		using var gsi = new GsiService(TestLogger(), new StubPlaces(maps));
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var seen = new List<GsiMatchEvent>();
+		gsi.MatchEvent += (_, e) =>
+		{
+			lock (seen)
+			{
+				seen.Add(e);
+			}
+		};
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		Task<HttpResponseMessage> Post(string position) => http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { name = "de_test", phase = "live" },
+			player = new
+			{
+				steamid = "1",
+				name = "Me",
+				position,
+				match_stats = new { kills = 0, assists = 0, deaths = 0, mvps = 0, score = 0 },
+			},
+		}), ct);
+
+		await Post("0, 0, 0");
+		await Post("10, 10, 0");
+		await Post("250, 250, 0");
+		await Post("260, 260, 0");
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		List<GsiMatchEvent> copy;
+		do
+		{
+			await Task.Delay(50, ct);
+			lock (seen)
+			{
+				copy = seen.ToList();
+			}
+		}
+		while (!copy.Any(e => e.EventId == GsiEventIds.PlaceChanged) && DateTimeOffset.UtcNow < deadline);
+
+		var changes = copy.Where(e => e.EventId == GsiEventIds.PlaceChanged).ToList();
+
+		Assert.That(changes.Count, Is.EqualTo(1));
+		Assert.That(changes[0].Payload["place"], Is.EqualTo("Site"));
+	}
+
+	[Test]
 	public async Task Round_change_banks_previous_round_damage()
 	{
 		using var gsi = new GsiService(TestLogger());

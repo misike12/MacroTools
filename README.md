@@ -125,21 +125,21 @@ Live Counter-Strike 2 match state on your deck via Game State Integration: the g
 2. Run the **Install GSI config** action once. It finds your CS2 install through Steam and writes `gamestate_integration_csmacrodeck.cfg` (backing up any same-named file first). If it cannot find the game, copy the file by hand into `...\Counter-Strike Global Offensive\game\csgo\cfg\`.
 3. Play. `game-connected` flips true on the first push.
 
-### Actions (3)
+### Actions (4)
 
-Install GSI config / Reset session stats / Simulate a match (injects fake live data so the deck can be arranged without running the game).
+Install GSI config / Reset session stats / Simulate a match (injects fake live data so the deck can be arranged without running the game) / Simulate an event (fires one match event with the current state so automations can be tested).
 
-### Variables (62)
+### Variables (68)
 
-Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`, `ct_timeouts`, `t_timeouts`), round (`round_phase`, `bomb_state`, `phase_ends_in`, `countdown_phase`), player (`my_team`, `player_name`, `player_activity`, `player_clan`, `alive`, `health`, `armor`, `helmet`, `defusekit`, `flashed`, `smoked`, `burning`, `money`, `equip_value`, `weapon`, `weapon_type`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `round_kills`, `round_headshots`, `round_damage`, `round_history`, `smokes_active`, `fire_active`, `grenades_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`, `position_source`, `facing_yaw`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`, `session_damage`, `kill_streak`, `best_streak`, `top_weapon`, `top_weapon_kills`, `rounds_played`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
+Connection (`gsi_connected`), map (`map_name`, `map_mode`, `map_phase`, `map_round`, `ct_score`, `t_score`, `ct_name`, `t_name`, `ct_timeouts`, `t_timeouts`), round (`round_phase`, `bomb_state`, `phase_ends_in`, `countdown_phase`), player (`my_team`, `player_name`, `player_activity`, `player_clan`, `alive`, `health`, `armor`, `helmet`, `defusekit`, `flashed`, `smoked`, `burning`, `money`, `equip_value`, `weapon`, `weapon_type`, `ammo_clip`, `ammo_reserve`, `kills`, `deaths`, `assists`, `mvps`, `score`, `round_kills`, `round_headshots`, `round_damage`, `round_history`, `smokes_active`, `fire_active`, `grenades_active`), position (`pos_x`, `pos_y`, `pos_z`, `place_name`, `position_source`, `facing_yaw`), bomb (`bomb_countdown`, `bomb_carrier`) and session (`session_kills`, `session_deaths`, `session_kd`, `session_damage`, `session_hs`, `hs_rate`, `session_adr`, `kill_streak`, `best_streak`, `top_weapon`, `top_weapon_kills`, `rounds_played`, `match_elapsed`, `loss_bonus`, `last_chat`). Player values follow whoever you observe, or only your Steam ID when one is configured; everything reads unavailable while no match data is flowing.
 
 Place names (`Mid`, `Bombsite A`, …) come from the map's own `env_cs_place` volumes, read out of the game files the same way community tools do it — every tagged official map is covered, workshop maps too when their mapper tagged them. Kills and deaths carry their place too.
 
 One Valve rule shapes the position variables: the game only sends coordinates and the `allplayers` block to spectators (GOTV or observing a match). Position tracking fills the gap from the console log where the game permits it: add `-condebug -conclearlog +bind scancode104 exec csmd_position` to the CS2 launch options in Steam, run **Install GSI config** (it also writes the `csmd_position` helper file), restart the game, then enable tracking in the integration setup. The plugin taps the trigger key on a timer while CS2 is focused, reads each `getpos` answer from `console.log`, and feeds `pos_x`, `pos_y`, `pos_z` and `place_name` while you are alive and playing yourself. Both `getpos` variants are cheat-gated, so on official servers the game refuses the command and tracking stays quiet; it works in practice with `sv_cheats 1` and anywhere else the command is allowed. The `position-source` variable reports where coordinates come from (`console`, `gsi`, `waiting`, `no-log`, `off`). Spectate any match and they populate from the game feed directly; the **Simulate a match** action injects a Mirage Middle position so the tiles can be arranged and verified without the game.
 
-### Events (11)
+### Events (14)
 
-`round-started`, `round-ended`, `round-won` / `round-lost` (only when your team is known), `bomb-planted` (site), `bomb-defused`, `bomb-exploded`, `player-died`, `player-kill` (player, weapon), `match-started`, `match-ended` (winner, scores). Each group can be toggled in setup. Kills, deaths, bomb moments and round results also flow into the Match HUD event feed.
+`round-started`, `round-ended`, `round-won` / `round-lost` (only when your team is known), `bomb-planted` (site), `bomb-defused`, `bomb-exploded`, `player-died`, `player-kill` (player, weapon), `match-started`, `match-ended` (winner, scores), `streak-milestone` (streak), `place-changed` (place), `chat-message` (player, scope, text). Each group can be toggled in setup. Kills, deaths, bomb moments and round results also flow into the Match HUD event feed.
 
 ### Widget (1)
 

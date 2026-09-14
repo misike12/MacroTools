@@ -73,6 +73,48 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Simulate_event_fires_known_events_and_rejects_unknown()
+	{
+		var gsi = new GsiService(TestLogger());
+		await using var harness = CreateHarness(gsi);
+		await harness.InitializeIntegrationsAsync();
+		var integration = new PluginIntegration(gsi, new CsSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var kill = await harness.Actions.ExecuteAsync(
+			"simulate-event",
+			new Dictionary<string, object?> { ["event"] = "player-kill" });
+
+		Assert.That(kill.Succeeded, Is.True);
+
+		var bogus = await harness.Actions.ExecuteAsync(
+			"simulate-event",
+			new Dictionary<string, object?> { ["event"] = "nuke-everything" });
+
+		Assert.That(bogus.Succeeded, Is.False);
+		await integration.ShutdownAsync();
+		gsi.Dispose();
+	}
+
+	[Test]
+	public async Task New_computed_variables_read()
+	{
+		using var gsi = new GsiService(TestLogger());
+		var integration = new PluginIntegration(gsi, new CsSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+		gsi.InjectTestState();
+
+		Assert.That(await integration.ReadAsync("loss-bonus"), Is.EqualTo(VariableReading.Unavailable));
+		Assert.That((await integration.ReadAsync("session-adr")).Value, Is.EqualTo(0.0));
+		Assert.That((await integration.ReadAsync("session-hs")).Value, Is.EqualTo(0.0));
+		Assert.That((await integration.ReadAsync("hs-rate")).Value, Is.EqualTo(0.0));
+		Assert.That((await integration.ReadAsync("match-elapsed")).Value, Is.GreaterThanOrEqualTo(0.0));
+		Assert.That(await integration.ReadAsync("last-chat"), Is.EqualTo(VariableReading.Unavailable));
+		await integration.ShutdownAsync();
+		gsi.Dispose();
+	}
+
+	[Test]
 	public async Task Unknown_state_reads_unavailable()
 	{
 		using var gsi = new GsiService(TestLogger());
@@ -136,9 +178,9 @@ public sealed class PluginIntegrationTests
 			.ToList();
 
 		Assert.That(duplicates, Is.Empty);
-		Assert.That(integration.Actions.Count, Is.EqualTo(3));
-		Assert.That(integration.EventDefinitions.Count, Is.EqualTo(11));
-		Assert.That(integration.Variables.Count, Is.EqualTo(62));
+		Assert.That(integration.Actions.Count, Is.EqualTo(4));
+		Assert.That(integration.EventDefinitions.Count, Is.EqualTo(14));
+		Assert.That(integration.Variables.Count, Is.EqualTo(68));
 		Assert.That(integration.GetWidgetTypes().Count, Is.EqualTo(1));
 		Assert.That(integration.GetWidgetTypes()[0].Id, Is.EqualTo("match-hud"));
 	}

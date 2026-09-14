@@ -121,9 +121,9 @@ public sealed class MatchHudWidgetTests
 		Assert.That(content.MoneyLine, Is.EqualTo("$800 · 4 / 2 / 1"));
 		Assert.That(content.BombText, Is.EqualTo("CARRIED"));
 		Assert.That(content.HasBomb, Is.True);
-		Assert.That(content.SessionLine, Is.EqualTo("K 0 · D 0 · 0.00"));
+		Assert.That(ResolveEn(content.SessionLine), Is.EqualTo("K 0 · D 0 · 0.00"));
 		Assert.That(content.ArmorLine, Is.EqualTo("100"));
-		Assert.That(content.RoundLine, Is.EqualTo("R5 · +0 · 0"));
+		Assert.That(ResolveEn(content.RoundLine), Is.EqualTo("R5 · +0 · 0"));
 		Assert.That(content.HasHistory, Is.False);
 		Assert.That(content.HasHpHistory, Is.False);
 		Assert.That(content.HasMoneyHistory, Is.False);
@@ -193,8 +193,18 @@ public sealed class MatchHudWidgetTests
 		Assert.That(MatchHudFeed.Format(GsiEventIds.BombExploded, new Dictionary<string, object?>()), Is.Not.Null);
 		Assert.That(MatchHudFeed.Format(GsiEventIds.RoundWon, new Dictionary<string, object?>()), Is.Not.Null);
 		Assert.That(MatchHudFeed.Format(GsiEventIds.RoundLost, new Dictionary<string, object?>()), Is.Not.Null);
+		Assert.That(MatchHudFeed.Format(GsiEventIds.StreakMilestone, new Dictionary<string, object?> { ["streak"] = 5.0 }), Is.Not.Null);
+		Assert.That(MatchHudFeed.Format(GsiEventIds.PlaceChanged, new Dictionary<string, object?> { ["place"] = "Middle" }), Is.Not.Null);
+		Assert.That(MatchHudFeed.Format(GsiEventIds.ChatMessage, new Dictionary<string, object?> { ["player"] = "Me", ["text"] = "gl" }), Is.Not.Null);
 		Assert.That(MatchHudFeed.Format(GsiEventIds.RoundStarted, new Dictionary<string, object?>()), Is.Null);
 		Assert.That(MatchHudFeed.Format(GsiEventIds.MatchStarted, new Dictionary<string, object?>()), Is.Null);
+	}
+
+	private static string ResolveEn(MacroDeck.Localization.LocalizedString text)
+	{
+		var registry = new MacroDeck.Localization.LocalizationCatalogRegistry();
+		registry.Register(Strings.LocalizationCatalog);
+		return new MacroDeck.Localization.LocalizationResolver(registry).Resolve(text, "en");
 	}
 
 	private static Serilog.Core.Logger TestLogger() => new LoggerConfiguration().CreateLogger();

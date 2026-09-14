@@ -13,6 +13,9 @@ public static class CsKeys
 	public const string RoundEvents = "events-round";
 	public const string BombEvents = "events-bomb";
 	public const string MatchEvents = "events-match";
+	public const string StreakEvents = "events-streak";
+	public const string PlaceEvents = "events-place";
+	public const string ChatEvents = "events-chat";
 	public const string PositionTracking = "position-tracking";
 	public const string PositionInterval = "position-interval";
 	public const string PositionKey = "position-vkey";
@@ -28,6 +31,9 @@ public sealed record CsSettings(
 	bool RoundEvents,
 	bool BombEvents,
 	bool MatchEvents,
+	bool StreakEvents,
+	bool PlaceEvents,
+	bool ChatEvents,
 	bool PositionTracking,
 	int PositionIntervalSeconds,
 	int PositionKeyCode)
@@ -41,6 +47,9 @@ public sealed record CsSettings(
 		RoundEvents: true,
 		BombEvents: true,
 		MatchEvents: true,
+		StreakEvents: true,
+		PlaceEvents: true,
+		ChatEvents: true,
 		PositionTracking: false,
 		PositionIntervalSeconds: 2,
 		PositionKeyCode: Gsi.GsiConfig.DefaultPositionKeyCode);
@@ -102,6 +111,9 @@ public static class CsSettingsReader
 			RoundEvents: await ReadBoolAsync(config, entry.Id, CsKeys.RoundEvents, fallback.RoundEvents, timeout.Token),
 			BombEvents: await ReadBoolAsync(config, entry.Id, CsKeys.BombEvents, fallback.BombEvents, timeout.Token),
 			MatchEvents: await ReadBoolAsync(config, entry.Id, CsKeys.MatchEvents, fallback.MatchEvents, timeout.Token),
+		StreakEvents: await ReadBoolAsync(config, entry.Id, CsKeys.StreakEvents, fallback.StreakEvents, timeout.Token),
+		PlaceEvents: await ReadBoolAsync(config, entry.Id, CsKeys.PlaceEvents, fallback.PlaceEvents, timeout.Token),
+		ChatEvents: await ReadBoolAsync(config, entry.Id, CsKeys.ChatEvents, fallback.ChatEvents, timeout.Token),
 			PositionTracking: await ReadBoolAsync(config, entry.Id, CsKeys.PositionTracking, fallback.PositionTracking, timeout.Token),
 			PositionIntervalSeconds: ClampInt(await ReadNumberAsync(config, entry.Id, CsKeys.PositionInterval, fallback.PositionIntervalSeconds, timeout.Token), 1, 10, fallback.PositionIntervalSeconds),
 			PositionKeyCode: ClampInt(await ReadNumberAsync(config, entry.Id, CsKeys.PositionKey, fallback.PositionKeyCode, timeout.Token), 1, 255, fallback.PositionKeyCode));
@@ -171,6 +183,9 @@ internal static class CsSettingsValues
 			[CsKeys.RoundEvents] = Plain(settings.RoundEvents),
 			[CsKeys.BombEvents] = Plain(settings.BombEvents),
 			[CsKeys.MatchEvents] = Plain(settings.MatchEvents),
+		[CsKeys.StreakEvents] = Plain(settings.StreakEvents),
+		[CsKeys.PlaceEvents] = Plain(settings.PlaceEvents),
+		[CsKeys.ChatEvents] = Plain(settings.ChatEvents),
 			[CsKeys.PositionTracking] = Plain(settings.PositionTracking),
 			[CsKeys.PositionInterval] = ConfigFlowValue.Plain(settings.PositionIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)),
 			[CsKeys.PositionKey] = ConfigFlowValue.Plain(settings.PositionKeyCode.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -179,3 +194,4 @@ internal static class CsSettingsValues
 	private static ConfigFlowValue Plain(bool value) =>
 		ConfigFlowValue.Plain(value ? "true" : "false");
 }
+

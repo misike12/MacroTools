@@ -71,6 +71,12 @@ internal static class CsVariables
 		Eager("top-weapon-kills", VariableType.Numeric, Strings.Variables.TopWeaponKills.DisplayName(), Strings.Variables.TopWeaponKills.Description(), refresh: FastRefresh),
 		Eager("rounds-played", VariableType.Numeric, Strings.Variables.RoundsPlayed.DisplayName(), Strings.Variables.RoundsPlayed.Description(), refresh: SlowRefresh),
 		Eager("session-damage", VariableType.Numeric, Strings.Variables.SessionDamage.DisplayName(), Strings.Variables.SessionDamage.Description(), refresh: FastRefresh),
+		Eager("loss-bonus", VariableType.Numeric, Strings.Variables.LossBonus.DisplayName(), Strings.Variables.LossBonus.Description(), unit: "$", refresh: SlowRefresh),
+		Eager("session-adr", VariableType.Numeric, Strings.Variables.SessionAdr.DisplayName(), Strings.Variables.SessionAdr.Description(), refresh: FastRefresh),
+		Eager("session-hs", VariableType.Numeric, Strings.Variables.SessionHs.DisplayName(), Strings.Variables.SessionHs.Description(), refresh: FastRefresh),
+		Eager("hs-rate", VariableType.Numeric, Strings.Variables.HsRate.DisplayName(), Strings.Variables.HsRate.Description(), refresh: FastRefresh),
+		Eager("match-elapsed", VariableType.Numeric, Strings.Variables.MatchElapsed.DisplayName(), Strings.Variables.MatchElapsed.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration, refresh: FastRefresh),
+		Eager("last-chat", VariableType.Text, Strings.Variables.LastChat.DisplayName(), Strings.Variables.LastChat.Description(), refresh: TimeSpan.FromSeconds(2)),
 	];
 
 	private static VariableDefinition Eager(

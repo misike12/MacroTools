@@ -30,6 +30,18 @@
   <data name="Actions.SimulateMatch.Description" xml:space="preserve">
     <value>Inject fake live match data for testing the deck without running the game. Includes a Mirage Middle position so coordinates and place can be arranged.</value>
   </data>
+  <data name="Actions.SimulateEvent.Name" xml:space="preserve">
+    <value>Simulate an event</value>
+  </data>
+  <data name="Actions.SimulateEvent.Description" xml:space="preserve">
+    <value>Fire one match event with the current state so automations can be tested without playing.</value>
+  </data>
+  <data name="Actions.SimulateEvent.Event.Label" xml:space="preserve">
+    <value>Event</value>
+  </data>
+  <data name="Actions.SimulateEvent.Event.Description" xml:space="preserve">
+    <value>Which match event to fire.</value>
+  </data>
   <data name="Errors.CommandFailed" xml:space="preserve">
     <value>The command could not be completed.</value>
   </data>
@@ -423,6 +435,42 @@
   <data name="Variables.SessionDamage.Description" xml:space="preserve">
     <value>Total damage dealt in this session.</value>
   </data>
+  <data name="Variables.LossBonus.DisplayName" xml:space="preserve">
+    <value>Loss bonus</value>
+  </data>
+  <data name="Variables.LossBonus.Description" xml:space="preserve">
+    <value>Current round-loss bonus level in dollars, from the round history.</value>
+  </data>
+  <data name="Variables.SessionAdr.DisplayName" xml:space="preserve">
+    <value>Session ADR</value>
+  </data>
+  <data name="Variables.SessionAdr.Description" xml:space="preserve">
+    <value>Average damage per round in this session.</value>
+  </data>
+  <data name="Variables.SessionHs.DisplayName" xml:space="preserve">
+    <value>Session headshots</value>
+  </data>
+  <data name="Variables.SessionHs.Description" xml:space="preserve">
+    <value>Headshot kills in this session.</value>
+  </data>
+  <data name="Variables.HsRate.DisplayName" xml:space="preserve">
+    <value>Headshot rate</value>
+  </data>
+  <data name="Variables.HsRate.Description" xml:space="preserve">
+    <value>Share of session kills that were headshots, from 0 to 1.</value>
+  </data>
+  <data name="Variables.MatchElapsed.DisplayName" xml:space="preserve">
+    <value>Match elapsed</value>
+  </data>
+  <data name="Variables.MatchElapsed.Description" xml:space="preserve">
+    <value>Seconds since match data started flowing.</value>
+  </data>
+  <data name="Variables.LastChat.DisplayName" xml:space="preserve">
+    <value>Last chat</value>
+  </data>
+  <data name="Variables.LastChat.Description" xml:space="preserve">
+    <value>Latest match chat line read from the console log.</value>
+  </data>
   <data name="Events.RoundStarted.Name" xml:space="preserve">
     <value>Round started</value>
   </data>
@@ -564,6 +612,39 @@
   <data name="Events.MatchEnded.TScoreParameter.Label" xml:space="preserve">
     <value>T score</value>
   </data>
+  <data name="Events.StreakMilestone.Name" xml:space="preserve">
+    <value>Streak milestone</value>
+  </data>
+  <data name="Events.StreakMilestone.Description" xml:space="preserve">
+    <value>Fires when the kill streak reaches 3, 5, 10 and beyond.</value>
+  </data>
+  <data name="Events.StreakMilestone.StreakParameter.Label" xml:space="preserve">
+    <value>Streak</value>
+  </data>
+  <data name="Events.PlaceChanged.Name" xml:space="preserve">
+    <value>Place changed</value>
+  </data>
+  <data name="Events.PlaceChanged.Description" xml:space="preserve">
+    <value>Fires when the followed player enters a named map area.</value>
+  </data>
+  <data name="Events.PlaceChanged.PlaceParameter.Label" xml:space="preserve">
+    <value>Place</value>
+  </data>
+  <data name="Events.ChatMessage.Name" xml:space="preserve">
+    <value>Chat message</value>
+  </data>
+  <data name="Events.ChatMessage.Description" xml:space="preserve">
+    <value>Fires on match chat lines read from the console log.</value>
+  </data>
+  <data name="Events.ChatMessage.PlayerParameter.Label" xml:space="preserve">
+    <value>Player</value>
+  </data>
+  <data name="Events.ChatMessage.ScopeParameter.Label" xml:space="preserve">
+    <value>Scope</value>
+  </data>
+  <data name="Events.ChatMessage.TextParameter.Label" xml:space="preserve">
+    <value>Text</value>
+  </data>
   <data name="Config.Connection.Title" xml:space="preserve">
     <value>Connection</value>
   </data>
@@ -653,6 +734,24 @@
   </data>
   <data name="Config.Events.Matches.Description" xml:space="preserve">
     <value>Fire when a match starts or ends.</value>
+  </data>
+  <data name="Config.Events.Streaks.Label" xml:space="preserve">
+    <value>Streak events</value>
+  </data>
+  <data name="Config.Events.Streaks.Description" xml:space="preserve">
+    <value>Fire when the kill streak hits a milestone.</value>
+  </data>
+  <data name="Config.Events.Places.Label" xml:space="preserve">
+    <value>Place events</value>
+  </data>
+  <data name="Config.Events.Places.Description" xml:space="preserve">
+    <value>Fire when the followed player enters a named map area.</value>
+  </data>
+  <data name="Config.Events.Chat.Label" xml:space="preserve">
+    <value>Chat events</value>
+  </data>
+  <data name="Config.Events.Chat.Description" xml:space="preserve">
+    <value>Fire on match chat lines from the console log.</value>
   </data>
   <data name="Config.DefaultValueHint" xml:space="preserve">
     <value>Default: {value}</value>
@@ -778,5 +877,23 @@
   </data>
   <data name="Widget.Feed.RoundLost" xml:space="preserve">
     <value>Round lost</value>
+  </data>
+  <data name="Widget.Feed.Streak" xml:space="preserve">
+    <value>Streak ×{count}</value>
+    <comment>[count:int] Kill streak feed line.</comment>
+  </data>
+  <data name="Widget.Feed.Place" xml:space="preserve">
+    <value>→ {place}</value>
+  </data>
+  <data name="Widget.Feed.Chat" xml:space="preserve">
+    <value>{player}: {text}</value>
+  </data>
+  <data name="Widget.Session.Line" xml:space="preserve">
+    <value>K {kills} · D {deaths} · {kd}</value>
+    <comment>[kills:int][deaths:int] Session footer line.</comment>
+  </data>
+  <data name="Widget.Round.Line" xml:space="preserve">
+    <value>R{round} · +{kills} · {damage}</value>
+    <comment>[round:int][kills:int][damage:int] Current round line.</comment>
   </data>
 </root>
