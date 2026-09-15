@@ -28,7 +28,7 @@ public sealed record MatchHudOptions(
 	int FeedCount,
 	bool Compact)
 {
-	public static MatchHudOptions Default { get; } = new(true, true, true, true, true, true, true, 3, false);
+	public static MatchHudOptions Default { get; } = new(true, true, true, true, true, true, true, 2, false);
 
 	public static MatchHudOptions FromData(JsonElement data)
 	{
@@ -95,9 +95,7 @@ public sealed record MatchHudContent(
 	double HpFrac,
 	string HpText,
 	double ArmorFrac,
-	string ArmorLine,
-	string LoadoutLine,
-	string MoneyLine,
+	string GearLine,
 	MacroDeck.Localization.LocalizedString RoundLine,
 	MacroDeck.Localization.LocalizedString? TopWeaponLine,
 	string PlaceText,
@@ -131,16 +129,15 @@ public sealed record MatchHudContent(
 	public static MatchHudContent Empty { get; } = new(
 		false, string.Empty, "CT", 0, "T", 0, string.Empty, string.Empty, string.Empty, false,
 		[], false,
-		string.Empty, string.Empty, false, false, 0, string.Empty, 0, string.Empty, string.Empty, string.Empty, Strings.Widget.Round.Line(0, 0, 0), null,
+		string.Empty, string.Empty, false, false, 0, string.Empty, 0, string.Empty, Strings.Widget.Round.Line(0, 0, 0), null,
 		string.Empty, false, string.Empty, false, string.Empty, string.Empty, false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
-		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(0, 0, "0.00"),
-		[], false, [], string.Empty, false, [], false, [], false,
+		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(0, 0, "0.00"),		[], false, [], string.Empty, false, [], false, [], false,
 		MatchHudOptions.Default);
 
 	public static MatchHudContent SampleLive { get; } = new(
 		true, "DE_MIRAGE · COMPETITIVE", "NAVI", 9, "FAZE", 7, "R17", "LIVE", "1:23", true,
 		[new RoundDot("1", "●", "#4ADE80"), new RoundDot("2", "●", "#4ADE80"), new RoundDot("3", "●", "#F87171")], true,
-		"s1mple [NAVI]", "CT", true, true, 0.87, "87", 1.0, "100", "AWP · Rifle · 5 / 30", "$4,700 · 18 / 9 / 4", Strings.Widget.Round.Line(17, 2, 250), Strings.Widget.TopWeapon.Line("AWP", 14),
+		"s1mple [NAVI]", "CT", true, true, 0.87, "87", 1.0, "100 · AWP · Rifle · 5 / 30 · $4,700 · 18 / 9 / 4", Strings.Widget.Round.Line(17, 2, 250), Strings.Widget.TopWeapon.Line("AWP", 14),
 		"Middle", true, "512 · -735 · -148", true, "CONSOLE", "CARRIED", false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
 		false, false, false, true, true, 4, true, Strings.Widget.Session.Line(18, 9, "2.00"),
 		[0.9, 0.85, 0.87, 0.6, 0.62, 0.87], true, [0.2, 0.5, 0.3], "250 / 400", true, [0.1, 0.2, 0.29], true,
@@ -150,7 +147,7 @@ public sealed record MatchHudContent(
 	public static MatchHudContent SampleBomb { get; } = new(
 		true, "DE_DUST2 · COMPETITIVE", "CTs", 11, "Ts", 9, "R21", "LIVE", "0:32", true,
 		[], false,
-		"misuuu", "T", false, true, 0, "0", 0, "0", "AK-47 · Rifle · 0 / 90", "$800 · 14 / 12 / 3", Strings.Widget.Round.Line(21, 0, 0), null,
+		"misuuu", "T", false, true, 0, "0", 0, "AK-47 · Rifle · 0 / 90 · $800 · 14 / 12 / 3", Strings.Widget.Round.Line(21, 0, 0), null,
 		"Bombsite A", true, string.Empty, false, string.Empty, "PLANTED", true,
 		new UiProgressReference { PositionMs = 8000, Anchor = DateTimeOffset.UtcNow, DurationMs = 40000, Rate = 1 }, true,
 		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(14, 12, "1.17"),
@@ -186,7 +183,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "4";
+	internal const string TreeGeneration = "5";
 
 	public static UiElement Build(UiState<MatchHudContent> content)
 	{
@@ -217,7 +214,7 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "match-hud-g" + TreeGeneration,
-			Padding = 0.06,
+			Padding = 0.04,
 			Gap = 0.04,
 			Children = body,
 		};
@@ -280,15 +277,15 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "live-body",
-			Gap = options.Compact ? 0.02 : 0.04,
+			Gap = options.Compact ? 0.01 : 0.012,
 			Children = body,
 		};
 	}
 
 	private static UiStack Scorebug(UiState<MatchHudContent> content, MatchHudOptions options)
 	{
-		var big = options.Compact ? UiSize.Capped(0.16, 24) : UiSize.Capped(0.2, 40);
-		var micro = UiSize.Capped(0.09, 12);
+		var big = options.Compact ? UiSize.Capped(0.13, 20) : UiSize.Capped(0.15, 22);
+		var micro = UiSize.Capped(0.08, 10);
 		var body = new List<UiElement>
 		{
 			new UiStack
@@ -308,7 +305,7 @@ internal static class MatchHudView
 							{
 								Key = "round",
 								Text = UiText.From(() => content.Value.RoundText),
-								Size = UiSize.Capped(0.09, 12),
+								Size = UiSize.Capped(0.08, 10),
 								Weight = UiComponentTextWeights.SemiBold,
 								Align = UiComponentAlignments.Center,
 							},
@@ -321,10 +318,10 @@ internal static class MatchHudView
 								Align = UiComponentAlignments.Center,
 							},
 							new UiTextRun
-							{
+						{
 						Key = "clock",
 						Text = UiText.From(() => content.Value.PhaseTime),
-						Size = UiSize.Capped(0.1, 15),
+						Size = UiSize.Capped(0.09, 12),
 								Weight = UiComponentTextWeights.SemiBold,
 								Digits = UiValue.Of(4.0),
 								Align = UiComponentAlignments.Center,
@@ -370,7 +367,7 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "scorebug",
-			Gap = 0.02,
+			Gap = 0.015,
 			Children = body,
 		};
 	}
@@ -413,39 +410,65 @@ internal static class MatchHudView
 		var body = new List<UiElement>
 		{
 			new UiTextRun
-			{
+		{
 					Key = "player-name",
 					Text = UiText.From(() => content.Value.NameLine),
-					Size = options.Compact ? UiSize.Capped(0.11, 14) : UiSize.Capped(0.13, 20),
+					Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.1, 14),
 				Weight = UiComponentTextWeights.SemiBold,
 				Align = UiComponentAlignments.Center,
 			},
-			new UiGauge
+			new UiLayer
 			{
-				Key = "hp-gauge",
-				Level = UiValue.From(() => content.Value.HpFrac),
-				LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-				Thickness = 0.045,
-				MainSize = UiSize.Capped(0.22, 88),
-				Fallback = new UiRangeBar
-				{
-					Key = "hp-gauge-fallback",
-					Start = UiValue.Of(0.0),
-					End = UiValue.From(() => content.Value.HpFrac),
-					StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-					EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-					Thickness = 0.035,
-				},
-			},
-			new UiTextRun
-			{
-					Key = "hp-line",
-					Text = UiText.From(() => content.Value.HpText),
-					Size = options.Compact ? UiSize.Capped(0.14, 20) : UiSize.Capped(0.17, 32),
-				Weight = UiComponentTextWeights.SemiBold,
-				Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
-				Digits = UiValue.Of(3.0),
-				Align = UiComponentAlignments.Center,
+				Key = "hp",
+				MainSize = UiSize.Capped(0.09, 26),
+				Children =
+				[
+					new UiStack
+					{
+						Key = "hp-ring",
+						Align = UiComponentAlignments.Center,
+						Justify = UiComponentJustify.Center,
+						Children =
+						[
+							new UiGauge
+							{
+								Key = "hp-gauge",
+								Level = UiValue.From(() => content.Value.HpFrac),
+								LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+								Thickness = 0.045,
+								MainSize = UiSize.Capped(0.09, 26),
+								Fallback = new UiRangeBar
+								{
+									Key = "hp-gauge-fallback",
+									Start = UiValue.Of(0.0),
+									End = UiValue.From(() => content.Value.HpFrac),
+									StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+									EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+									Thickness = 0.035,
+								},
+							},
+						],
+					},
+					new UiStack
+					{
+						Key = "hp-num",
+						Align = UiComponentAlignments.Center,
+						Justify = UiComponentJustify.Center,
+						Children =
+						[
+							new UiTextRun
+							{
+								Key = "hp-line",
+								Text = UiText.From(() => content.Value.HpText),
+								Size = options.Compact ? UiSize.Capped(0.1, 15) : UiSize.Capped(0.12, 17),
+								Weight = UiComponentTextWeights.SemiBold,
+								Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
+								Digits = UiValue.Of(3.0),
+								Align = UiComponentAlignments.Center,
+							},
+						],
+					},
+				],
 			},
 			new UiWhen
 			{
@@ -461,14 +484,12 @@ internal static class MatchHudView
 					Thickness = 0.018,
 				},
 			},
-			MicroLine(content, "armor", () => content.Value.ArmorLine),
-			MicroLine(content, "loadout", () => content.Value.LoadoutLine),
-			MicroLine(content, "money", () => content.Value.MoneyLine),
+			MicroLine(content, "gear", () => content.Value.GearLine),
 			new UiTextRun
 			{
 				Key = "round-line",
 				Text = UiText.FromLocalized(() => content.Value.RoundLine),
-				Size = UiSize.Capped(0.095, 13),
+				Size = UiSize.Capped(0.075, 9),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			},
@@ -480,7 +501,7 @@ internal static class MatchHudView
 				{
 					Key = "topweapon",
 					Text = UiText.FromLocalized(() => content.Value.TopWeaponLine ?? Strings.Widget.TopWeapon.Line(string.Empty, 0)),
-					Size = UiSize.Capped(0.095, 13),
+					Size = UiSize.Capped(0.075, 9),
 					Role = UiComponentTextRoles.Muted,
 					Align = UiComponentAlignments.Center,
 				},
@@ -490,7 +511,7 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "player",
-			Gap = 0.05,
+			Gap = 0.012,
 			Children = body,
 		};
 	}
@@ -504,8 +525,8 @@ internal static class MatchHudView
 		{
 			Key = "charts",
 			Columns = UiValue.Of(3),
-			Gap = 0.04,
-			MainSize = UiSize.Capped(0.22, 80),
+			Gap = 0.02,
+			MainSize = UiSize.Capped(0.12, 40),
 			Children =
 			[
 				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
@@ -549,7 +570,7 @@ internal static class MatchHudView
 				Points = UiValue.From(() => points(content.Value)),
 						Color = UiValue.Of(color),
 						Thickness = 0.02,
-						MainSize = UiSize.Capped(0.12, 44),
+						MainSize = UiSize.Capped(0.08, 20),
 			},
 		};
 
@@ -559,7 +580,7 @@ internal static class MatchHudView
 				{
 					Key = prefix + "-caption",
 					Text = UiText.From(() => caption(content.Value)),
-					Size = UiSize.Capped(0.09, 12),
+					Size = UiSize.Capped(0.08, 10),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			});
@@ -603,7 +624,7 @@ internal static class MatchHudView
 				Key = "pills",
 				Direction = UiComponentDirections.Horizontal,
 				Justify = UiComponentJustify.Center,
-				Gap = 0.03,
+				Gap = 0.02,
 				Children = pills,
 			},
 		};
@@ -622,7 +643,7 @@ internal static class MatchHudView
 			{
 				Key = "session",
 				Text = UiText.FromLocalized(() => content.Value.SessionLine),
-				Size = UiSize.Capped(0.09, 12),
+				Size = UiSize.Capped(0.075, 9),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			});
@@ -631,7 +652,7 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "status",
-			Gap = 0.02,
+			Gap = 0.015,
 			Children = children,
 		};
 	}
@@ -693,7 +714,7 @@ internal static class MatchHudView
 				{
 					Key = key,
 					Text = UiText.FromLocalized(() => item.Text),
-					Size = UiSize.Capped(0.095, 13),
+					Size = UiSize.Capped(0.085, 10),
 					Role = UiComponentTextRoles.Secondary,
 					Align = UiComponentAlignments.Center,
 				},
@@ -714,7 +735,7 @@ internal static class MatchHudView
 			{
 				Key = key,
 				Text = UiText.FromLocalized(() => text()),
-				Size = UiSize.Capped(0.095, 13),
+				Size = UiSize.Capped(0.085, 10),
 				Weight = UiComponentTextWeights.Medium,
 				Align = UiComponentAlignments.Center,
 			},
@@ -735,7 +756,7 @@ internal static class MatchHudView
 			{
 				Key = key,
 				Text = UiText.From(() => text()),
-				Size = UiSize.Capped(0.095, 13),
+				Size = UiSize.Capped(0.085, 10),
 				Weight = UiComponentTextWeights.Medium,
 				Align = UiComponentAlignments.Center,
 			},
@@ -750,7 +771,7 @@ internal static class MatchHudView
 		{
 			Key = key,
 			Text = UiText.From(() => text()),
-			Size = UiSize.Capped(0.08, 10),
+			Size = UiSize.Capped(0.075, 9),
 			Role = UiComponentTextRoles.Muted,
 			Align = UiComponentAlignments.Center,
 		},
@@ -1024,6 +1045,10 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		var money = JoinParts(
 			MatchHudContent.FormatMoney(snapshot.Money),
 			$"{snapshot.Kills} / {snapshot.Deaths} / {snapshot.Assists}");
+		var gear = JoinParts(
+			armor > 0 ? armor.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
+			loadout,
+			money);
 		var roundLine = Strings.Widget.Round.Line(snapshot.MapRound, snapshot.RoundKills, snapshot.RoundDamage);
 		var sessionLine = Strings.Widget.Session.Line(
 			snapshot.SessionKills,
@@ -1062,9 +1087,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			hp / 100.0,
 			hp.ToString(System.Globalization.CultureInfo.InvariantCulture),
 			armor / 100.0,
-			armor > 0 ? armor.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
-			loadout,
-			money,
+			gear,
 			roundLine,
 			!string.IsNullOrEmpty(snapshot.TopWeapon)
 				? Strings.Widget.TopWeapon.Line(snapshot.TopWeapon, snapshot.TopWeaponKills)

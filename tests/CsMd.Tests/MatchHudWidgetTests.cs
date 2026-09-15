@@ -1,6 +1,12 @@
+using System.Text.Json;
 using CsMd.Gsi;
 using CsMd.Places;
 using CsMd.Widgets;
+using MacroDeck.Sdk.Ui;
+using MacroDeck.Ui.Components;
+using MacroDeck.Ui.Dsl;
+using MacroDeck.Ui.Model.Surfaces;
+using MacroDeck.Ui.Runtime;
 using NUnit.Framework;
 using Serilog;
 
@@ -22,7 +28,7 @@ public sealed class MatchHudWidgetTests
 		Assert.That(options.ShowStatus, Is.True);
 		Assert.That(options.ShowSession, Is.True);
 		Assert.That(options.ShowFeed, Is.True);
-		Assert.That(options.FeedCount, Is.EqualTo(3));
+		Assert.That(options.FeedCount, Is.EqualTo(2));
 		Assert.That(options.Compact, Is.False);
 	}
 
@@ -117,12 +123,10 @@ public sealed class MatchHudWidgetTests
 		Assert.That(content.CtScore, Is.EqualTo(3));
 		Assert.That(content.TScore, Is.EqualTo(1));
 		Assert.That(content.HpFrac, Is.EqualTo(1.0));
-		Assert.That(content.LoadoutLine, Is.EqualTo("AK-47 · Rifle · 30 / 90"));
-		Assert.That(content.MoneyLine, Is.EqualTo("$800 · 4 / 2 / 1"));
+		Assert.That(content.GearLine, Is.EqualTo("100 · AK-47 · Rifle · 30 / 90 · $800 · 4 / 2 / 1"));
 		Assert.That(content.BombText, Is.EqualTo("CARRIED"));
 		Assert.That(content.HasBomb, Is.True);
 		Assert.That(ResolveEn(content.SessionLine), Is.EqualTo("K 0 · D 0 · 0.00"));
-		Assert.That(content.ArmorLine, Is.EqualTo("100"));
 		Assert.That(ResolveEn(content.RoundLine), Is.EqualTo("R5 · +0 · 0"));
 		Assert.That(content.HasHistory, Is.False);
 		Assert.That(content.HasHpHistory, Is.False);
@@ -198,6 +202,36 @@ public sealed class MatchHudWidgetTests
 		Assert.That(MatchHudFeed.Format(GsiEventIds.ChatMessage, new Dictionary<string, object?> { ["player"] = "Me", ["text"] = "gl" }), Is.Not.Null);
 		Assert.That(MatchHudFeed.Format(GsiEventIds.RoundStarted, new Dictionary<string, object?>()), Is.Null);
 		Assert.That(MatchHudFeed.Format(GsiEventIds.MatchStarted, new Dictionary<string, object?>()), Is.Null);
+	}
+
+	[Test]
+	public void Sample_trees_fit_a_three_by_three_tile_without_squeezing_text()
+	{
+		var names = new[] { "LiveMatch", "BombPlanted" };
+		var previews = new Func<UiElement>[] { MatchHudPreviews.LiveMatch, MatchHudPreviews.BombPlanted };
+		for (var i = 0; i < previews.Length; i++)
+		{
+			var surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>(),
+			};
+			var view = new UiView(surface, previews[i]());
+			var json = JsonSerializer.Serialize(view.Tree);
+			if (System.Environment.GetEnvironmentVariable("CSMD_DUMP_TREE") == "1")
+			{
+				File.WriteAllText(
+					$"C:\\Users\\Misu\\AppData\\Local\\Temp\\opencode\\matchhud-tree-{names[i]}.json",
+					json);
+			}
+
+			var height = WidgetFitEstimator.MeasureRootHeight(json);
+			Assert.That(
+				height,
+				Is.LessThanOrEqualTo(WidgetFitEstimator.BudgetUnits),
+				$"Tree is {height:F1} ref units tall on a 3x3 tile with a {WidgetFitEstimator.BudgetUnits} budget, so the reader squeezes rows and clips glyph bottoms. Slim sizes, gaps or rows until it fits.");
+		}
 	}
 
 	private static string ResolveEn(MacroDeck.Localization.LocalizedString text)
