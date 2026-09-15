@@ -68,7 +68,9 @@ internal static class WidgetFitEstimator
 			// parent axis: segmented takes its main size, a button its children.
 			"ui.segmented" => ResolveRequired(properties, "mainSize"),
 			"ui.button" => MeasureChildrenHeight(node, vertical: IsVertical(properties), width),
-			"ui.icon" => Resolve(properties, "size"),
+			// An icon draws its glyph into an explicit box: without a main
+			// size the box collapses and the glyph spills out over the page.
+			"ui.icon" => MeasureIconHeight(properties),
 			"ui.gauge" => ResolveRequired(properties, "mainSize"),
 			"ui.chart" => ResolveRequired(properties, "mainSize"),
 			"ui.range-bar" => Resolve(properties, "thickness"),
@@ -110,6 +112,16 @@ internal static class WidgetFitEstimator
 	{
 		var declared = Resolve(properties, "mainSize");
 		return declared > 0 ? declared : MaxChildHeight(node, width);
+	}
+
+	private static double MeasureIconHeight(JsonElement properties)
+	{
+		if (properties.TryGetProperty("mainSize", out _))
+		{
+			return ResolveRequired(properties, "mainSize");
+		}
+
+		throw new InvalidOperationException("Fit estimator requires every ui.icon to declare mainSize so its glyph box cannot collapse.");
 	}
 
 	private static double Resolve(JsonElement properties, string name)

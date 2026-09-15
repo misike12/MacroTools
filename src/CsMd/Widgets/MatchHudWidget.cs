@@ -216,7 +216,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "7";
+	internal const string TreeGeneration = "8";
 
 	private const string CardBackground = "#22252C";
 
@@ -328,6 +328,7 @@ internal static class MatchHudView
 				Key = "tab-" + key + "-icon",
 				Icon = icon,
 				Size = UiSize.Capped(0.05, 12),
+				MainSize = UiSize.Capped(0.05, 12),
 				Role = UiComponentTextRoles.Primary,
 			},
 			new UiTextRun
@@ -420,6 +421,7 @@ internal static class MatchHudView
 					Key = "idle-icon",
 					Icon = UiIcons.Crosshair,
 					Size = UiSize.Capped(0.11, 30),
+					MainSize = UiSize.Capped(0.11, 30),
 					Role = UiComponentTextRoles.Muted,
 				},
 				new UiTextRun
@@ -702,7 +704,7 @@ internal static class MatchHudView
 	{
 		Key = key,
 		Direction = UiComponentDirections.Horizontal,
-		Align = UiComponentAlignments.Center,
+		Align = UiComponentAlignments.Baseline,
 		Gap = 0.015,
 		Fill = true,
 		Background = UiValue.Of(CardBackground),
@@ -738,7 +740,8 @@ internal static class MatchHudView
 					{
 						Key = "bomb-icon",
 						Icon = UiIcons.AlertTriangle,
-						Size = UiSize.Capped(0.055, 13),
+						Size = UiSize.Capped(0.05, 12),
+						MainSize = UiSize.Capped(0.05, 12),
 						Color = UiValue.Of(MatchHudColors.Bad),
 					},
 					new UiTextRun
@@ -870,108 +873,93 @@ internal static class MatchHudView
 	{
 		var body = new List<UiElement>
 		{
-			new UiStack
+			new UiLayer
 			{
-				Key = "hero",
-				Direction = UiComponentDirections.Horizontal,
-				Align = UiComponentAlignments.Center,
-				Gap = 0.02,
+				Key = "hp",
+				MainSize = UiSize.Capped(0.18, 44),
 				Children =
 				[
-					new UiLayer
+					new UiStack
 					{
-						Key = "hp",
-						MainSize = UiSize.Capped(0.13, 48),
+						Key = "hp-ring",
+						Fill = true,
+						Align = UiComponentAlignments.Center,
+						Justify = UiComponentJustify.Center,
 						Children =
 						[
-							new UiStack
+							new UiGauge
 							{
-								Key = "hp-ring",
-								Align = UiComponentAlignments.Center,
-								Justify = UiComponentJustify.Center,
-								Children =
-								[
-									new UiGauge
-									{
-										Key = "hp-gauge",
-										Level = UiValue.From(() => content.Value.HpFrac),
-										LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-										StartAngle = 0,
-										EndAngle = 360,
-										Thickness = 0.03,
-										MainSize = UiSize.Capped(0.13, 48),
-										Fallback = new UiRangeBar
-										{
-											Key = "hp-gauge-fallback",
-											Start = UiValue.Of(0.0),
-											End = UiValue.From(() => content.Value.HpFrac),
-											StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-											EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
-											Thickness = 0.035,
-										},
-									},
-								],
-							},
-							new UiStack
-							{
-								Key = "hp-num",
-								Align = UiComponentAlignments.Center,
-								Justify = UiComponentJustify.Center,
-								Children =
-								[
-									new UiTextRun
-									{
-										Key = "hp-line",
-										Text = UiText.From(() => content.Value.HpText),
-										Size = options.Compact ? UiSize.Capped(0.11, 16) : UiSize.Capped(0.12, 20),
-										Weight = UiComponentTextWeights.SemiBold,
-										Color = UiValue.Of("#FFFFFF"),
-										Digits = UiValue.Of(3.0),
-										Align = UiComponentAlignments.Center,
-									},
-								],
+								Key = "hp-gauge",
+								Level = UiValue.From(() => content.Value.HpFrac),
+								LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+								StartAngle = 0,
+								EndAngle = 360,
+								Thickness = 0.042,
+								MainSize = UiSize.Capped(0.18, 44),
+								Fallback = new UiRangeBar
+								{
+									Key = "hp-gauge-fallback",
+									Start = UiValue.Of(0.0),
+									End = UiValue.From(() => content.Value.HpFrac),
+									StartColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+									EndColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
+									Thickness = 0.035,
+								},
 							},
 						],
 					},
 					new UiStack
 					{
-						Key = "hero-names",
+						Key = "hp-num",
 						Fill = true,
-						Gap = 0.008,
+						Align = UiComponentAlignments.Center,
+						Justify = UiComponentJustify.Center,
 						Children =
 						[
 							new UiTextRun
 							{
-								Key = "player-name",
-								Text = UiText.From(() => content.Value.NameLine),
-								Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.1, 15),
+								Key = "hp-line",
+								Text = UiText.From(() => content.Value.HpText),
+									Size = options.Compact ? UiSize.Capped(0.11, 16) : UiSize.Capped(0.15, 24),
 								Weight = UiComponentTextWeights.SemiBold,
-								Align = UiComponentAlignments.Start,
-							},
-							new UiStack
-							{
-								Key = "hero-pills",
-								Direction = UiComponentDirections.Horizontal,
-								Gap = 0.02,
-								Children =
-								[
-									new UiTextRun
-									{
-										Key = "hero-team",
-										Text = UiText.From(() => content.Value.PlayerTeam),
-										Size = UiSize.Capped(0.045, 11),
-										Weight = UiComponentTextWeights.SemiBold,
-										Color = UiValue.From(() => content.Value.PlayerTeam == "CT" ? MatchHudColors.Ct : MatchHudColors.T),
-										Align = UiComponentAlignments.Start,
-									},
-									LocalizedPill("hero-state", () => true, () => content.Value.Alive
-										? Strings.Widget.State.Alive() : Strings.Widget.State.Dead()),
-									LocalizedPill("hero-helm", () => content.Value.Helmet, Strings.Widget.Effects.Helmet),
-									LocalizedPill("hero-defuse", () => content.Value.DefuseKit, Strings.Widget.Effects.DefuseKit),
-								],
+								Color = UiValue.Of("#FFFFFF"),
+								Digits = UiValue.Of(3.0),
+								Align = UiComponentAlignments.Center,
 							},
 						],
 					},
+				],
+			},
+			new UiTextRun
+			{
+				Key = "player-name",
+				Text = UiText.From(() => content.Value.NameLine),
+				Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.1, 15),
+				Weight = UiComponentTextWeights.SemiBold,
+				Align = UiComponentAlignments.Center,
+			},
+			new UiStack
+			{
+				Key = "hero-pills",
+				Direction = UiComponentDirections.Horizontal,
+				Justify = UiComponentJustify.Center,
+				Align = UiComponentAlignments.Center,
+				Gap = 0.02,
+				Children =
+				[
+					new UiTextRun
+					{
+						Key = "hero-team",
+						Text = UiText.From(() => content.Value.PlayerTeam),
+						Size = UiSize.Capped(0.045, 11),
+						Weight = UiComponentTextWeights.SemiBold,
+						Color = UiValue.From(() => content.Value.PlayerTeam == "CT" ? MatchHudColors.Ct : MatchHudColors.T),
+						Align = UiComponentAlignments.Center,
+					},
+					LocalizedPill("hero-state", () => true, () => content.Value.Alive
+						? Strings.Widget.State.Alive() : Strings.Widget.State.Dead()),
+					LocalizedPill("hero-helm", () => content.Value.Helmet, Strings.Widget.Effects.Helmet),
+					LocalizedPill("hero-defuse", () => content.Value.DefuseKit, Strings.Widget.Effects.DefuseKit),
 				],
 			},
 			new UiWhen
@@ -1025,7 +1013,7 @@ internal static class MatchHudView
 		Key = "stat-grid",
 		Columns = UiValue.Of(4),
 		Gap = 0.015,
-		MainSize = UiSize.Capped(0.32, 78),
+		MainSize = UiSize.Capped(0.3, 72),
 		Children =
 		[
 			StatCard("stat-k", Strings.Widget.Cards.Kills(), content.Value.Kills.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -1049,7 +1037,7 @@ internal static class MatchHudView
 			Key = "charts",
 			Columns = UiValue.Of(3),
 			Gap = 0.02,
-			MainSize = UiSize.Capped(0.15, 40),
+			MainSize = UiSize.Capped(0.14, 36),
 			Children =
 			[
 				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
@@ -1093,7 +1081,7 @@ internal static class MatchHudView
 				Points = UiValue.From(() => points(content.Value)),
 						Color = UiValue.Of(color),
 						Thickness = 0.02,
-						MainSize = UiSize.Capped(0.09, 24),
+						MainSize = UiSize.Capped(0.08, 20),
 			},
 		};
 
@@ -1301,7 +1289,8 @@ internal static class MatchHudView
 					{
 						Key = "events-icon",
 						Icon = UiIcons.MessageSquare,
-						Size = UiSize.Capped(0.05, 12),
+						Size = UiSize.Capped(0.045, 11),
+						MainSize = UiSize.Capped(0.045, 11),
 						Role = UiComponentTextRoles.Muted,
 					},
 					new UiTextRun
