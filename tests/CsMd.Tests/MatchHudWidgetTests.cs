@@ -318,6 +318,20 @@ public sealed class MatchHudWidgetTests
 		}
 	}
 
+	[Test]
+	public void Yaw_arrow_points_by_octant()
+	{
+		Assert.That(MatchHudWidget.YawArrow(0), Is.EqualTo("↑"));
+		Assert.That(MatchHudWidget.YawArrow(90), Is.EqualTo("→"));
+		Assert.That(MatchHudWidget.YawArrow(180), Is.EqualTo("↓"));
+		Assert.That(MatchHudWidget.YawArrow(270), Is.EqualTo("←"));
+		Assert.That(MatchHudWidget.YawArrow(45), Is.EqualTo("↗"));
+		Assert.That(MatchHudWidget.YawArrow(-45), Is.EqualTo("↖"));
+		Assert.That(MatchHudWidget.YawArrow(360), Is.EqualTo("↑"));
+		Assert.That(MatchHudWidget.YawArrow(null), Is.Empty);
+		Assert.That(MatchHudWidget.YawArrow(double.NaN), Is.Empty);
+	}
+
 	private static string ResolveEn(MacroDeck.Localization.LocalizedString text)
 	{
 		var registry = new MacroDeck.Localization.LocalizationCatalogRegistry();

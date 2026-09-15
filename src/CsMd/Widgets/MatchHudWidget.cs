@@ -216,7 +216,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "6";
+	internal const string TreeGeneration = "7";
 
 	private const string CardBackground = "#22252C";
 
@@ -478,7 +478,7 @@ internal static class MatchHudView
 				Condition = () => content.Value.HasBomb || content.Value.HasBombBar,
 				Content = () => BombCard(content),
 			});
-			body.Add(MetaGrid(content));
+			body.Add(MetaRows(content));
 			body.Add(MatchPills(content));
 		}
 
@@ -507,6 +507,7 @@ internal static class MatchHudView
 					new UiStack
 					{
 						Key = "mid",
+						Gap = 0.008,
 						Children =
 						[
 							new UiTextRun
@@ -638,67 +639,85 @@ internal static class MatchHudView
 		],
 	};
 
-	private static UiGrid MetaGrid(UiState<MatchHudContent> content) => new()
+	private static UiStack MetaRows(UiState<MatchHudContent> content) => new()
 	{
-		Key = "meta-grid",
-		Columns = UiValue.Of(2),
-		Gap = 0.015,
+		Key = "meta-rows",
+		Gap = 0.01,
 		Children =
 		[
-			LocalizedStatCard("meta-round", Strings.Widget.Cards.Round(), content.Value.RoundLine),
 			new UiStack
 			{
-				Key = "meta-streak",
-				Background = UiValue.Of(CardBackground),
-				Padding = 0.012,
-				Gap = 0.004,
+				Key = "meta-row1",
+				Direction = UiComponentDirections.Horizontal,
+				Gap = 0.015,
 				Children =
 				[
-					new UiTextRun
+					MetaStrip("meta-round", Strings.Widget.Cards.Round(), new UiTextRun
 					{
-						Key = "meta-streak-caption",
-						Text = UiText.FromLocalized(() => Strings.Widget.Cards.Streak()),
-						Size = UiSize.Capped(0.032, 8),
-						Role = UiComponentTextRoles.Muted,
-						Align = UiComponentAlignments.Center,
-					},
-					new UiTextRun
+						Key = "meta-round-value",
+						Text = UiText.FromLocalized(() => content.Value.RoundLine),
+						Size = UiSize.Capped(0.05, 12),
+						Weight = UiComponentTextWeights.SemiBold,
+						Align = UiComponentAlignments.Start,
+					}),
+					MetaStrip("meta-streak", Strings.Widget.Cards.Streak(), new UiTextRun
 					{
 						Key = "meta-streak-value",
 						Text = UiText.FromLocalized(() => Strings.Widget.Streak.Best(content.Value.Streak, content.Value.BestStreak)),
-						Size = UiSize.Capped(0.055, 13),
+						Size = UiSize.Capped(0.05, 12),
 						Weight = UiComponentTextWeights.SemiBold,
-						Align = UiComponentAlignments.Center,
-					},
+						Align = UiComponentAlignments.Start,
+					}),
 				],
 			},
 			new UiStack
 			{
-				Key = "meta-timeouts",
-				Background = UiValue.Of(CardBackground),
-				Padding = 0.012,
-				Gap = 0.004,
+				Key = "meta-row2",
+				Direction = UiComponentDirections.Horizontal,
+				Gap = 0.015,
 				Children =
 				[
-					new UiTextRun
-					{
-						Key = "meta-timeouts-caption",
-						Text = UiText.FromLocalized(() => Strings.Widget.Cards.Timeouts()),
-						Size = UiSize.Capped(0.032, 8),
-						Role = UiComponentTextRoles.Muted,
-						Align = UiComponentAlignments.Center,
-					},
-					new UiTextRun
+					MetaStrip("meta-timeouts", Strings.Widget.Cards.Timeouts(), new UiTextRun
 					{
 						Key = "meta-timeouts-value",
 						Text = UiText.FromLocalized(() => Strings.Widget.Timeouts.Line(content.Value.TimeoutsCt, content.Value.TimeoutsT)),
-						Size = UiSize.Capped(0.055, 13),
+						Size = UiSize.Capped(0.05, 12),
 						Weight = UiComponentTextWeights.SemiBold,
-						Align = UiComponentAlignments.Center,
-					},
+						Align = UiComponentAlignments.Start,
+					}),
+					MetaStrip("meta-time", Strings.Widget.Cards.MatchTime(), new UiTextRun
+					{
+						Key = "meta-time-value",
+						Text = UiText.From(() => content.Value.ElapsedLine),
+						Size = UiSize.Capped(0.05, 12),
+						Weight = UiComponentTextWeights.SemiBold,
+						Align = UiComponentAlignments.Start,
+					}),
 				],
 			},
-			StatCard("meta-time", Strings.Widget.Cards.MatchTime(), content.Value.ElapsedLine),
+		],
+	};
+
+	private static UiStack MetaStrip(string key, MacroDeck.Localization.LocalizedString caption, UiTextRun value) => new()
+	{
+		Key = key,
+		Direction = UiComponentDirections.Horizontal,
+		Align = UiComponentAlignments.Center,
+		Gap = 0.015,
+		Fill = true,
+		Background = UiValue.Of(CardBackground),
+		Padding = 0.012,
+		Children =
+		[
+			new UiTextRun
+			{
+				Key = key + "-caption",
+				Text = UiText.FromLocalized(() => caption),
+				Size = UiSize.Capped(0.032, 8),
+				Role = UiComponentTextRoles.Muted,
+				Align = UiComponentAlignments.Start,
+			},
+			value,
 		],
 	};
 
@@ -731,15 +750,20 @@ internal static class MatchHudView
 						Color = UiValue.Of(MatchHudColors.Bad),
 						Align = UiComponentAlignments.Center,
 					},
-					new UiTextRun
-					{
-						Key = "bomb-detail",
-						Text = UiText.From(() => content.Value.BombDetail),
-						Size = UiSize.Capped(0.045, 11),
-						Role = UiComponentTextRoles.Muted,
-						Align = UiComponentAlignments.Center,
-					},
 				],
+			},
+			new UiWhen
+			{
+				Key = "bomb-detail-when",
+				Condition = () => !string.IsNullOrWhiteSpace(content.Value.BombDetail),
+				Content = () => new UiTextRun
+				{
+					Key = "bomb-detail",
+					Text = UiText.From(() => content.Value.BombDetail),
+					Size = UiSize.Capped(0.045, 11),
+					Role = UiComponentTextRoles.Muted,
+					Align = UiComponentAlignments.Center,
+				},
 			},
 		};
 		body.Add(new UiWhen
@@ -777,6 +801,7 @@ internal static class MatchHudView
 	private static UiStack SideScore(UiState<MatchHudContent> content, UiSize big, UiSize micro, bool ct) => new UiStack
 	{
 		Key = ct ? "ct-side" : "t-side",
+		Gap = 0.008,
 		Children =
 		[
 			new UiTextRun
@@ -873,7 +898,7 @@ internal static class MatchHudView
 										LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
 										StartAngle = 0,
 										EndAngle = 360,
-										Thickness = 0.05,
+										Thickness = 0.03,
 										MainSize = UiSize.Capped(0.13, 48),
 										Fallback = new UiRangeBar
 										{
@@ -898,9 +923,9 @@ internal static class MatchHudView
 									{
 										Key = "hp-line",
 										Text = UiText.From(() => content.Value.HpText),
-										Size = options.Compact ? UiSize.Capped(0.11, 16) : UiSize.Capped(0.13, 22),
+										Size = options.Compact ? UiSize.Capped(0.11, 16) : UiSize.Capped(0.12, 20),
 										Weight = UiComponentTextWeights.SemiBold,
-										Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
+										Color = UiValue.Of("#FFFFFF"),
 										Digits = UiValue.Of(3.0),
 										Align = UiComponentAlignments.Center,
 									},
@@ -1000,6 +1025,7 @@ internal static class MatchHudView
 		Key = "stat-grid",
 		Columns = UiValue.Of(4),
 		Gap = 0.015,
+		MainSize = UiSize.Capped(0.32, 78),
 		Children =
 		[
 			StatCard("stat-k", Strings.Widget.Cards.Kills(), content.Value.Kills.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -1023,7 +1049,7 @@ internal static class MatchHudView
 			Key = "charts",
 			Columns = UiValue.Of(3),
 			Gap = 0.02,
-			MainSize = UiSize.Capped(0.14, 52),
+			MainSize = UiSize.Capped(0.15, 40),
 			Children =
 			[
 				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
@@ -1067,7 +1093,7 @@ internal static class MatchHudView
 				Points = UiValue.From(() => points(content.Value)),
 						Color = UiValue.Of(color),
 						Thickness = 0.02,
-						MainSize = UiSize.Capped(0.1, 28),
+						MainSize = UiSize.Capped(0.09, 24),
 			},
 		};
 
@@ -1157,28 +1183,15 @@ internal static class MatchHudView
 				Gap = 0.02,
 				Children =
 				[
-					new UiTransform
+					new UiWhen
 					{
-						Key = "compass-arrow",
-						Rotation = UiValue.From(() => content.Value.FacingYaw ?? 0),
-						MainSize = UiSize.Capped(0.09, 28),
-						Children =
-						[
-							new UiIcon
-							{
-								Key = "compass-icon",
-								Icon = UiIcons.ArrowUp,
-								Size = UiSize.Capped(0.07, 22),
-								Color = UiValue.Of(MatchHudColors.Good),
-							},
-						],
-						Fallback = new UiTextRun
+						Key = "compass-arrow-when",
+						Condition = () => content.Value.FacingYaw.HasValue,
+						Content = () => new UiTextRun
 						{
-							Key = "compass-fallback",
-							Text = UiText.From(() => content.Value.FacingYaw.HasValue
-								? content.Value.FacingYaw.Value.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) + "°"
-								: string.Empty),
-							Size = UiSize.Capped(0.06, 14),
+							Key = "compass-arrow",
+							Text = UiText.From(() => MatchHudWidget.YawArrow(content.Value.FacingYaw)),
+							Size = UiSize.Capped(0.08, 22),
 							Weight = UiComponentTextWeights.SemiBold,
 							Color = UiValue.Of(MatchHudColors.Good),
 							Align = UiComponentAlignments.Center,
@@ -1243,6 +1256,7 @@ internal static class MatchHudView
 				Key = "battlefield-grid",
 				Columns = UiValue.Of(3),
 				Gap = 0.015,
+				MainSize = UiSize.Capped(0.16, 40),
 				Children =
 				[
 					StatCard("bf-smokes", Strings.Widget.Cards.Smokes(), content.Value.Smokes.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -1826,6 +1840,27 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 	private static bool IsBombLive(GsiSnapshot snapshot) =>
 		string.Equals(snapshot.BombState, "planted", StringComparison.OrdinalIgnoreCase)
 		&& snapshot.BombCountdown is not null;
+
+	public static string YawArrow(double? yaw)
+	{
+		if (yaw is not { } degrees || double.IsNaN(degrees) || double.IsInfinity(degrees))
+		{
+			return string.Empty;
+		}
+
+		var octant = (int)Math.Round(degrees / 45, MidpointRounding.AwayFromZero) & 7;
+		return octant switch
+		{
+			0 => "↑",
+			1 => "↗",
+			2 => "→",
+			3 => "↘",
+			4 => "↓",
+			5 => "↙",
+			6 => "←",
+			_ => "↖",
+		};
+	}
 
 	public static string JoinParts(params string?[] parts) =>
 		string.Join(" · ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
