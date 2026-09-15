@@ -256,6 +256,23 @@ public sealed class PluginIntegrationTests
 		Assert.That(clamped.Monitor, Is.EqualTo(9));
 	}
 
+	[Test]
+	public void Brightness_options_read_string_monitor_from_choice_inputs()
+	{
+		var choice = BrightnessOptions.FromData(JsonDocument.Parse("""{"monitor":"2","showPresets":true}""").RootElement);
+
+		Assert.That(choice.Monitor, Is.EqualTo(2));
+		Assert.That(choice.ShowPresets, Is.True);
+
+		var number = BrightnessOptions.FromData(JsonDocument.Parse("""{"monitor":2}""").RootElement);
+
+		Assert.That(number.Monitor, Is.EqualTo(2));
+
+		var garbage = BrightnessOptions.FromData(JsonDocument.Parse("""{"monitor":"hdmi"}""").RootElement);
+
+		Assert.That(garbage.Monitor, Is.EqualTo(BrightnessOptions.Default.Monitor));
+	}
+
 	private static string SliderId(string treeJson) => FindNodeId(treeJson, "ui.slider", string.Empty);
 
 	private static string FindNodeId(string treeJson, string type, string idSuffix)

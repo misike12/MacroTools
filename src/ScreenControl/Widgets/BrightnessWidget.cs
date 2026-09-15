@@ -26,19 +26,34 @@ public sealed record BrightnessOptions(int Monitor, bool ShowPresets)
 			return Default;
 		}
 
-		var monitor = Default.Monitor;
-		if (data.TryGetProperty("monitor", out var element) && element.ValueKind == JsonValueKind.Number)
+		return new BrightnessOptions(ReadMonitor(data), ReadFlag(data, "showPresets", true));
+	}
+
+	private static int ReadMonitor(JsonElement data)
+	{
+		if (data.TryGetProperty("monitor", out var element))
 		{
-			try
+			// Choice inputs carry the selection as a string; the descriptor
+			// default and older data may carry a number. Both spell a monitor.
+			if (element.ValueKind == JsonValueKind.String
+				&& int.TryParse(element.GetString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
 			{
-				monitor = Math.Clamp((int)element.GetDouble(), 1, 9);
+				return Math.Clamp(parsed, 1, 9);
 			}
-			catch (Exception)
+
+			if (element.ValueKind == JsonValueKind.Number)
 			{
+				try
+				{
+					return Math.Clamp((int)element.GetDouble(), 1, 9);
+				}
+				catch (Exception)
+				{
+				}
 			}
 		}
 
-		return new BrightnessOptions(monitor, ReadFlag(data, "showPresets", true));
+		return Default.Monitor;
 	}
 
 	private static bool ReadFlag(JsonElement data, string name, bool fallback) =>
@@ -247,8 +262,8 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 		"monitor-brightness",
 		Strings.Widget.Brightness.Name(),
 		Strings.Widget.Brightness.Description(),
-		"""{"monitor":1,"showPresets":true}""",
-		"""{"type":"object","properties":{"monitor":{"type":"number"},"showPresets":{"type":"boolean"}}}""",
+		"""{"monitor":"1","showPresets":true}""",
+		"""{"type":"object","properties":{"monitor":{"type":"string"},"showPresets":{"type":"boolean"}}}""",
 		true,
 		new Dictionary<string, string>());
 	private static string? s_widgetTypeId;
