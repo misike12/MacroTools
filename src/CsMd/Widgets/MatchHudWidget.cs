@@ -288,7 +288,7 @@ internal static class MatchHudView
 	private static UiStack Scorebug(UiState<MatchHudContent> content, MatchHudOptions options)
 	{
 		var big = options.Compact ? UiSize.Capped(0.16, 24) : UiSize.Capped(0.2, 40);
-		var micro = UiSize.Capped(0.07, 10);
+		var micro = UiSize.Capped(0.09, 12);
 		var body = new List<UiElement>
 		{
 			new UiStack
@@ -468,7 +468,7 @@ internal static class MatchHudView
 			{
 				Key = "round-line",
 				Text = UiText.FromLocalized(() => content.Value.RoundLine),
-				Size = UiSize.Capped(0.08, 11),
+				Size = UiSize.Capped(0.095, 13),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			},
@@ -480,7 +480,7 @@ internal static class MatchHudView
 				{
 					Key = "topweapon",
 					Text = UiText.FromLocalized(() => content.Value.TopWeaponLine ?? Strings.Widget.TopWeapon.Line(string.Empty, 0)),
-					Size = UiSize.Capped(0.08, 11),
+					Size = UiSize.Capped(0.095, 13),
 					Role = UiComponentTextRoles.Muted,
 					Align = UiComponentAlignments.Center,
 				},
@@ -555,11 +555,11 @@ internal static class MatchHudView
 
 		if (caption is not null)
 		{
-			children.Add(new UiTextRun
-			{
-				Key = prefix + "-caption",
-				Text = UiText.From(() => caption(content.Value)),
-				Size = UiSize.Capped(0.07, 10),
+				children.Add(new UiTextRun
+				{
+					Key = prefix + "-caption",
+					Text = UiText.From(() => caption(content.Value)),
+					Size = UiSize.Capped(0.09, 12),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			});
@@ -622,7 +622,7 @@ internal static class MatchHudView
 			{
 				Key = "session",
 				Text = UiText.FromLocalized(() => content.Value.SessionLine),
-				Size = UiSize.Capped(0.07, 10),
+				Size = UiSize.Capped(0.09, 12),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			});
@@ -693,7 +693,7 @@ internal static class MatchHudView
 				{
 					Key = key,
 					Text = UiText.FromLocalized(() => item.Text),
-					Size = UiSize.Capped(0.075, 11),
+					Size = UiSize.Capped(0.095, 13),
 					Role = UiComponentTextRoles.Secondary,
 					Align = UiComponentAlignments.Center,
 				},
@@ -714,7 +714,7 @@ internal static class MatchHudView
 			{
 				Key = key,
 				Text = UiText.FromLocalized(() => text()),
-				Size = UiSize.Capped(0.075, 11),
+				Size = UiSize.Capped(0.095, 13),
 				Weight = UiComponentTextWeights.Medium,
 				Align = UiComponentAlignments.Center,
 			},
@@ -735,7 +735,7 @@ internal static class MatchHudView
 			{
 				Key = key,
 				Text = UiText.From(() => text()),
-				Size = UiSize.Capped(0.075, 11),
+				Size = UiSize.Capped(0.095, 13),
 				Weight = UiComponentTextWeights.Medium,
 				Align = UiComponentAlignments.Center,
 			},
