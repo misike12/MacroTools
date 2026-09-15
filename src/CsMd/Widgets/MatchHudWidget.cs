@@ -275,6 +275,8 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "live-body",
+			Fill = true,
+			Justify = UiComponentJustify.SpaceBetween,
 			Gap = options.Compact ? 0.02 : 0.04,
 			Children = body,
 		};
@@ -282,8 +284,8 @@ internal static class MatchHudView
 
 	private static UiStack Scorebug(UiState<MatchHudContent> content, MatchHudOptions options)
 	{
-		var big = options.Compact ? UiSize.Capped(0.16, 24) : UiSize.Capped(0.2, 32);
-		var micro = UiSize.Capped(0.07, 9);
+		var big = options.Compact ? UiSize.Capped(0.16, 24) : UiSize.Capped(0.2, 40);
+		var micro = UiSize.Capped(0.07, 10);
 		var body = new List<UiElement>
 		{
 			new UiStack
@@ -317,9 +319,9 @@ internal static class MatchHudView
 							},
 							new UiTextRun
 							{
-								Key = "clock",
-								Text = UiText.From(() => content.Value.PhaseTime),
-								Size = UiSize.Capped(0.1, 13),
+						Key = "clock",
+						Text = UiText.From(() => content.Value.PhaseTime),
+						Size = UiSize.Capped(0.1, 15),
 								Weight = UiComponentTextWeights.SemiBold,
 								Digits = UiValue.Of(4.0),
 								Align = UiComponentAlignments.Center,
@@ -409,9 +411,9 @@ internal static class MatchHudView
 		{
 			new UiTextRun
 			{
-				Key = "player-name",
-				Text = UiText.From(() => content.Value.NameLine),
-				Size = options.Compact ? UiSize.Capped(0.11, 14) : UiSize.Capped(0.13, 17),
+					Key = "player-name",
+					Text = UiText.From(() => content.Value.NameLine),
+					Size = options.Compact ? UiSize.Capped(0.11, 14) : UiSize.Capped(0.13, 20),
 				Weight = UiComponentTextWeights.SemiBold,
 				Align = UiComponentAlignments.Center,
 			},
@@ -421,7 +423,7 @@ internal static class MatchHudView
 				Level = UiValue.From(() => content.Value.HpFrac),
 				LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
 				Thickness = 0.045,
-				MainSize = UiSize.Capped(0.22, 88),
+				MainSize = UiSize.Capped(0.26, 104),
 				Fallback = new UiRangeBar
 				{
 					Key = "hp-gauge-fallback",
@@ -434,9 +436,9 @@ internal static class MatchHudView
 			},
 			new UiTextRun
 			{
-				Key = "hp-line",
-				Text = UiText.From(() => content.Value.HpText),
-				Size = options.Compact ? UiSize.Capped(0.14, 20) : UiSize.Capped(0.17, 26),
+					Key = "hp-line",
+					Text = UiText.From(() => content.Value.HpText),
+					Size = options.Compact ? UiSize.Capped(0.14, 20) : UiSize.Capped(0.17, 32),
 				Weight = UiComponentTextWeights.SemiBold,
 				Color = UiValue.From(() => HpColor(content.Value.HpFrac)),
 				Digits = UiValue.Of(3.0),
@@ -463,7 +465,7 @@ internal static class MatchHudView
 			{
 				Key = "round-line",
 				Text = UiText.FromLocalized(() => content.Value.RoundLine),
-				Size = UiSize.Capped(0.08, 10),
+				Size = UiSize.Capped(0.08, 11),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			},
@@ -475,7 +477,7 @@ internal static class MatchHudView
 				{
 					Key = "topweapon",
 					Text = UiText.FromLocalized(() => content.Value.TopWeaponLine ?? Strings.Widget.TopWeapon.Line(string.Empty, 0)),
-					Size = UiSize.Capped(0.08, 10),
+					Size = UiSize.Capped(0.08, 11),
 					Role = UiComponentTextRoles.Muted,
 					Align = UiComponentAlignments.Center,
 				},
@@ -500,7 +502,7 @@ internal static class MatchHudView
 			Key = "charts",
 			Columns = UiValue.Of(3),
 			Gap = 0.04,
-			MainSize = UiSize.Capped(0.18, 64),
+			MainSize = UiSize.Capped(0.22, 80),
 			Children =
 			[
 				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
@@ -542,9 +544,9 @@ internal static class MatchHudView
 			{
 				Key = prefix,
 				Points = UiValue.From(() => points(content.Value)),
-				Color = UiValue.Of(color),
-				Thickness = 0.02,
-				MainSize = UiSize.Capped(0.1, 36),
+						Color = UiValue.Of(color),
+						Thickness = 0.02,
+						MainSize = UiSize.Capped(0.12, 44),
 			},
 		};
 
@@ -554,7 +556,7 @@ internal static class MatchHudView
 			{
 				Key = prefix + "-caption",
 				Text = UiText.From(() => caption(content.Value)),
-				Size = UiSize.Capped(0.07, 9),
+				Size = UiSize.Capped(0.07, 10),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			});
@@ -617,7 +619,7 @@ internal static class MatchHudView
 			{
 				Key = "session",
 				Text = UiText.FromLocalized(() => content.Value.SessionLine),
-				Size = UiSize.Capped(0.07, 9),
+				Size = UiSize.Capped(0.07, 10),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			});
@@ -688,7 +690,7 @@ internal static class MatchHudView
 				{
 					Key = key,
 					Text = UiText.FromLocalized(() => item.Text),
-					Size = UiSize.Capped(0.075, 10),
+					Size = UiSize.Capped(0.075, 11),
 					Role = UiComponentTextRoles.Secondary,
 					Align = UiComponentAlignments.Center,
 				},
@@ -709,7 +711,7 @@ internal static class MatchHudView
 			{
 				Key = key,
 				Text = UiText.FromLocalized(() => text()),
-				Size = UiSize.Capped(0.075, 10),
+				Size = UiSize.Capped(0.075, 11),
 				Weight = UiComponentTextWeights.Medium,
 				Align = UiComponentAlignments.Center,
 			},
@@ -730,7 +732,7 @@ internal static class MatchHudView
 			{
 				Key = key,
 				Text = UiText.From(() => text()),
-				Size = UiSize.Capped(0.075, 10),
+				Size = UiSize.Capped(0.075, 11),
 				Weight = UiComponentTextWeights.Medium,
 				Align = UiComponentAlignments.Center,
 			},
@@ -1520,4 +1522,5 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			Faulted?.Invoke(this, new UiSessionFaultedEventArgs("handler-fault", e.Exception));
 	}
 }
+
 
