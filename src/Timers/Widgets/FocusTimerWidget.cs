@@ -258,10 +258,6 @@ internal static class FocusTimerView
 
 	private static UiProgressBar ProgressBar(UiState<FocusTimerContent> content)
 	{
-		var anchor = content.Peek().Progress;
-		var span = anchor.DurationMs is { } total && total > 0
-			? Math.Clamp((double)anchor.PositionMs / total, 0, 1)
-			: 0;
 		return new UiProgressBar
 		{
 			Key = "progress",
@@ -277,10 +273,20 @@ internal static class FocusTimerView
 			{
 				Key = "progress-fallback",
 				Start = UiValue.Of(0.0),
-				End = UiValue.Of(span),
+				End = UiValue.From(() => FallbackFrac(content.Value.Progress)),
 				Thickness = 0.04,
 			},
 		};
+	}
+
+	private static double FallbackFrac(UiProgressReference progress)
+	{
+		if (progress.DurationMs is not { } total || total <= 0)
+		{
+			return 0;
+		}
+
+		return Math.Clamp((double)progress.PositionMs / total, 0, 1);
 	}
 
 	private static MacroDeck.Localization.LocalizedString CaptionFor(FocusTimerContent snapshot) => snapshot.Mode switch
@@ -388,6 +394,11 @@ public static class FocusTimerPreviews
 	public static UiElement Idle() => FocusTimerView.Build(
 		new UiState<FocusTimerContent>(FocusTimerContent.Empty),
 		null);
+
+	// Test and tooling support: builds the live tree against caller-owned
+	// state so patches can be observed without a running session.
+	public static UiElement FromState(UiState<FocusTimerContent> state) =>
+		FocusTimerView.Build(state, null);
 }
 
 public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider

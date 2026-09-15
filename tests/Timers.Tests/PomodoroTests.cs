@@ -1,3 +1,9 @@
+using System.Text.Json;
+using MacroDeck.Sdk.Ui;
+using MacroDeck.Ui.Dsl;
+using MacroDeck.Ui.Model.References;
+using MacroDeck.Ui.Model.Surfaces;
+using MacroDeck.Ui.Runtime;
 using NUnit.Framework;
 using Timers.Timing;
 using Timers.Widgets;
@@ -195,5 +201,67 @@ public sealed class PomodoroTests
 		Assert.DoesNotThrow(() => FocusTimerPreviews.PomodoroFocus());
 		Assert.DoesNotThrow(() => FocusTimerPreviews.ShortBreak());
 		Assert.DoesNotThrow(() => FocusTimerPreviews.Idle());
+	}
+
+	[Test]
+	public void Progress_fallback_patches_when_content_changes()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var first = new UiProgressReference
+		{
+			PositionMs = 0,
+			Anchor = DateTimeOffset.UtcNow,
+			DurationMs = 60000,
+			Rate = 1,
+		};
+		var state = new UiState<FocusTimerContent>(new FocusTimerContent(
+			"countdown", string.Empty, string.Empty, "1:00", string.Empty, 0, 0,
+			first, true, true, true, FocusTimerOptions.Default, string.Empty));
+		var view = new UiView(surface, FocusTimerPreviews.FromState(state));
+		view.DrainPatches();
+
+		state.Set(state.Peek() with
+		{
+			Progress = new UiProgressReference
+			{
+				PositionMs = 30000,
+				Anchor = DateTimeOffset.UtcNow,
+				DurationMs = 60000,
+				Rate = 1,
+			},
+		});
+		var patches = JsonSerializer.Serialize(view.DrainPatches());
+
+		Assert.That(patches, Does.Contain("progress-fallback"));
+	}
+
+	[Test]
+	public void Widget_trees_fit_a_three_by_three_tile_without_squeezing_text()
+	{
+		foreach (var preview in new Func<UiElement>[]
+		{
+			FocusTimerPreviews.PomodoroFocus,
+			FocusTimerPreviews.ShortBreak,
+			FocusTimerPreviews.Idle,
+		})
+		{
+			var surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>(),
+			};
+			var view = new UiView(surface, preview());
+			var height = WidgetFitEstimator.MeasureRootHeight(JsonSerializer.Serialize(view.Tree));
+			Assert.That(
+				height,
+				Is.LessThanOrEqualTo(WidgetFitEstimator.BudgetUnits),
+				$"Tree is {height:F1} ref units tall on a 3x3 tile with a {WidgetFitEstimator.BudgetUnits} budget, so the reader squeezes rows and clips glyph bottoms. Slim sizes, gaps or rows until it fits.");
+		}
 	}
 }
