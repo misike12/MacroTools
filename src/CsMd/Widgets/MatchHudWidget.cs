@@ -186,7 +186,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "3";
+	internal const string TreeGeneration = "4";
 
 	public static UiElement Build(UiState<MatchHudContent> content)
 	{
@@ -280,8 +280,6 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "live-body",
-			Fill = true,
-			Justify = UiComponentJustify.SpaceBetween,
 			Gap = options.Compact ? 0.02 : 0.04,
 			Children = body,
 		};
