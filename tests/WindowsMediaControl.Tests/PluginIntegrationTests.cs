@@ -7,6 +7,10 @@ using MacroDeck.Sdk.MusicPlayer;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
+using MacroDeck.Ui.Dsl;
+using MacroDeck.Ui.Model.References;
+using MacroDeck.Ui.Model.Surfaces;
+using MacroDeck.Ui.Runtime;
 using MacroDeck.Ui.Model.Surfaces;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -711,6 +715,69 @@ public sealed class PluginIntegrationTests
 		var options = WidgetOptions.FromData(JsonDocument.Parse("""{"compactMode":true}""").RootElement);
 
 		Assert.That(options.Compact, Is.True);
+	}
+
+	[Test]
+	public void Widget_trees_fit_a_three_by_three_tile_without_squeezing_text()
+	{
+		foreach (var preview in new Func<UiElement>[]
+		{
+			NowPlayingPreviews.Playing,
+			NowPlayingPreviews.NothingPlaying,
+		})
+		{
+			var surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>(),
+			};
+			var view = new UiView(surface, preview());
+			var height = WidgetFitEstimator.MeasureRootHeight(JsonSerializer.Serialize(view.Tree));
+			Assert.That(
+				height,
+				Is.LessThanOrEqualTo(WidgetFitEstimator.BudgetUnits),
+				$"Tree is {height:F1} ref units tall on a 3x3 tile with a {WidgetFitEstimator.BudgetUnits} budget, so the reader squeezes rows and clips glyph bottoms. Slim sizes, gaps or rows until it fits.");
+		}
+	}
+
+	[Test]
+	public void Progress_fallback_patches_when_content_changes()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<WidgetContent>(WidgetContent.Empty with
+		{
+			Title = "Nightcall",
+			HasMedia = true,
+			Progress = new UiProgressReference
+			{
+				PositionMs = 0,
+				Anchor = DateTimeOffset.UtcNow,
+				DurationMs = 200000,
+				Rate = 1,
+			},
+		});
+		var view = new UiView(surface, NowPlayingPreviews.FromState(state));
+		view.DrainPatches();
+
+		state.Set(state.Peek() with
+		{
+			Progress = new UiProgressReference
+			{
+				PositionMs = 100000,
+				Anchor = DateTimeOffset.UtcNow,
+				DurationMs = 200000,
+				Rate = 1,
+			},
+		});
+		var patches = JsonSerializer.Serialize(view.DrainPatches());
+
+		Assert.That(patches, Does.Contain("progress-fallback"));
 	}
 
 	[Test]

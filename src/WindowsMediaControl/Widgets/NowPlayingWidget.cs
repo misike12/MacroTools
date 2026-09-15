@@ -96,34 +96,40 @@ internal static class NowPlayingView
 				Wrap = true,
 				MaxLines = 2,
 			},
-			new UiTextRun
+			new UiWhen
 			{
-				Key = "artist",
-				Text = UiText.From(() => content.Value.Artist),
-				Size = options.Compact ? UiSize.Capped(0.09, 10) : UiSize.Capped(0.1, 12),
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
+				Key = "artist-when",
+				Condition = () => !string.IsNullOrWhiteSpace(content.Value.Artist),
+				Content = () => new UiTextRun
+				{
+					Key = "artist",
+					Text = UiText.From(() => content.Value.Artist),
+					Size = options.Compact ? UiSize.Capped(0.09, 10) : UiSize.Capped(0.1, 12),
+					Role = UiComponentTextRoles.Muted,
+					Align = UiComponentAlignments.Center,
+				},
 			},
 		};
 
 		if (options.ShowAlbum && !options.Compact)
 		{
-			media.Add(new UiTextRun
+			media.Add(new UiWhen
 			{
-				Key = "album",
-				Text = UiText.From(() => content.Value.Album),
-				Size = UiSize.Capped(0.085, 10),
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
+				Key = "album-when",
+				Condition = () => !string.IsNullOrWhiteSpace(content.Value.Album),
+				Content = () => new UiTextRun
+				{
+					Key = "album",
+					Text = UiText.From(() => content.Value.Album),
+					Size = UiSize.Capped(0.085, 10),
+					Role = UiComponentTextRoles.Muted,
+					Align = UiComponentAlignments.Center,
+				},
 			});
 		}
 
 		if (options.ShowProgress)
 		{
-			var anchor = content.Peek().Progress;
-			var span = anchor.DurationMs is { } total && total > 0
-				? Math.Clamp((double)anchor.PositionMs / total, 0, 1)
-				: 0;
 			media.Add(new UiProgressBar
 			{
 				Key = "progress",
@@ -139,7 +145,7 @@ internal static class NowPlayingView
 				{
 					Key = "progress-fallback",
 					Start = UiValue.Of(0.0),
-					End = UiValue.Of(span),
+					End = UiValue.From(() => FallbackFrac(content.Value.Progress)),
 					Thickness = 0.04,
 				},
 			});
@@ -266,6 +272,16 @@ internal static class NowPlayingView
 		WidgetContent content,
 		MacroDeck.Localization.LocalizedString fallback) =>
 		key == "play" && content.IsPlaying ? Strings.Widget.Symbols.Pause() : fallback;
+
+	private static double FallbackFrac(UiProgressReference progress)
+	{
+		if (progress.DurationMs is not { } total || total <= 0)
+		{
+			return 0;
+		}
+
+		return Math.Clamp((double)progress.PositionMs / total, 0, 1);
+	}
 }
 
 internal static class NowPlayingPreviews
@@ -282,6 +298,11 @@ internal static class NowPlayingPreviews
 	public static UiElement NothingPlaying() => NowPlayingView.Build(
 		new UiState<WidgetContent>(WidgetContent.Empty),
 		null);
+
+	// Test and tooling support: builds the live tree against caller-owned
+	// state so patches can be observed without a running session.
+	public static UiElement FromState(UiState<WidgetContent> state) =>
+		NowPlayingView.Build(state, null);
 }
 
 public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
