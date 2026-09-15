@@ -426,7 +426,7 @@ internal static class MatchHudView
 				Level = UiValue.From(() => content.Value.HpFrac),
 				LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
 				Thickness = 0.045,
-				MainSize = UiSize.Capped(0.26, 104),
+				MainSize = UiSize.Capped(0.22, 88),
 				Fallback = new UiRangeBar
 				{
 					Key = "hp-gauge-fallback",
@@ -461,39 +461,9 @@ internal static class MatchHudView
 					Thickness = 0.018,
 				},
 			},
-			new UiTextRun
-			{
-				Key = "armor",
-				Text = UiText.From(() => content.Value.ArmorLine),
-				Size = UiSize.Capped(0.13, 18),
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
-			},
-			new UiTextRun
-			{
-				Key = "loadout",
-				Text = UiText.From(() => content.Value.LoadoutLine),
-				Size = UiSize.Capped(0.095, 13),
-				MinSize = UiSize.Capped(0.095, 13),
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
-			},
-			new UiStack
-			{
-				Key = "money-box",
-				Padding = 0.02,
-				Children =
-				[
-					new UiTextRun
-					{
-						Key = "money",
-						Text = UiText.From(() => content.Value.MoneyLine),
-						Size = UiSize.Capped(0.095, 13),
-						Role = UiComponentTextRoles.Muted,
-						Align = UiComponentAlignments.Center,
-					},
-				],
-			},
+			MicroLine(content, "armor", () => content.Value.ArmorLine),
+			MicroLine(content, "loadout", () => content.Value.LoadoutLine),
+			MicroLine(content, "money", () => content.Value.MoneyLine),
 			new UiTextRun
 			{
 				Key = "round-line",
@@ -520,7 +490,7 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "player",
-			Gap = 0.04,
+			Gap = 0.05,
 			Children = body,
 		};
 	}
