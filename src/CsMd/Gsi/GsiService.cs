@@ -756,7 +756,11 @@ public sealed class GsiService : IDisposable
 
 			Interlocked.Increment(ref _sequence);
 			var now = DateTimeOffset.UtcNow;
-			if (_matchStartUtc is null
+			// The clock measures the match, not the lobby: anchor it at the
+			// first non-warmup packet so veto and warmup do not count. A map
+			// change nulls the anchor above through ResetSessionLocked.
+			var warmedUp = !string.Equals(payload.Map?.Phase, "warmup", StringComparison.OrdinalIgnoreCase);
+			if ((_matchStartUtc is null && warmedUp)
 				|| (_lastReceivedAt is { } seen && now - seen > TimeSpan.FromMinutes(5)))
 			{
 				_matchStartUtc = now;

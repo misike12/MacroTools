@@ -216,7 +216,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "10";
+	internal const string TreeGeneration = "11";
 
 	private const string CardBackground = "#22252C";
 
@@ -520,23 +520,33 @@ internal static class MatchHudView
 								Weight = UiComponentTextWeights.SemiBold,
 								Align = UiComponentAlignments.Center,
 							},
-							new UiTextRun
+							new UiWhen
 							{
-								Key = "phase",
-								Text = UiText.From(() => content.Value.MapPhase),
-								Size = micro,
-								Role = UiComponentTextRoles.Muted,
-								Align = UiComponentAlignments.Center,
+								Key = "phase-when",
+								Condition = () => !string.IsNullOrWhiteSpace(content.Value.MapPhase),
+								Content = () => new UiTextRun
+								{
+									Key = "phase",
+									Text = UiText.From(() => content.Value.MapPhase),
+									Size = micro,
+									Role = UiComponentTextRoles.Muted,
+									Align = UiComponentAlignments.Center,
+								},
 							},
-							new UiTextRun
+							new UiWhen
 						{
-						Key = "clock",
-						Text = UiText.From(() => content.Value.PhaseTime),
-						Size = UiSize.Capped(0.09, 12),
+							Key = "clock-when",
+							Condition = () => content.Value.HasTimer,
+							Content = () => new UiTextRun
+							{
+								Key = "clock",
+								Text = UiText.From(() => content.Value.PhaseTime),
+								Size = UiSize.Capped(0.09, 12),
 								Weight = UiComponentTextWeights.SemiBold,
 								Digits = UiValue.Of(4.0),
 								Align = UiComponentAlignments.Center,
 							},
+						},
 						],
 					},
 					SideScore(content, big, micro, ct: false),
@@ -583,12 +593,12 @@ internal static class MatchHudView
 		};
 	}
 
-	private static UiStack StatCard(string key, MacroDeck.Localization.LocalizedString caption, string value, string? color = null)
+	private static UiStack StatCard(string key, MacroDeck.Localization.LocalizedString caption, Func<string> value, string? color = null)
 	{
 		var valueRun = new UiTextRun
 		{
 			Key = key + "-value",
-			Text = UiText.From(() => value),
+			Text = UiText.From(value),
 			Size = UiSize.Capped(0.055, 13),
 			Weight = UiComponentTextWeights.SemiBold,
 			Align = UiComponentAlignments.Center,
@@ -613,33 +623,6 @@ internal static class MatchHudView
 			],
 		};
 	}
-
-	private static UiStack LocalizedStatCard(string key, MacroDeck.Localization.LocalizedString caption, MacroDeck.Localization.LocalizedString value) => new()
-	{
-		Key = key,
-		Background = UiValue.Of(CardBackground),
-		Padding = 0.012,
-		Gap = 0.004,
-		Children =
-		[
-			new UiTextRun
-			{
-				Key = key + "-caption",
-				Text = UiText.FromLocalized(() => caption),
-				Size = UiSize.Capped(0.032, 8),
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
-			},
-			new UiTextRun
-			{
-				Key = key + "-value",
-				Text = UiText.FromLocalized(() => value),
-				Size = UiSize.Capped(0.055, 13),
-				Weight = UiComponentTextWeights.SemiBold,
-				Align = UiComponentAlignments.Center,
-			},
-		],
-	};
 
 	private static UiStack MetaRows(UiState<MatchHudContent> content) => new()
 	{
@@ -915,13 +898,18 @@ internal static class MatchHudView
 					},
 				],
 			},
-			new UiTextRun
+			new UiWhen
 			{
-				Key = "player-name",
-				Text = UiText.From(() => content.Value.NameLine),
-				Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.1, 15),
-				Weight = UiComponentTextWeights.SemiBold,
-				Align = UiComponentAlignments.Center,
+				Key = "player-name-when",
+				Condition = () => !string.IsNullOrWhiteSpace(content.Value.NameLine),
+				Content = () => new UiTextRun
+				{
+					Key = "player-name",
+					Text = UiText.From(() => content.Value.NameLine),
+					Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.1, 15),
+					Weight = UiComponentTextWeights.SemiBold,
+					Align = UiComponentAlignments.Center,
+				},
 			},
 			new UiStack
 			{
@@ -932,14 +920,21 @@ internal static class MatchHudView
 				Gap = 0.02,
 				Children =
 				[
-					new UiTextRun
+					// Gated: an empty run still costs its line height plus a
+					// gap, which shoves the remaining pills off center.
+					new UiWhen
 					{
-						Key = "hero-team",
-						Text = UiText.From(() => content.Value.PlayerTeam),
-						Size = UiSize.Capped(0.045, 11),
-						Weight = UiComponentTextWeights.SemiBold,
-						Color = UiValue.From(() => content.Value.PlayerTeam == "CT" ? MatchHudColors.Ct : MatchHudColors.T),
-						Align = UiComponentAlignments.Center,
+						Key = "hero-team-when",
+						Condition = () => !string.IsNullOrWhiteSpace(content.Value.PlayerTeam),
+						Content = () => new UiTextRun
+						{
+							Key = "hero-team",
+							Text = UiText.From(() => content.Value.PlayerTeam),
+							Size = UiSize.Capped(0.045, 11),
+							Weight = UiComponentTextWeights.SemiBold,
+							Color = UiValue.From(() => content.Value.PlayerTeam == "CT" ? MatchHudColors.Ct : MatchHudColors.T),
+							Align = UiComponentAlignments.Center,
+						},
 					},
 					LocalizedPill("hero-state", () => true, () => content.Value.Alive
 						? Strings.Widget.State.Alive() : Strings.Widget.State.Dead()),
@@ -1001,14 +996,14 @@ internal static class MatchHudView
 		MainSize = UiSize.Capped(0.3, 68),
 		Children =
 		[
-			StatCard("stat-k", Strings.Widget.Cards.Kills(), content.Value.Kills.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-			StatCard("stat-d", Strings.Widget.Cards.Deaths(), content.Value.Deaths.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-			StatCard("stat-a", Strings.Widget.Cards.Assists(), content.Value.Assists.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-			StatCard("stat-hs", Strings.Widget.Cards.Headshots(), content.Value.SessionHs.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-			StatCard("stat-dmg", Strings.Widget.Cards.Damage(), content.Value.SessionDamage.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-			StatCard("stat-mvp", Strings.Widget.Cards.Mvps(), content.Value.Mvps.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-			StatCard("stat-score", Strings.Widget.Cards.Score(), content.Value.Score.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-			StatCard("stat-equip", Strings.Widget.Cards.Equip(), MatchHudContent.FormatMoney(content.Value.EquipValue)),
+			StatCard("stat-k", Strings.Widget.Cards.Kills(), () => content.Value.Kills.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			StatCard("stat-d", Strings.Widget.Cards.Deaths(), () => content.Value.Deaths.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			StatCard("stat-a", Strings.Widget.Cards.Assists(), () => content.Value.Assists.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			StatCard("stat-hs", Strings.Widget.Cards.Headshots(), () => content.Value.SessionHs.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			StatCard("stat-dmg", Strings.Widget.Cards.Damage(), () => content.Value.SessionDamage.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			StatCard("stat-mvp", Strings.Widget.Cards.Mvps(), () => content.Value.Mvps.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			StatCard("stat-score", Strings.Widget.Cards.Score(), () => content.Value.Score.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			StatCard("stat-equip", Strings.Widget.Cards.Equip(), () => MatchHudContent.FormatMoney(content.Value.EquipValue)),
 		],
 	};
 
@@ -1051,7 +1046,7 @@ internal static class MatchHudView
 		Children = [child],
 	};
 
-	private static UiStack ChartBox(
+	private static UiWhen ChartBox(
 		UiState<MatchHudContent> content,
 		string prefix,
 		string color,
@@ -1072,20 +1067,30 @@ internal static class MatchHudView
 
 		if (caption is not null)
 		{
-				children.Add(new UiTextRun
+				children.Add(new UiWhen
 				{
-					Key = prefix + "-caption",
-					Text = UiText.From(() => caption(content.Value)),
-					Size = UiSize.Capped(0.085, 10),
-				Role = UiComponentTextRoles.Muted,
-				Align = UiComponentAlignments.Center,
-			});
+					Key = prefix + "-caption-when",
+					Condition = () => !string.IsNullOrWhiteSpace(caption(content.Value)),
+					Content = () => new UiTextRun
+					{
+						Key = prefix + "-caption",
+						Text = UiText.From(() => caption(content.Value)),
+						Size = UiSize.Capped(0.085, 10),
+						Role = UiComponentTextRoles.Muted,
+						Align = UiComponentAlignments.Center,
+					},
+				});
 		}
 
-		return new UiStack
+		return new UiWhen
 		{
-			Key = prefix + "-box",
-			Children = children,
+			Key = prefix + "-box-when",
+			Condition = () => points(content.Value).Count > 0,
+			Content = () => new UiStack
+			{
+				Key = prefix + "-box",
+				Children = children,
+			},
 		};
 	}
 
@@ -1185,21 +1190,31 @@ internal static class MatchHudView
 								Role = UiComponentTextRoles.Muted,
 								Align = UiComponentAlignments.Start,
 							},
-							new UiTextRun
+							new UiWhen
 							{
-								Key = "compass-place",
-								Text = UiText.From(() => content.Value.PlaceText),
-								Size = UiSize.Capped(0.055, 13),
-								Weight = UiComponentTextWeights.SemiBold,
-								Align = UiComponentAlignments.Start,
+								Key = "compass-place-when",
+								Condition = () => content.Value.HasPlace,
+								Content = () => new UiTextRun
+								{
+									Key = "compass-place",
+									Text = UiText.From(() => content.Value.PlaceText),
+									Size = UiSize.Capped(0.055, 13),
+									Weight = UiComponentTextWeights.SemiBold,
+									Align = UiComponentAlignments.Start,
+								},
 							},
-							new UiTextRun
+							new UiWhen
 							{
-								Key = "compass-coords",
-								Text = UiText.From(() => content.Value.TrackingLine),
-								Size = UiSize.Capped(0.045, 11),
-								Role = UiComponentTextRoles.Muted,
-								Align = UiComponentAlignments.Start,
+								Key = "compass-coords-when",
+								Condition = () => content.Value.HasCoords,
+								Content = () => new UiTextRun
+								{
+									Key = "compass-coords",
+									Text = UiText.From(() => content.Value.TrackingLine),
+									Size = UiSize.Capped(0.04, 10),
+									Role = UiComponentTextRoles.Muted,
+									Align = UiComponentAlignments.Start,
+								},
 							},
 						],
 					},
@@ -1232,9 +1247,9 @@ internal static class MatchHudView
 				MainSize = UiSize.Capped(0.16, 40),
 				Children =
 				[
-					StatCard("bf-smokes", Strings.Widget.Cards.Smokes(), content.Value.Smokes.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-					StatCard("bf-fires", Strings.Widget.Cards.Fires(), content.Value.Fires.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-					StatCard("bf-nades", Strings.Widget.Cards.Nades(), content.Value.Nades.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					StatCard("bf-smokes", Strings.Widget.Cards.Smokes(), () => content.Value.Smokes.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					StatCard("bf-fires", Strings.Widget.Cards.Fires(), () => content.Value.Fires.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					StatCard("bf-nades", Strings.Widget.Cards.Nades(), () => content.Value.Nades.ToString(System.Globalization.CultureInfo.InvariantCulture)),
 				],
 			},
 			new UiStack
@@ -1535,6 +1550,10 @@ public static class MatchHudPreviews
 	[UiPreview("No data", View = "MatchHud", Profile = UiPreviewProfiles.Widget)]
 	public static UiElement NoData() => MatchHudView.Build(
 		new UiState<MatchHudContent>(MatchHudContent.Empty));
+
+	// Test and tooling support: builds the live tree against caller-owned
+	// state so patches can be observed without a running session.
+	public static UiElement FromState(UiState<MatchHudContent> state) => MatchHudView.Build(state);
 }
 
 public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider

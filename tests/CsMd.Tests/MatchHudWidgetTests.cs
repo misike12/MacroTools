@@ -332,6 +332,29 @@ public sealed class MatchHudWidgetTests
 		Assert.That(MatchHudWidget.YawArrow(double.NaN), Is.Empty);
 	}
 
+	[Test]
+	public void Stat_cards_patch_when_content_changes()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(
+			MatchHudContent.SampleLive with { Page = MatchHudContent.PagePlayer, Kills = 0 });
+		var view = new UiView(surface, MatchHudPreviews.FromState(state));
+		view.DrainPatches();
+
+		state.Set(state.Peek() with { Kills = 5, SessionHs = 3 });
+		var patches = JsonSerializer.Serialize(view.DrainPatches());
+
+		Assert.That(patches, Does.Contain("stat-k-value"));
+		Assert.That(patches, Does.Contain("\"5\""));
+		Assert.That(patches, Does.Contain("stat-hs-value"));
+		Assert.That(patches, Does.Contain("\"3\""));
+	}
+
 	private static string ResolveEn(MacroDeck.Localization.LocalizedString text)
 	{
 		var registry = new MacroDeck.Localization.LocalizationCatalogRegistry();
