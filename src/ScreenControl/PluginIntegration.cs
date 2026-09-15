@@ -2,20 +2,24 @@ using MacroDeck.Localization;
 using MacroDeck.Plugin.Hosting.Integrations.HostApis;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
+using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
+using MacroDeck.Sdk.Widgets;
 using ScreenControl.Actions;
 using ScreenControl.Monitors;
+using ScreenControl.Widgets;
 using ScreenControl.Windows;
 using Serilog;
 
 namespace ScreenControl;
 
-public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IDisposable
+public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IWidgetTypeProvider, IUiProvider, IDisposable
 {
 	private static readonly TimeSpan CatalogWatchInterval = TimeSpan.FromSeconds(30);
 
 	private readonly IMonitorService _monitors;
 	private readonly IWindowService _windows;
+	private readonly BrightnessWidget _brightness;
 	private readonly ILogger _logger;
 	private readonly IPluginCatalogNotifier? _catalogs;
 	private readonly MonitorCatalogWatcher _watcher = new();
@@ -28,6 +32,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	{
 		_monitors = monitors;
 		_windows = windows;
+		_brightness = new BrightnessWidget(monitors, logger);
 		_logger = logger.ForContext<PluginIntegration>();
 		_catalogs = catalogs;
 		Actions =
@@ -87,6 +92,16 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 		return Task.CompletedTask;
 	}
+
+	public Task InitializeAsync(IWidgetTypeProviderContext context, CancellationToken cancellationToken) =>
+		_brightness.InitializeAsync(context, cancellationToken);
+
+	public IReadOnlyList<WidgetTypeDescriptor> GetWidgetTypes() => _brightness.GetWidgetTypes();
+
+	public IReadOnlyList<UiSurfaceDeclaration> Surfaces => _brightness.Surfaces;
+
+	public Task<IUiSession?> CreateSessionAsync(UiSessionRequest request, CancellationToken cancellationToken) =>
+		_brightness.CreateSessionAsync(request, cancellationToken);
 
 	public Task ShutdownAsync()
 	{

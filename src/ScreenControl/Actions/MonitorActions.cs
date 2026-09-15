@@ -117,7 +117,7 @@ public sealed class AdjustMonitorBrightnessAction(IMonitorService monitors) : IA
 	}
 }
 
-public sealed class SetMonitorInputAction(IMonitorService monitors) : IActionDefinition
+public sealed class SetMonitorInputAction(IMonitorService monitors) : IActionDefinition, IStateProviderActionDefinition
 {
 	public string Id => "set-monitor-input";
 	public LocalizedText Name => Strings.Actions.SetMonitorInput.Name();
@@ -144,6 +144,46 @@ public sealed class SetMonitorInputAction(IMonitorService monitors) : IActionDef
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
 	public IActionExecutor CreateExecutor() => new Executor(monitors);
+
+	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(5);
+
+	public Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		try
+		{
+			var index = DisplayParameters.ReadMonitor(DisplayParameters.WithoutNulls(parameters));
+			var states = new ActionStateDefinition[]
+			{
+				new("hdmi1", Strings.Inputs.Hdmi1()),
+				new("hdmi2", Strings.Inputs.Hdmi2()),
+				new("dp1", Strings.Inputs.DisplayPort1()),
+				new("dp2", Strings.Inputs.DisplayPort2()),
+				new("dvi", Strings.Inputs.Dvi()),
+			};
+			var active = monitors.TryGetInput(index) switch
+			{
+				0x11 => "hdmi1",
+				0x12 => "hdmi2",
+				0x0F => "dp1",
+				0x10 => "dp2",
+				0x03 => "dvi",
+				_ => (string?)null,
+			};
+			if (monitors.GetMonitors().All(m => m.Index != index))
+			{
+				return Task.FromResult<ActionStateSnapshot?>(null);
+			}
+
+			return Task.FromResult<ActionStateSnapshot?>(new ActionStateSnapshot(states, active));
+		}
+		catch (Exception)
+		{
+			return Task.FromResult<ActionStateSnapshot?>(null);
+		}
+	}
 
 	private sealed class Executor(IMonitorService monitors) : IActionExecutor
 	{
@@ -227,7 +267,7 @@ public sealed class CycleMonitorInputAction(IMonitorService monitors) : IActionD
 	}
 }
 
-public sealed class SetMonitorPowerAction(IMonitorService monitors) : IActionDefinition
+public sealed class SetMonitorPowerAction(IMonitorService monitors) : IActionDefinition, IStateProviderActionDefinition
 {
 	public string Id => "set-monitor-power";
 	public LocalizedText Name => Strings.Actions.SetMonitorPower.Name();
@@ -252,6 +292,42 @@ public sealed class SetMonitorPowerAction(IMonitorService monitors) : IActionDef
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
 	public IActionExecutor CreateExecutor() => new Executor(monitors);
+
+	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(5);
+
+	public Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		try
+		{
+			var index = DisplayParameters.ReadMonitor(DisplayParameters.WithoutNulls(parameters));
+			var states = new ActionStateDefinition[]
+			{
+				new("on", Strings.Power.On()),
+				new("standby", Strings.Power.Standby()),
+				new("off", Strings.Power.Off()),
+			};
+			var active = monitors.TryGetPower(index) switch
+			{
+				MonitorPowerModes.On => "on",
+				MonitorPowerModes.Standby => "standby",
+				MonitorPowerModes.Off => "off",
+				_ => (string?)null,
+			};
+			if (active is null && monitors.GetMonitors().All(m => m.Index != index))
+			{
+				return Task.FromResult<ActionStateSnapshot?>(null);
+			}
+
+			return Task.FromResult<ActionStateSnapshot?>(new ActionStateSnapshot(states, active));
+		}
+		catch (Exception)
+		{
+			return Task.FromResult<ActionStateSnapshot?>(null);
+		}
+	}
 
 	private sealed class Executor(IMonitorService monitors) : IActionExecutor
 	{

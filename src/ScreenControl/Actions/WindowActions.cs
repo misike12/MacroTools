@@ -161,7 +161,7 @@ public sealed class CloseWindowAction(IWindowService windows) : IActionDefinitio
 	}
 }
 
-public sealed class ToggleAlwaysOnTopAction(IWindowService windows) : IActionDefinition
+public sealed class ToggleAlwaysOnTopAction(IWindowService windows) : IActionDefinition, IStateProviderActionDefinition
 {
 	public string Id => "toggle-always-on-top";
 	public LocalizedText Name => Strings.Actions.ToggleAlwaysOnTop.Name();
@@ -169,6 +169,33 @@ public sealed class ToggleAlwaysOnTopAction(IWindowService windows) : IActionDef
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [DisplayParameters.WindowOption(required: false)];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
 	public IActionExecutor CreateExecutor() => new Executor(windows);
+
+	public Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		try
+		{
+			var window = windows.Find(DisplayParameters.ReadWindow(DisplayParameters.WithoutNulls(parameters)));
+			if (window is null)
+			{
+				return Task.FromResult<ActionStateSnapshot?>(null);
+			}
+
+			var states = new ActionStateDefinition[]
+			{
+				new("on", Strings.Actions.ToggleAlwaysOnTop.States.On()),
+				new("off", Strings.Actions.ToggleAlwaysOnTop.States.Off()),
+			};
+			return Task.FromResult<ActionStateSnapshot?>(
+				new ActionStateSnapshot(states, windows.IsTopmost(window.Handle) ? "on" : "off"));
+		}
+		catch (Exception)
+		{
+			return Task.FromResult<ActionStateSnapshot?>(null);
+		}
+	}
 
 	private sealed class Executor(IWindowService windows) : IActionExecutor
 	{

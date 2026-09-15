@@ -219,6 +219,26 @@
   <data name="Errors.WindowNotFound" xml:space="preserve">
     <value>No matching window was found.</value>
   </data>
+  <data name="Actions.ToggleAlwaysOnTop.States.On" xml:space="preserve">
+    <value>Pinned</value>
+    <comment>Button state when the window is always on top.</comment>
+  </data>
+  <data name="Actions.ToggleAlwaysOnTop.States.Off" xml:space="preserve">
+    <value>Normal</value>
+    <comment>Button state when the window is not always on top.</comment>
+  </data>
+  <data name="Widget.Brightness.Name" xml:space="preserve">
+    <value>Monitor brightness</value>
+    <comment>Brightness widget type name.</comment>
+  </data>
+  <data name="Widget.Brightness.Description" xml:space="preserve">
+    <value>Primary monitor brightness with a slider.</value>
+    <comment>Brightness widget type description.</comment>
+  </data>
+  <data name="Widget.Brightness.NoMonitor" xml:space="preserve">
+    <value>No brightness-capable monitor found.</value>
+    <comment>Brightness widget empty caption.</comment>
+  </data>
   <data name="Errors.ReadOnlyVariable" xml:space="preserve">
     <value>This variable is read-only.</value>
   </data>

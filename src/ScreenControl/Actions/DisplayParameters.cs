@@ -31,9 +31,32 @@ internal static class DisplayParameters
 		Required = required,
 	};
 
-	public static int ReadMonitor(IReadOnlyDictionary<string, object> parameters)
+	public static int ReadMonitor(IReadOnlyDictionary<string, object> parameters) =>
+		ReadMonitorCore(parameters.TryGetValue(MonitorParameter, out var raw) ? raw : null);
+
+	public static string? ReadWindow(IReadOnlyDictionary<string, object> parameters) =>
+		ReadWindowCore(parameters.TryGetValue(WindowParameter, out var raw) ? raw : null);
+
+	// State providers answer from IReadOnlyDictionary<string, object?>; the
+	// readers above take non-nullable values, so nulls are dropped first.
+	// A dropped value reads exactly like a missing one (defaults apply).
+	public static Dictionary<string, object> WithoutNulls(IReadOnlyDictionary<string, object?> parameters)
 	{
-		if (parameters.TryGetValue(MonitorParameter, out var raw) && raw is not null)
+		var clean = new Dictionary<string, object>();
+		foreach (var (key, value) in parameters)
+		{
+			if (value is not null)
+			{
+				clean[key] = value;
+			}
+		}
+
+		return clean;
+	}
+
+	private static int ReadMonitorCore(object? raw)
+	{
+		if (raw is not null)
 		{
 			try
 			{
@@ -51,13 +74,8 @@ internal static class DisplayParameters
 		return 1;
 	}
 
-	public static string? ReadWindow(IReadOnlyDictionary<string, object> parameters)
+	private static string? ReadWindowCore(object? raw)
 	{
-		if (!parameters.TryGetValue(WindowParameter, out var raw))
-		{
-			return null;
-		}
-
 		var text = raw?.ToString();
 		return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 	}

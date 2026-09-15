@@ -1,11 +1,18 @@
+using System.Text.Json;
 using MacroDeck.Plugin.Testing;
 using MacroDeck.Plugin.Testing.Fakes;
 using MacroDeck.Sdk.Actions;
+using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
+using MacroDeck.Ui.Dsl;
+using MacroDeck.Ui.Model.Events;
+using MacroDeck.Ui.Model.Surfaces;
+using MacroDeck.Ui.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using ScreenControl.Actions;
 using ScreenControl.Monitors;
+using ScreenControl.Widgets;
 using ScreenControl.Windows;
 using Serilog;
 
@@ -24,6 +31,184 @@ public sealed class PluginIntegrationTests
 		});
 
 	private static Serilog.Core.Logger TestLogger() => new LoggerConfiguration().CreateLogger();
+
+	[Test]
+	public async Task Monitor_power_reports_states()
+	{
+		var monitors = new FakeMonitorService();
+		var action = new SetMonitorPowerAction(monitors);
+
+		var on = await action.GetActionStateAsync(
+			new Dictionary<string, object?> { ["monitor"] = 1.0 },
+			TestContext.CurrentContext.CancellationToken);
+
+		monitors.Powers[0] = MonitorPowerModes.Off;
+		var off = await action.GetActionStateAsync(
+			new Dictionary<string, object?> { ["monitor"] = 1.0 },
+			TestContext.CurrentContext.CancellationToken);
+
+		var missing = await action.GetActionStateAsync(
+			new Dictionary<string, object?> { ["monitor"] = 9.0 },
+			TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(on, Is.Not.Null);
+		Assert.That(on!.States.Select(s => s.Id), Is.EqualTo(["on", "standby", "off"]));
+		Assert.That(on.ActiveStateId, Is.EqualTo("on"));
+		Assert.That(off!.ActiveStateId, Is.EqualTo("off"));
+		Assert.That(missing, Is.Null);
+	}
+
+	[Test]
+	public async Task Monitor_input_reports_states()
+	{
+		var monitors = new FakeMonitorService();
+		var action = new SetMonitorInputAction(monitors);
+
+		var hdmi = await action.GetActionStateAsync(
+			new Dictionary<string, object?> { ["monitor"] = 1.0 },
+			TestContext.CurrentContext.CancellationToken);
+
+		monitors.Inputs[0] = 0x0F;
+		var dp = await action.GetActionStateAsync(
+			new Dictionary<string, object?> { ["monitor"] = 1.0 },
+			TestContext.CurrentContext.CancellationToken);
+
+		var missing = await action.GetActionStateAsync(
+			new Dictionary<string, object?> { ["monitor"] = 9.0 },
+			TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(hdmi, Is.Not.Null);
+		Assert.That(hdmi!.States.Select(s => s.Id), Is.EqualTo(["hdmi1", "hdmi2", "dp1", "dp2", "dvi"]));
+		Assert.That(hdmi.ActiveStateId, Is.EqualTo("hdmi1"));
+		Assert.That(dp!.ActiveStateId, Is.EqualTo("dp1"));
+		Assert.That(missing, Is.Null);
+	}
+
+	[Test]
+	public async Task Topmost_reports_states()
+	{
+		var windows = new FakeWindowService();
+		var action = new ToggleAlwaysOnTopAction(windows);
+
+		var off = await action.GetActionStateAsync(
+			new Dictionary<string, object?>(),
+			TestContext.CurrentContext.CancellationToken);
+
+		windows.SetTopmost(new IntPtr(1), true);
+		var on = await action.GetActionStateAsync(
+			new Dictionary<string, object?>(),
+			TestContext.CurrentContext.CancellationToken);
+
+		var missing = await action.GetActionStateAsync(
+			new Dictionary<string, object?> { ["window"] = "no such window" },
+			TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(off, Is.Not.Null);
+		Assert.That(off!.States.Select(s => s.Id), Is.EqualTo(["on", "off"]));
+		Assert.That(off.ActiveStateId, Is.EqualTo("off"));
+		Assert.That(on!.ActiveStateId, Is.EqualTo("on"));
+		Assert.That(missing, Is.Null);
+	}
+
+	[Test]
+	public void Brightness_previews_build()
+	{
+		Assert.DoesNotThrow(() => BrightnessPreviews.WithLevel());
+		Assert.DoesNotThrow(() => BrightnessPreviews.NoMonitor());
+	}
+
+	[Test]
+	public void Brightness_trees_fit_a_three_by_three_tile_without_squeezing_text()
+	{
+		foreach (var preview in new Func<UiElement>[]
+		{
+			BrightnessPreviews.WithLevel,
+			BrightnessPreviews.NoMonitor,
+		})
+		{
+			var surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>(),
+			};
+			var view = new UiView(surface, preview());
+			var height = WidgetFitEstimator.MeasureRootHeight(JsonSerializer.Serialize(view.Tree));
+			Assert.That(
+				height,
+				Is.LessThanOrEqualTo(WidgetFitEstimator.BudgetUnits),
+				$"Tree is {height:F1} ref units tall on a 3x3 tile with a {WidgetFitEstimator.BudgetUnits} budget, so the reader squeezes rows and clips glyph bottoms. Slim sizes, gaps or rows until it fits.");
+		}
+	}
+
+	[Test]
+	public async Task Brightness_slider_applies_to_primary_monitor()
+	{
+		var monitors = new FakeMonitorService();
+		var widget = new BrightnessWidget(monitors, TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>(),
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+		Assert.That(session, Is.Not.Null);
+		try
+		{
+			var slider = SliderId(JsonSerializer.Serialize(session!.BuildTree()));
+
+			session!.Dispatch(new UiEvent
+			{
+				NodeId = slider,
+				Name = "adjust",
+				Data = JsonDocument.Parse("0.5").RootElement.Clone(),
+			});
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("50"));
+
+			session!.Dispatch(new UiEvent
+			{
+				NodeId = slider,
+				Name = "change",
+				Data = JsonDocument.Parse("0.5").RootElement.Clone(),
+			});
+			Assert.That(monitors.Levels[0], Is.EqualTo(50));
+		}
+		finally
+		{
+			if (session is IAsyncDisposable asyncDisposable)
+			{
+				await asyncDisposable.DisposeAsync();
+			}
+		}
+	}
+
+	private static string SliderId(string treeJson)
+	{
+		using var document = JsonDocument.Parse(treeJson);
+		var queue = new Queue<JsonElement>();
+		queue.Enqueue(document.RootElement.GetProperty("Root"));
+		while (queue.Count > 0)
+		{
+			var node = queue.Dequeue();
+			if (node.GetProperty("Type").GetString() == "ui.slider")
+			{
+				return node.GetProperty("Id").GetString()!;
+			}
+
+			foreach (var child in node.GetProperty("Children").EnumerateArray())
+			{
+				queue.Enqueue(child);
+			}
+		}
+
+		throw new InvalidOperationException("No slider in the tree.");
+	}
 
 	[Test]
 	public async Task The_plugin_builds_and_initializes()
