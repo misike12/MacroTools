@@ -18,9 +18,9 @@ internal static class WidgetFitEstimator
 
 	private const double BasisUnits = 3 * CellUnits;
 
-	// Tile height minus the root padding the tree itself declares (0.04), with
+	// Tile height minus the root padding the tree itself declares (0.035), with
 	// a little margin left for the tile's own safe-area inset.
-	public const double BudgetUnits = BasisUnits - 2 * 0.04 * BasisUnits - 12;
+	public const double BudgetUnits = BasisUnits - 2 * 0.035 * BasisUnits - 12;
 
 	public static double MeasureRootHeight(string treeJson)
 	{

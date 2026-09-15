@@ -216,7 +216,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "8";
+	internal const string TreeGeneration = "9";
 
 	private const string CardBackground = "#22252C";
 
@@ -242,7 +242,7 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "match-hud-g" + TreeGeneration,
-			Padding = 0.04,
+			Padding = 0.035,
 			Gap = 0.015,
 			Children = body,
 		};
@@ -727,33 +727,18 @@ internal static class MatchHudView
 	{
 		var body = new List<UiElement>
 		{
-			new UiStack
+			// Note: no icon in this card. An icon's glyph is absolutely
+			// positioned inside its box, and a horizontal row never gives it
+			// a height, so the glyph drops half a tile below the row. The red
+			// state text carries the meaning on its own.
+			new UiTextRun
 			{
-				Key = "bomb-head",
-				Direction = UiComponentDirections.Horizontal,
-				Justify = UiComponentJustify.Center,
+				Key = "bomb-state",
+				Text = UiText.From(() => content.Value.BombText),
+				Size = UiSize.Capped(0.055, 13),
+				Weight = UiComponentTextWeights.SemiBold,
+				Color = UiValue.Of(MatchHudColors.Bad),
 				Align = UiComponentAlignments.Center,
-				Gap = 0.015,
-				Children =
-				[
-					new UiIcon
-					{
-						Key = "bomb-icon",
-						Icon = UiIcons.AlertTriangle,
-						Size = UiSize.Capped(0.05, 12),
-						MainSize = UiSize.Capped(0.05, 12),
-						Color = UiValue.Of(MatchHudColors.Bad),
-					},
-					new UiTextRun
-					{
-						Key = "bomb-state",
-						Text = UiText.From(() => content.Value.BombText),
-						Size = UiSize.Capped(0.055, 13),
-						Weight = UiComponentTextWeights.SemiBold,
-						Color = UiValue.Of(MatchHudColors.Bad),
-						Align = UiComponentAlignments.Center,
-					},
-				],
 			},
 			new UiWhen
 			{
@@ -876,7 +861,7 @@ internal static class MatchHudView
 			new UiLayer
 			{
 				Key = "hp",
-				MainSize = UiSize.Capped(0.18, 44),
+				MainSize = UiSize.Capped(0.25, 60),
 				Children =
 				[
 					new UiStack
@@ -894,8 +879,8 @@ internal static class MatchHudView
 								LevelColor = UiValue.From(() => HpColor(content.Value.HpFrac)),
 								StartAngle = 0,
 								EndAngle = 360,
-								Thickness = 0.042,
-								MainSize = UiSize.Capped(0.18, 44),
+								Thickness = UiSize.Capped(0.05, 12),
+								MainSize = UiSize.Capped(0.25, 60),
 								Fallback = new UiRangeBar
 								{
 									Key = "hp-gauge-fallback",
@@ -920,7 +905,7 @@ internal static class MatchHudView
 							{
 								Key = "hp-line",
 								Text = UiText.From(() => content.Value.HpText),
-									Size = options.Compact ? UiSize.Capped(0.11, 16) : UiSize.Capped(0.15, 24),
+									Size = options.Compact ? UiSize.Capped(0.09, 16) : UiSize.Capped(0.1, 24),
 								Weight = UiComponentTextWeights.SemiBold,
 								Color = UiValue.Of("#FFFFFF"),
 								Digits = UiValue.Of(3.0),
@@ -1013,7 +998,7 @@ internal static class MatchHudView
 		Key = "stat-grid",
 		Columns = UiValue.Of(4),
 		Gap = 0.015,
-		MainSize = UiSize.Capped(0.3, 72),
+		MainSize = UiSize.Capped(0.3, 70),
 		Children =
 		[
 			StatCard("stat-k", Strings.Widget.Cards.Kills(), content.Value.Kills.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -1037,7 +1022,7 @@ internal static class MatchHudView
 			Key = "charts",
 			Columns = UiValue.Of(3),
 			Gap = 0.02,
-			MainSize = UiSize.Capped(0.14, 36),
+			MainSize = UiSize.Capped(0.14, 32),
 			Children =
 			[
 				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
@@ -1276,32 +1261,15 @@ internal static class MatchHudView
 		Gap = 0.008,
 		Children =
 		[
-			new UiStack
+			// Note: no icon here, for the same reason as the bomb card: a
+			// horizontal row gives an icon no height and its glyph escapes.
+			new UiTextRun
 			{
-				Key = "events-head",
-				Direction = UiComponentDirections.Horizontal,
-				Justify = UiComponentJustify.Center,
+				Key = "events-caption",
+				Text = UiText.FromLocalized(() => Strings.Widget.Cards.Events()),
+				Size = UiSize.Capped(0.032, 8),
+				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
-				Gap = 0.015,
-				Children =
-				[
-					new UiIcon
-					{
-						Key = "events-icon",
-						Icon = UiIcons.MessageSquare,
-						Size = UiSize.Capped(0.045, 11),
-						MainSize = UiSize.Capped(0.045, 11),
-						Role = UiComponentTextRoles.Muted,
-					},
-					new UiTextRun
-					{
-						Key = "events-caption",
-						Text = UiText.FromLocalized(() => Strings.Widget.Cards.Events()),
-						Size = UiSize.Capped(0.032, 8),
-						Role = UiComponentTextRoles.Muted,
-						Align = UiComponentAlignments.Center,
-					},
-				],
 			},
 			new UiWhen
 			{
