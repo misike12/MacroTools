@@ -58,6 +58,11 @@ switches and window focus (see README.md). CS:MD runs it directly too (loopback
 listener plus in-process simulate/reset; the Install action only writes when it
 finds a real CS2 install). Unit tests plus
 `macrodeck-plugin build`, `validate --artifact` and `inspect` cover it instead.
+CS:MD widget layout has one more guardrail: the fit-estimator test
+(`Sample_trees_fit_a_three_by_three_tile_without_squeezing_text`) keeps the
+default all-on Match HUD tree within a 3x3 tile. The reader flex-squeezes an
+over-subscribed stack and clips glyph bottoms, so keep that test green whenever
+widget sizes, gaps, padding or rows change.
 
 The template repository carries two more directories that a generated plugin does not:
 `.template.config/` (the `dotnet new` definition) and `packaging/` (the template package project, kept
@@ -327,6 +332,12 @@ dotnet build
 ```bash
 dotnet test
 ```
+
+Economy rules (measured 2026-09-15: host install ~6s, pack ~2s, publish ~40s+, conformance minutes - the pipeline dominates, not the install):
+- `dotnet test` already builds. Skip the standalone `dotnet build` when tests run.
+- Run only the affected test project(s) unless shared code changed.
+- Run conformance only after a change to capability shape, lifecycle/cancellation, the manifest, or settings flow. Layout, strings, values and docs need unit tests plus `macrodeck-plugin build`, `validate --artifact` and `inspect` only.
+- Never fire two installs concurrently; a wedged one blocks the next.
 
 For an interactive verification, start the installed Macro Deck desktop app and debug the plugin with
 the **Macro Deck - Real Host** `.NET` launch profile. Keep the profile secret-free; supply a first-run
