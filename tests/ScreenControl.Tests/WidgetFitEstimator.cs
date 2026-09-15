@@ -14,21 +14,24 @@ internal static class WidgetFitEstimator
 
 	public const double BudgetUnits = BasisUnits - 2 * 0.06 * BasisUnits - 12;
 
-	public static double MeasureRootHeight(string treeJson)
+	public static double MeasureRootHeight(string treeJson) =>
+		MeasureRootHeight(treeJson, BasisUnits, BudgetUnits);
+
+	public static double MeasureRootHeight(string treeJson, double basisUnits, double budgetUnits)
 	{
 		using var document = JsonDocument.Parse(treeJson);
 		var root = document.RootElement.GetProperty("Root");
-		var width = BasisUnits - 2 * Resolve(root.GetProperty("Properties"), "padding");
+		var width = basisUnits - 2 * Resolve(root.GetProperty("Properties"), "padding", basisUnits);
 
-		return MeasureChildrenHeight(root, vertical: true, width);
+		return MeasureChildrenHeight(root, vertical: true, width, basisUnits);
 	}
 
-	private static double MeasureChildrenHeight(JsonElement node, bool vertical, double width)
+	private static double MeasureChildrenHeight(JsonElement node, bool vertical, double width, double basisUnits)
 	{
 		var properties = node.GetProperty("Properties");
-		var gap = Resolve(properties, "gap");
-		var padding = Resolve(properties, "padding");
-		var heights = node.GetProperty("Children").EnumerateArray().Select(child => MeasureNodeHeight(child, width)).ToList();
+		var gap = Resolve(properties, "gap", basisUnits);
+		var padding = Resolve(properties, "padding", basisUnits);
+		var heights = node.GetProperty("Children").EnumerateArray().Select(child => MeasureNodeHeight(child, width, basisUnits)).ToList();
 
 		if (heights.Count == 0)
 		{
@@ -42,15 +45,16 @@ internal static class WidgetFitEstimator
 		return inner + 2 * padding;
 	}
 
-	private static double MeasureNodeHeight(JsonElement node, double width)
+	private static double MeasureNodeHeight(JsonElement node, double width, double basisUnits)
 	{
 		var properties = node.GetProperty("Properties");
 		return node.GetProperty("Type").GetString() switch
 		{
-			"ui.text" => ResolveRequired(properties, "size"),
-			"ui.stack" => MeasureChildrenHeight(node, vertical: IsVertical(properties), width),
-			"ui.slider" => ResolveRequired(properties, "mainSize"),
-			"ui.range-bar" => Resolve(properties, "thickness"),
+			"ui.text" => ResolveRequired(properties, "size", basisUnits),
+			"ui.stack" => MeasureChildrenHeight(node, vertical: IsVertical(properties), width, basisUnits),
+			"ui.button" => MeasureChildrenHeight(node, vertical: IsVertical(properties), width, basisUnits),
+			"ui.slider" => ResolveRequired(properties, "mainSize", basisUnits),
+			"ui.range-bar" => Resolve(properties, "thickness", basisUnits),
 			var unknown => throw new InvalidOperationException($"Fit estimator does not know node type '{unknown}'."),
 		};
 	}
@@ -58,14 +62,14 @@ internal static class WidgetFitEstimator
 	private static bool IsVertical(JsonElement properties) =>
 		!properties.TryGetProperty("direction", out var direction) || direction.GetString() != "horizontal";
 
-	private static double Resolve(JsonElement properties, string name)
+	private static double Resolve(JsonElement properties, string name, double basisUnits = BasisUnits)
 	{
 		if (!properties.TryGetProperty(name, out var length))
 		{
 			return 0;
 		}
 
-		var resolved = length.GetProperty("basis").GetDouble() * BasisUnits;
+		var resolved = length.GetProperty("basis").GetDouble() * basisUnits;
 		if (length.TryGetProperty("maxOfCell", out var cap))
 		{
 			resolved = Math.Min(resolved, cap.GetDouble() * CellUnits);
@@ -74,13 +78,13 @@ internal static class WidgetFitEstimator
 		return resolved;
 	}
 
-	private static double ResolveRequired(JsonElement properties, string name)
+	private static double ResolveRequired(JsonElement properties, string name, double basisUnits = BasisUnits)
 	{
 		if (!properties.TryGetProperty(name, out _))
 		{
 			throw new InvalidOperationException($"Fit estimator expected a '{name}' property.");
 		}
 
-		return Resolve(properties, name);
+		return Resolve(properties, name, basisUnits);
 	}
 }

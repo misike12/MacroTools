@@ -133,11 +133,19 @@ public sealed class PluginIntegrationTests
 				Attributes = new Dictionary<string, JsonElement>(),
 			};
 			var view = new UiView(surface, preview());
-			var height = WidgetFitEstimator.MeasureRootHeight(JsonSerializer.Serialize(view.Tree));
+			var json = JsonSerializer.Serialize(view.Tree);
+			var height = WidgetFitEstimator.MeasureRootHeight(json);
 			Assert.That(
 				height,
 				Is.LessThanOrEqualTo(WidgetFitEstimator.BudgetUnits),
 				$"Tree is {height:F1} ref units tall on a 3x3 tile with a {WidgetFitEstimator.BudgetUnits} budget, so the reader squeezes rows and clips glyph bottoms. Slim sizes, gaps or rows until it fits.");
+
+			// The widget lives on 1x1 tiles too: same tree, smaller basis.
+			var small = WidgetFitEstimator.MeasureRootHeight(json, 120, 120 - 2 * 0.06 * 120 - 12);
+			Assert.That(
+				small,
+				Is.LessThanOrEqualTo(120 - 2 * 0.06 * 120 - 12),
+				$"Tree is {small:F1} ref units tall on a 1x1 tile. Slim sizes, gaps or rows until it fits.");
 		}
 	}
 
@@ -188,7 +196,69 @@ public sealed class PluginIntegrationTests
 		}
 	}
 
-	private static string SliderId(string treeJson)
+	[Test]
+	public async Task Brightness_preset_applies_to_configured_monitor()
+	{
+		var monitors = new FakeMonitorService();
+		var widget = new BrightnessWidget(monitors, TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Data] = JsonDocument.Parse("""{"monitor":2,"showPresets":true}""").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+		Assert.That(session, Is.Not.Null);
+		try
+		{
+			// The name travels as a localization reference resolved reader-side.
+			var tree = JsonSerializer.Serialize(session!.BuildTree());
+			Assert.That(tree, Does.Contain("Widget.Brightness.Display"));
+			Assert.That(tree, Does.Contain("\"n\":2"));
+			var preset = FindNodeId(tree, "ui.button", "preset-50");
+
+			session!.Dispatch(new UiEvent { NodeId = preset, Name = "press" });
+
+			Assert.That(monitors.Levels[1], Is.EqualTo(50));
+			Assert.That(monitors.Levels[0], Is.EqualTo(80));
+		}
+		finally
+		{
+			if (session is IAsyncDisposable asyncDisposable)
+			{
+				await asyncDisposable.DisposeAsync();
+			}
+		}
+	}
+
+	[Test]
+	public void Brightness_options_default_and_clamp()
+	{
+		var fallback = BrightnessOptions.FromData(default);
+
+		Assert.That(fallback, Is.EqualTo(BrightnessOptions.Default));
+
+		var custom = BrightnessOptions.FromData(JsonDocument.Parse("""{"monitor":2,"showPresets":false}""").RootElement);
+
+		Assert.That(custom.Monitor, Is.EqualTo(2));
+		Assert.That(custom.ShowPresets, Is.False);
+
+		var clamped = BrightnessOptions.FromData(JsonDocument.Parse("""{"monitor":99}""").RootElement);
+
+		Assert.That(clamped.Monitor, Is.EqualTo(9));
+	}
+
+	private static string SliderId(string treeJson) => FindNodeId(treeJson, "ui.slider", string.Empty);
+
+	private static string FindNodeId(string treeJson, string type, string idSuffix)
 	{
 		using var document = JsonDocument.Parse(treeJson);
 		var queue = new Queue<JsonElement>();
@@ -196,7 +266,8 @@ public sealed class PluginIntegrationTests
 		while (queue.Count > 0)
 		{
 			var node = queue.Dequeue();
-			if (node.GetProperty("Type").GetString() == "ui.slider")
+			if (node.GetProperty("Type").GetString() == type
+				&& node.GetProperty("Id").GetString()!.EndsWith(idSuffix, StringComparison.Ordinal))
 			{
 				return node.GetProperty("Id").GetString()!;
 			}
@@ -207,7 +278,7 @@ public sealed class PluginIntegrationTests
 			}
 		}
 
-		throw new InvalidOperationException("No slider in the tree.");
+		throw new InvalidOperationException($"No {type} node ending in '{idSuffix}' in the tree.");
 	}
 
 	[Test]

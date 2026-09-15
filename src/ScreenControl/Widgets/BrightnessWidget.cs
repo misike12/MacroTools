@@ -2,6 +2,8 @@ using System.Text.Json;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Widgets;
 using MacroDeck.Ui.Components;
+using MacroDeck.Ui.Config;
+using MacroDeck.Ui.Config.Options;
 using MacroDeck.Ui.Dsl;
 using MacroDeck.Ui.Model.Events;
 using MacroDeck.Ui.Model.Nodes;
@@ -13,24 +15,134 @@ using ScreenControl.Monitors;
 
 namespace ScreenControl.Widgets;
 
-public sealed record BrightnessContent(double Level, string MonitorName, bool HasMonitor)
+public sealed record BrightnessOptions(int Monitor, bool ShowPresets)
+{
+	public static BrightnessOptions Default { get; } = new(1, true);
+
+	public static BrightnessOptions FromData(JsonElement data)
+	{
+		if (data.ValueKind != JsonValueKind.Object)
+		{
+			return Default;
+		}
+
+		var monitor = Default.Monitor;
+		if (data.TryGetProperty("monitor", out var element) && element.ValueKind == JsonValueKind.Number)
+		{
+			try
+			{
+				monitor = Math.Clamp((int)element.GetDouble(), 1, 9);
+			}
+			catch (Exception)
+			{
+			}
+		}
+
+		return new BrightnessOptions(monitor, ReadFlag(data, "showPresets", true));
+	}
+
+	private static bool ReadFlag(JsonElement data, string name, bool fallback) =>
+		data.TryGetProperty(name, out var element) && element.ValueKind is JsonValueKind.True or JsonValueKind.False
+			? element.GetBoolean()
+			: fallback;
+}
+
+public sealed record BrightnessContent(double Level, MacroDeck.Localization.LocalizedText MonitorName, bool HasMonitor)
 {
 	public static BrightnessContent Empty { get; } = new(
-		0, string.Empty, false);
+		0, Strings.Widget.Brightness.NoMonitor(), false);
 }
 
 public sealed record BrightnessActions(
 	Func<UiEventData, UiEventOutcome> Adjust,
-	Func<UiEventData, UiEventOutcome> Change);
+	Func<UiEventData, UiEventOutcome> Change,
+	Func<int, UiEventOutcome> Preset);
 
 internal static class BrightnessView
 {
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "1";
+	internal const string TreeGeneration = "2";
 
-	public static UiElement Build(UiState<BrightnessContent> content, BrightnessActions? actions = null)
+	public static UiElement Build(UiState<BrightnessContent> content, BrightnessOptions options, BrightnessActions? actions = null)
+	{
+		var body = new List<UiElement>
+		{
+			new UiWhen
+			{
+				Key = "caption-when",
+				Condition = () => content.Value.HasMonitor,
+				Content = () => new UiStack
+				{
+					Key = "caption",
+					Direction = UiComponentDirections.Horizontal,
+					Justify = UiComponentJustify.Center,
+					Align = UiComponentAlignments.Baseline,
+					Gap = 0.015,
+					Children =
+					[
+						new UiTextRun
+						{
+							Key = "caption-name",
+							Text = UiText.Optional(() => content.Value.MonitorName),
+							Size = UiSize.Capped(0.075, 11),
+							Role = UiComponentTextRoles.Muted,
+							Align = UiComponentAlignments.Center,
+						},
+						new UiTextRun
+						{
+							Key = "caption-level",
+							Text = UiText.From(() => ((int)Math.Round(content.Value.Level * 100, MidpointRounding.AwayFromZero)).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+							Size = UiSize.Capped(0.075, 11),
+							Weight = UiComponentTextWeights.SemiBold,
+							Align = UiComponentAlignments.Center,
+						},
+					],
+				},
+			},
+			new UiWhen
+			{
+				Key = "empty-when",
+				Condition = () => !content.Value.HasMonitor,
+				Content = () => new UiTextRun
+				{
+					Key = "empty",
+					Text = Strings.Widget.Brightness.NoMonitor(),
+					Size = UiSize.Capped(0.075, 11),
+					Role = UiComponentTextRoles.Muted,
+					Align = UiComponentAlignments.Center,
+				},
+			},
+		};
+
+		body.Add(new UiWhen
+		{
+			Key = "slider-when",
+			Condition = () => content.Value.HasMonitor,
+			Content = () => Slider(content, actions),
+		});
+
+		if (options.ShowPresets)
+		{
+			body.Add(new UiWhen
+			{
+				Key = "presets-when",
+				Condition = () => content.Value.HasMonitor,
+				Content = () => Presets(actions),
+			});
+		}
+
+		return new UiStack
+		{
+			Key = "brightness-g" + TreeGeneration,
+			Padding = 0.06,
+			Gap = 0.03,
+			Children = body,
+		};
+	}
+
+	private static UiSlider Slider(UiState<BrightnessContent> content, BrightnessActions? actions)
 	{
 		var slider = new UiSlider
 		{
@@ -41,58 +153,68 @@ internal static class BrightnessView
 			Thickness = 0.06,
 			MainSize = UiSize.Capped(0.12, 34),
 		};
+		return actions is null ? slider : slider with
+		{
+			Events =
+			[
+				UiEventHandler.On(UiComponentEvents.Adjust, data => actions.Adjust(data)),
+				UiEventHandler.On(UiComponentEvents.Change, data => actions.Change(data)),
+			],
+			Fallback = new UiRangeBar
+			{
+				Key = "level-fallback",
+				Start = UiValue.Of(0.0),
+				End = UiValue.From(() => content.Value.Level),
+				StartColor = UiValue.Of("#38BDF8"),
+				EndColor = UiValue.Of("#38BDF8"),
+				Thickness = 0.05,
+			},
+		};
+	}
+
+	private static UiStack Presets(BrightnessActions? actions)
+	{
 		return new UiStack
 		{
-			Key = "brightness-g" + TreeGeneration,
-			Padding = 0.06,
-			Gap = 0.03,
-		Children =
-		[
-			new UiWhen
-			{
-				Key = "caption-when",
-				Condition = () => content.Value.HasMonitor,
-				Content = () => new UiTextRun
+			Key = "presets",
+			Direction = UiComponentDirections.Horizontal,
+			Justify = UiComponentJustify.Center,
+			Gap = 0.02,
+			Children =
+			[
+				PresetButton("25", 25, actions),
+				PresetButton("50", 50, actions),
+				PresetButton("75", 75, actions),
+				PresetButton("100", 100, actions),
+			],
+		};
+	}
+
+	private static UiButton PresetButton(string key, int percent, BrightnessActions? actions)
+	{
+		var button = new UiButton
+		{
+			Key = "preset-" + key,
+			Justify = UiComponentJustify.Center,
+			Align = UiComponentAlignments.Center,
+			Fill = true,
+			Padding = 0.015,
+			Background = UiValue.Of("#22252C"),
+			Children =
+			[
+				new UiTextRun
 				{
-					Key = "caption",
-					Text = UiText.From(() => $"{content.Value.MonitorName} · {(int)Math.Round(content.Value.Level * 100, MidpointRounding.AwayFromZero)}"),
-					Size = UiSize.Capped(0.075, 11),
-					Role = UiComponentTextRoles.Muted,
+					Key = "preset-" + key + "-label",
+					Text = UiText.Of(percent.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					Size = UiSize.Capped(0.05, 11),
+					Weight = UiComponentTextWeights.SemiBold,
 					Align = UiComponentAlignments.Center,
-				},
-			},
-			new UiWhen
-			{
-				Key = "empty-when",
-				Condition = () => !content.Value.HasMonitor,
-				Content = () => new UiTextRun
-				{
-					Key = "empty",
-					Text = UiText.FromLocalized(() => Strings.Widget.Brightness.NoMonitor()),
-					Size = UiSize.Capped(0.075, 11),
-					Role = UiComponentTextRoles.Muted,
-					Align = UiComponentAlignments.Center,
-				},
-			},
-				actions is null ? slider : slider with
-				{
-					Events =
-					[
-						UiEventHandler.On(UiComponentEvents.Adjust, data => actions.Adjust(data)),
-						UiEventHandler.On(UiComponentEvents.Change, data => actions.Change(data)),
-					],
-					Fallback = new UiRangeBar
-					{
-						Key = "level-fallback",
-						Start = UiValue.Of(0.0),
-						End = UiValue.From(() => content.Value.Level),
-						StartColor = UiValue.Of("#38BDF8"),
-						EndColor = UiValue.Of("#38BDF8"),
-						Thickness = 0.05,
-					},
 				},
 			],
 		};
+		return actions is null
+			? button
+			: button with { Events = [UiEventHandler.On(UiComponentEvents.Press, _ => actions.Preset(percent))] };
 	}
 }
 
@@ -100,15 +222,18 @@ public static class BrightnessPreviews
 {
 	[UiPreview("Brightness", View = "Brightness", Profile = UiPreviewProfiles.Widget)]
 	public static UiElement WithLevel() => BrightnessView.Build(
-		new UiState<BrightnessContent>(new BrightnessContent(0.72, "Display 1", true)));
+		new UiState<BrightnessContent>(new BrightnessContent(0.72, Strings.Widget.Brightness.Display(1), true)),
+		BrightnessOptions.Default);
 
 	[UiPreview("No monitor", View = "Brightness", Profile = UiPreviewProfiles.Widget)]
 	public static UiElement NoMonitor() => BrightnessView.Build(
-		new UiState<BrightnessContent>(BrightnessContent.Empty));
+		new UiState<BrightnessContent>(BrightnessContent.Empty),
+		BrightnessOptions.Default);
 
 	// Test and tooling support: builds the live tree against caller-owned
 	// state so patches can be observed without a running session.
-	public static UiElement FromState(UiState<BrightnessContent> state) => BrightnessView.Build(state);
+	public static UiElement FromState(UiState<BrightnessContent> state, BrightnessOptions options) =>
+		BrightnessView.Build(state, options);
 }
 
 public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
@@ -122,8 +247,8 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 		"monitor-brightness",
 		Strings.Widget.Brightness.Name(),
 		Strings.Widget.Brightness.Description(),
-		"""{}""",
-		"""{"type":"object","properties":{}}""",
+		"""{"monitor":1,"showPresets":true}""",
+		"""{"type":"object","properties":{"monitor":{"type":"number"},"showPresets":{"type":"boolean"}}}""",
 		true,
 		new Dictionary<string, string>());
 	private static string? s_widgetTypeId;
@@ -141,6 +266,7 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 	[
 		new UiSurfaceDeclaration { Kind = UiSurfaceKinds.Widget, SessionMode = UiSessionModes.Shared },
 		new UiSurfaceDeclaration { Kind = UiSurfaceKinds.Preview, SessionMode = UiSessionModes.Shared },
+		new UiSurfaceDeclaration { Kind = UiSurfaceKinds.Config, SessionMode = UiSessionModes.Exclusive },
 	];
 
 	public async Task InitializeAsync(IWidgetTypeProviderContext context, CancellationToken cancellationToken)
@@ -193,24 +319,32 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 				return Task.FromResult<IUiSession?>(null);
 			}
 
+			var options = BrightnessOptions.FromData(ReadElement(surface, UiWidgetSurfaceAttributes.Data));
 			if (ReadBool(surface, UiWidgetSurfaceAttributes.Sample) == true)
 			{
 				return Task.FromResult<IUiSession?>(new BrightnessSession(
 					surface,
-					new UiState<BrightnessContent>(new BrightnessContent(0.72, "Display 1", true))));
+					new UiState<BrightnessContent>(new BrightnessContent(0.72, Strings.Widget.Brightness.Display(1), true)),
+					options));
 			}
 
-			return Task.FromResult<IUiSession?>(new BrightnessSession(surface, new UiState<BrightnessContent>(ReadContent()), this, _monitors, _logger));
+			return Task.FromResult<IUiSession?>(new BrightnessSession(surface, new UiState<BrightnessContent>(ReadContent(options.Monitor)), options, this, _monitors, _logger));
+		}
+
+		if (surface.Kind == UiSurfaceKinds.Config
+			&& ReadString(surface, UiConfigSurfaceAttributes.EntryPoint) == UiConfigEntryPoints.WidgetConfig)
+		{
+			return Task.FromResult<IUiSession?>(BuildConfigSession(surface, BrightnessOptions.FromData(ReadElement(surface, UiConfigSurfaceAttributes.WidgetData))));
 		}
 
 		return Task.FromResult<IUiSession?>(null);
 	}
 
-	public BrightnessContent ReadContent()
+	public BrightnessContent ReadContent(int index)
 	{
 		try
 		{
-			var monitor = PrimaryMonitor(_monitors);
+			var monitor = TargetMonitor(_monitors, index);
 			if (monitor is null)
 			{
 				return new BrightnessContent(0, string.Empty, false);
@@ -218,7 +352,7 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 
 			return new BrightnessContent(
 				Math.Clamp(monitor.BrightnessPercent / 100.0, 0, 1),
-				monitor.Name,
+				Strings.Widget.Brightness.Display(monitor.Index),
 				true);
 		}
 		catch (Exception ex)
@@ -228,18 +362,75 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 		}
 	}
 
-	private static MonitorInfo? PrimaryMonitor(IMonitorService monitors)
+	private static MonitorInfo? TargetMonitor(IMonitorService monitors, int index)
 	{
 		try
 		{
-			var all = monitors.GetMonitors();
-			return all.FirstOrDefault(m => m.IsPrimary && m.SupportsBrightness)
-				?? all.FirstOrDefault(m => m.SupportsBrightness);
+			return monitors.GetMonitors().FirstOrDefault(m => m.Index == index && m.SupportsBrightness);
 		}
 		catch (Exception)
 		{
 			return null;
 		}
+	}
+
+	private BrightnessSession BuildConfigSession(UiSurface surface, BrightnessOptions options)
+	{
+		var monitor = new UiState<string>(options.Monitor.ToString(System.Globalization.CultureInfo.InvariantCulture));
+		var showPresets = new UiState<bool>(options.ShowPresets);
+		var choices = MonitorChoices();
+		var view = new UiView(surface, new UiWidgetConfiguration
+		{
+			Key = "config",
+			Properties = new UiWidgetProperties
+			{
+				Key = "properties",
+				Children =
+				[
+					new UiHeading { Key = "monitor-heading", Text = Strings.Widget.Config.MonitorHeading() },
+					new UiChoiceInput
+					{
+						Key = "monitor",
+						Label = Strings.Widget.Config.Monitor(),
+						Description = Strings.Widget.Config.MonitorDescription(),
+						Segmented = UiValue.Of(choices.Count <= 4),
+						Options = UiValue.Of<IReadOnlyList<UiOption>>(choices),
+						Binding = Bind.To(monitor),
+					},
+					new UiBooleanInput
+					{
+						Key = "showPresets",
+						Label = Strings.Widget.Config.ShowPresets(),
+						Description = Strings.Widget.Config.ShowPresetsDescription(),
+						Binding = Bind.To(showPresets),
+					},
+				],
+			},
+		});
+		return new BrightnessSession(view);
+	}
+
+	private List<UiOption> MonitorChoices()
+	{
+		try
+		{
+			var choices = _monitors.GetMonitors()
+				.Where(m => m.SupportsBrightness)
+				.Select(m => UiOption.Of(
+					m.Index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+					Strings.Widget.Brightness.Display(m.Index)))
+				.ToList();
+			if (choices.Count > 0)
+			{
+				return choices;
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Monitor choices failed.");
+		}
+
+		return [UiOption.Of("1", Strings.Widget.Brightness.Display(1))];
 	}
 
 	private static string? ReadString(UiSurface surface, string key)
@@ -262,16 +453,18 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 		private readonly UiView _view;
 		private readonly UiState<BrightnessContent>? _content;
 		private readonly BrightnessWidget? _owner;
+		private readonly int _monitor;
 		private readonly IMonitorService? _monitors;
 		private readonly Serilog.ILogger? _logger;
 		private readonly CancellationTokenSource _cts = new();
 		private readonly Task? _loop;
 		private bool _disposed;
 
-		public BrightnessSession(UiSurface surface, UiState<BrightnessContent> content)
+		public BrightnessSession(UiSurface surface, UiState<BrightnessContent> content, BrightnessOptions options)
 		{
 			_content = content;
-			_view = new UiView(surface, BrightnessView.Build(content));
+			_monitor = options.Monitor;
+			_view = new UiView(surface, BrightnessView.Build(content, options));
 			_view.Changed += OnChanged;
 			_view.HandlerFaulted += OnHandlerFaulted;
 		}
@@ -279,18 +472,27 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 		public BrightnessSession(
 			UiSurface surface,
 			UiState<BrightnessContent> content,
+			BrightnessOptions options,
 			BrightnessWidget owner,
 			IMonitorService monitors,
 			Serilog.ILogger logger)
 		{
 			_content = content;
+			_monitor = options.Monitor;
 			_owner = owner;
 			_monitors = monitors;
 			_logger = logger.ForContext<BrightnessSession>();
-			_view = new UiView(surface, BrightnessView.Build(content, new BrightnessActions(Adjust, Change)));
+			_view = new UiView(surface, BrightnessView.Build(content, options, new BrightnessActions(Adjust, Change, Preset)));
 			_view.Changed += OnChanged;
 			_view.HandlerFaulted += OnHandlerFaulted;
 			_loop = RefreshLoopAsync(_cts.Token);
+		}
+
+		public BrightnessSession(UiView view)
+		{
+			_view = view;
+			_view.Changed += OnChanged;
+			_view.HandlerFaulted += OnHandlerFaulted;
 		}
 
 		public event EventHandler? Changed;
@@ -348,11 +550,22 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 				return UiEventOutcome.Rejected("Unknown level.");
 			}
 
-			var clamped = Math.Clamp(level, 0, 1);
+			return ApplyPercent((int)Math.Round(Math.Clamp(level, 0, 1) * 100, MidpointRounding.AwayFromZero));
+		}
+
+		private UiEventOutcome Preset(int percent) => ApplyPercent(percent);
+
+		private UiEventOutcome ApplyPercent(int percent)
+		{
+			if (_content is null || _monitors is null)
+			{
+				return UiEventOutcome.Rejected("Unknown level.");
+			}
+
 			try
 			{
-				var monitor = PrimaryMonitor(_monitors);
-				if (monitor is null || !_monitors.TrySetBrightness(monitor.Index, (int)Math.Round(clamped * 100)))
+				var monitor = TargetMonitor(_monitors, _monitor);
+				if (monitor is null || !_monitors.TrySetBrightness(monitor.Index, Math.Clamp(percent, 0, 100)))
 				{
 					return UiEventOutcome.Rejected("No brightness-capable monitor found.");
 				}
@@ -363,7 +576,7 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 				return UiEventOutcome.Rejected("Brightness apply failed.");
 			}
 
-			_content.Set(_content.Peek() with { Level = clamped });
+			_content.Set(_content.Peek() with { Level = Math.Clamp(percent, 0, 100) / 100.0 });
 			return UiEventOutcome.Accepted;
 		}
 
@@ -385,7 +598,7 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 				{
 					if (_owner is not null && _content is not null)
 					{
-						var next = _owner.ReadContent();
+						var next = _owner.ReadContent(_monitor);
 						if (!next.Equals(_content.Value))
 						{
 							_content.Set(next);
