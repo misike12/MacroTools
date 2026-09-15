@@ -216,7 +216,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "9";
+	internal const string TreeGeneration = "10";
 
 	private const string CardBackground = "#22252C";
 
@@ -861,7 +861,7 @@ internal static class MatchHudView
 			new UiLayer
 			{
 				Key = "hp",
-				MainSize = UiSize.Capped(0.25, 60),
+				MainSize = UiSize.Capped(0.29, 68),
 				Children =
 				[
 					new UiStack
@@ -880,7 +880,7 @@ internal static class MatchHudView
 								StartAngle = 0,
 								EndAngle = 360,
 								Thickness = UiSize.Capped(0.05, 12),
-								MainSize = UiSize.Capped(0.25, 60),
+								MainSize = UiSize.Capped(0.29, 68),
 								Fallback = new UiRangeBar
 								{
 									Key = "hp-gauge-fallback",
@@ -905,7 +905,7 @@ internal static class MatchHudView
 							{
 								Key = "hp-line",
 								Text = UiText.From(() => content.Value.HpText),
-									Size = options.Compact ? UiSize.Capped(0.09, 16) : UiSize.Capped(0.1, 24),
+									Size = options.Compact ? UiSize.Capped(0.09, 16) : UiSize.Capped(0.09, 22),
 								Weight = UiComponentTextWeights.SemiBold,
 								Color = UiValue.Of("#FFFFFF"),
 								Digits = UiValue.Of(3.0),
@@ -998,7 +998,7 @@ internal static class MatchHudView
 		Key = "stat-grid",
 		Columns = UiValue.Of(4),
 		Gap = 0.015,
-		MainSize = UiSize.Capped(0.3, 70),
+		MainSize = UiSize.Capped(0.3, 68),
 		Children =
 		[
 			StatCard("stat-k", Strings.Widget.Cards.Kills(), content.Value.Kills.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -1022,7 +1022,7 @@ internal static class MatchHudView
 			Key = "charts",
 			Columns = UiValue.Of(3),
 			Gap = 0.02,
-			MainSize = UiSize.Capped(0.14, 32),
+			MainSize = UiSize.Capped(0.14, 30),
 			Children =
 			[
 				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
@@ -1076,7 +1076,7 @@ internal static class MatchHudView
 				{
 					Key = prefix + "-caption",
 					Text = UiText.From(() => caption(content.Value)),
-					Size = UiSize.Capped(0.09, 11),
+					Size = UiSize.Capped(0.085, 10),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			});
