@@ -902,4 +902,112 @@
     <value>R{round} · +{kills} · {damage}</value>
     <comment>[round:int][kills:int][damage:int] Current round line.</comment>
   </data>
+  <data name="Widget.Tabs.Match" xml:space="preserve">
+    <value>MATCH</value>
+    <comment>Match tab label.</comment>
+  </data>
+  <data name="Widget.Tabs.Player" xml:space="preserve">
+    <value>PLAYER</value>
+    <comment>Player tab label.</comment>
+  </data>
+  <data name="Widget.Tabs.Intel" xml:space="preserve">
+    <value>INTEL</value>
+    <comment>Intel tab label.</comment>
+  </data>
+  <data name="Widget.Cards.Round" xml:space="preserve">
+    <value>ROUND</value>
+    <comment>Round stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Streak" xml:space="preserve">
+    <value>STREAK</value>
+    <comment>Streak stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Timeouts" xml:space="preserve">
+    <value>TIMEOUTS</value>
+    <comment>Timeouts stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.MatchTime" xml:space="preserve">
+    <value>MATCH TIME</value>
+    <comment>Match elapsed stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Kills" xml:space="preserve">
+    <value>KILLS</value>
+    <comment>Kills stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Deaths" xml:space="preserve">
+    <value>DEATHS</value>
+    <comment>Deaths stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Assists" xml:space="preserve">
+    <value>ASSISTS</value>
+    <comment>Assists stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Headshots" xml:space="preserve">
+    <value>SESSION HS</value>
+    <comment>Session headshots stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Damage" xml:space="preserve">
+    <value>SESSION DMG</value>
+    <comment>Session damage stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Mvps" xml:space="preserve">
+    <value>MVPS</value>
+    <comment>MVP count stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Score" xml:space="preserve">
+    <value>SCORE</value>
+    <comment>Score stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Equip" xml:space="preserve">
+    <value>EQUIP</value>
+    <comment>Equipment value stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Battlefield" xml:space="preserve">
+    <value>BATTLEFIELD</value>
+    <comment>Active utility card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Events" xml:space="preserve">
+    <value>EVENTS</value>
+    <comment>Event feed card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Position" xml:space="preserve">
+    <value>POSITION</value>
+    <comment>Compass card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Smokes" xml:space="preserve">
+    <value>SMOKES</value>
+    <comment>Active smokes stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Fires" xml:space="preserve">
+    <value>FIRES</value>
+    <comment>Active fires stat card caption.</comment>
+  </data>
+  <data name="Widget.Cards.Nades" xml:space="preserve">
+    <value>NADES</value>
+    <comment>Active grenades stat card caption.</comment>
+  </data>
+  <data name="Widget.Streak.Best" xml:space="preserve">
+    <value>{count} · BEST {best}</value>
+    <comment>[count:int][best:int] Streak card value with best streak.</comment>
+  </data>
+  <data name="Widget.Timeouts.Line" xml:space="preserve">
+    <value>{ct} / {t}</value>
+    <comment>[ct:int][t:int] Timeout counts for both sides.</comment>
+  </data>
+  <data name="Widget.Idle.Title" xml:space="preserve">
+    <value>MATCH HUD</value>
+    <comment>Idle card title.</comment>
+  </data>
+  <data name="Widget.Idle.Simulate" xml:space="preserve">
+    <value>SIMULATE</value>
+    <comment>Idle simulate button label.</comment>
+  </data>
+  <data name="Widget.Idle.Install" xml:space="preserve">
+    <value>INSTALL GSI</value>
+    <comment>Idle install button label.</comment>
+  </data>
+  <data name="Widget.Idle.Hint" xml:space="preserve">
+    <value>Install writes the game config, then launch CS2.</value>
+    <comment>Idle install hint line.</comment>
+  </data>
 </root>

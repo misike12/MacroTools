@@ -58,6 +58,14 @@ internal static class WidgetFitEstimator
 			// A layer draws every child across the same box, so it is as tall
 			// as its own main size, never the sum of its children.
 			"ui.layer" => ResolveRequired(properties, "mainSize"),
+			// A transform is visual only; its box is its main size, or its
+			// tallest child when it declares none.
+			"ui.transform" => MeasureTransformHeight(node, properties),
+			// Segmented controls and buttons carry no content extent on the
+			// parent axis: segmented takes its main size, a button its children.
+			"ui.segmented" => ResolveRequired(properties, "mainSize"),
+			"ui.button" => MeasureChildrenHeight(node, vertical: IsVertical(properties)),
+			"ui.icon" => Resolve(properties, "size"),
 			"ui.gauge" => ResolveRequired(properties, "mainSize"),
 			"ui.chart" => ResolveRequired(properties, "mainSize"),
 			"ui.range-bar" => Resolve(properties, "thickness"),
@@ -70,6 +78,18 @@ internal static class WidgetFitEstimator
 
 	private static bool IsVertical(JsonElement properties) =>
 		!properties.TryGetProperty("direction", out var direction) || direction.GetString() != "horizontal";
+
+	private static double MaxChildHeight(JsonElement node)
+	{
+		var heights = node.GetProperty("Children").EnumerateArray().Select(MeasureNodeHeight).ToList();
+		return heights.Count == 0 ? 0 : heights.Max();
+	}
+
+	private static double MeasureTransformHeight(JsonElement node, JsonElement properties)
+	{
+		var declared = Resolve(properties, "mainSize");
+		return declared > 0 ? declared : MaxChildHeight(node);
+	}
 
 	private static double Resolve(JsonElement properties, string name)
 	{

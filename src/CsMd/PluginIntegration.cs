@@ -28,7 +28,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_gsi = gsi;
 		_settings = settings;
 		_logger = logger.ForContext<PluginIntegration>();
-		_widget = new MatchHudWidget(gsi, logger);
+		_widget = new MatchHudWidget(gsi, settings, logger);
 		Actions =
 		[
 			new InstallGsiConfigAction(settings, gsi),

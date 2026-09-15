@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CsMd.Config;
 using CsMd.Gsi;
 using CsMd.Places;
 using CsMd.Widgets;
@@ -28,7 +29,7 @@ public sealed class MatchHudWidgetTests
 		Assert.That(options.ShowStatus, Is.True);
 		Assert.That(options.ShowSession, Is.True);
 		Assert.That(options.ShowFeed, Is.True);
-		Assert.That(options.FeedCount, Is.EqualTo(2));
+		Assert.That(options.FeedCount, Is.EqualTo(3));
 		Assert.That(options.Compact, Is.False);
 	}
 
@@ -98,7 +99,7 @@ public sealed class MatchHudWidgetTests
 	public void Fresh_service_builds_disconnected_content()
 	{
 		using var gsi = new GsiService(TestLogger());
-		var widget = new MatchHudWidget(gsi, TestLogger());
+		var widget = new MatchHudWidget(gsi, new CsSettingsProvider(), TestLogger());
 
 		var content = widget.BuildContent(MatchHudOptions.Default);
 
@@ -111,7 +112,7 @@ public sealed class MatchHudWidgetTests
 	public void Simulated_match_builds_connected_content()
 	{
 		using var gsi = new GsiService(TestLogger());
-		var widget = new MatchHudWidget(gsi, TestLogger());
+		var widget = new MatchHudWidget(gsi, new CsSettingsProvider(), TestLogger());
 		gsi.InjectTestState();
 
 		var content = widget.BuildContent(MatchHudOptions.Default);
@@ -142,6 +143,8 @@ public sealed class MatchHudWidgetTests
 	{
 		Assert.DoesNotThrow(() => MatchHudPreviews.LiveMatch());
 		Assert.DoesNotThrow(() => MatchHudPreviews.BombPlanted());
+		Assert.DoesNotThrow(() => MatchHudPreviews.PlayerPage());
+		Assert.DoesNotThrow(() => MatchHudPreviews.IntelPage());
 		Assert.DoesNotThrow(() => MatchHudPreviews.NoData());
 	}
 
@@ -207,8 +210,15 @@ public sealed class MatchHudWidgetTests
 	[Test]
 	public void Sample_trees_fit_a_three_by_three_tile_without_squeezing_text()
 	{
-		var names = new[] { "LiveMatch", "BombPlanted" };
-		var previews = new Func<UiElement>[] { MatchHudPreviews.LiveMatch, MatchHudPreviews.BombPlanted };
+		var names = new[] { "LiveMatch", "BombPlanted", "PlayerPage", "IntelPage", "NoData" };
+		var previews = new Func<UiElement>[]
+		{
+			MatchHudPreviews.LiveMatch,
+			MatchHudPreviews.BombPlanted,
+			MatchHudPreviews.PlayerPage,
+			MatchHudPreviews.IntelPage,
+			MatchHudPreviews.NoData,
+		};
 		for (var i = 0; i < previews.Length; i++)
 		{
 			var surface = new UiSurface
@@ -231,6 +241,80 @@ public sealed class MatchHudWidgetTests
 				height,
 				Is.LessThanOrEqualTo(WidgetFitEstimator.BudgetUnits),
 				$"Tree is {height:F1} ref units tall on a 3x3 tile with a {WidgetFitEstimator.BudgetUnits} budget, so the reader squeezes rows and clips glyph bottoms. Slim sizes, gaps or rows until it fits.");
+		}
+	}
+
+	[Test]
+	public async Task Tab_change_switches_pages_and_rejects_unknown_ones()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.InjectTestState();
+		var widget = new MatchHudWidget(gsi, new CsSettingsProvider(), TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Data] = JsonDocument.Parse("""{"showScore":true,"showHistory":true,"showPlayer":true,"showCharts":true,"showStatus":true,"showSession":true,"showFeed":true,"feedCount":3,"compactMode":false}""").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+		Assert.That(session, Is.Not.Null);
+		try
+		{
+			static string TabsId(string treeJson)
+			{
+				using var document = JsonDocument.Parse(treeJson);
+				var queue = new Queue<JsonElement>();
+				queue.Enqueue(document.RootElement.GetProperty("Root"));
+				while (queue.Count > 0)
+				{
+					var node = queue.Dequeue();
+					if (node.GetProperty("Type").GetString() == "ui.segmented")
+					{
+						return node.GetProperty("Id").GetString()!;
+					}
+
+					foreach (var child in node.GetProperty("Children").EnumerateArray())
+					{
+						queue.Enqueue(child);
+					}
+				}
+
+				throw new InvalidOperationException("No segmented tab bar in the tree.");
+			}
+
+			static MacroDeck.Ui.Model.Events.UiEvent Change(string nodeId, int index) => new()
+			{
+				NodeId = nodeId,
+				Name = "change",
+				Data = JsonDocument.Parse(index.ToString(System.Globalization.CultureInfo.InvariantCulture)).RootElement.Clone(),
+			};
+
+			var tabs = TabsId(JsonSerializer.Serialize(session!.BuildTree()));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("match-page"));
+
+			session!.Dispatch(Change(tabs, 9));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("match-page"));
+
+			session!.Dispatch(Change(tabs, 1));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("player-page"));
+
+			session!.Dispatch(Change(tabs, 2));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("intel-page"));
+		}
+		finally
+		{
+			if (session is IAsyncDisposable asyncDisposable)
+			{
+				await asyncDisposable.DisposeAsync();
+			}
 		}
 	}
 
