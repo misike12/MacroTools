@@ -385,7 +385,7 @@ check going from pass to fail as a blocking regression. Most checks `SKIP` until
 capabilities.
 
 The Macro Deck packages are pinned to the host line in use (`MacroDeckSdkVersion` in
-`Directory.Packages.props`, currently `3.0.0-beta.6`), so the commands above need no version
+`Directory.Packages.props`, currently `3.0.0-beta.7`), so the commands above need no version
 argument. Only to test against SDK surface that is not published yet, pack it into `local-feed/` and
 pass `-p:MacroDeckSdkVersion=<version>` - see "Building against a local SDK build" in
 [README.md](README.md).
@@ -409,6 +409,11 @@ Control, `<slug>-v<version>` for the others).
 
 `build` reads `macrodeck-build.json`, publishes each runtime identifier the manifest declares into its
 `runtimes/<rid>/` slot and packs the result. `--rid <rid>` builds one platform, for a CI matrix job.
+Builds are framework-dependent (`--self-contained false -p:UseAppHost=false`) with a matching
+`runtime: { kind: FrameworkDependent, dotnetVersion 10.0 }` entrypoint block pointing at the `.dll`:
+the host runs plugins on the .NET runtime it ships, so artifacts stay small (single-digit MB) and
+install in seconds. Stay self-contained (omit `runtime`, point at the native executable) only for a
+plugin needing a runtime Macro Deck does not ship.
 
 A `dotnet build -c Release` output is *not* packable: the manifest points at `runtimes/<rid>/`, which
 only `build` assembles, so `validate`/`pack` against `bin/Release/net10.0` fails on a missing entrypoint.

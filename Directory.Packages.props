@@ -8,7 +8,7 @@
         <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
         <!-- One knob for every Macro Deck package, so a build against a locally packed SDK is
              `dotnet build -p:MacroDeckSdkVersion=<version>` and nothing else - see README.md. -->
-        <MacroDeckSdkVersion Condition="'$(MacroDeckSdkVersion)' == ''">3.0.0-beta.6</MacroDeckSdkVersion>
+        <MacroDeckSdkVersion Condition="'$(MacroDeckSdkVersion)' == ''">3.0.0-beta.7</MacroDeckSdkVersion>
     </PropertyGroup>
 
     <ItemGroup>

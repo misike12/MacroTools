@@ -9,7 +9,8 @@
   "icon": "Assets/icon.svg",
   "entrypoints": {
     "win-x64": {
-      "executable": "runtimes/win-x64/WindowsMediaControl.exe"
+      "executable": "runtimes/win-x64/WindowsMediaControl.dll",
+      "runtime": { "kind": "FrameworkDependent", "dotnetVersion": "10.0" }
     }
   },
   "publisher": {
@@ -17,6 +18,6 @@
   },
   "license": "MIT",
   "compatibility": {
-    "macroDeck": ">=3.0.0-beta.4"
+    "macroDeck": ">=3.0.0-beta.7"
   }
 }

@@ -11,7 +11,6 @@ using MacroDeck.Ui.Dsl;
 using MacroDeck.Ui.Model.References;
 using MacroDeck.Ui.Model.Surfaces;
 using MacroDeck.Ui.Runtime;
-using MacroDeck.Ui.Model.Surfaces;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Serilog;
