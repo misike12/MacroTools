@@ -217,7 +217,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "15";
+	internal const string TreeGeneration = "16";
 
 	private const string CardBackground = "#262C38";
 	private const string ScoreCardBackground = "#20242D";
@@ -372,7 +372,7 @@ internal static class MatchHudView
 			: button with { Events = [UiEventHandler.On(UiComponentEvents.Press, _ => actions.SelectPage(page))] };
 	}
 
-	private static UiStack IdleCard(MatchHudActions? actions)
+	private static UiButton IdleCard(MatchHudActions? actions)
 	{
 		var simulate = new UiButton
 		{
@@ -413,10 +413,13 @@ internal static class MatchHudView
 				},
 			],
 		};
-		return new UiStack
+		return new UiButton
 		{
 			Key = "idle",
+			Justify = UiComponentJustify.Center,
 			Align = UiComponentAlignments.Center,
+			Background = UiValue.Of(ScoreCardBackground),
+			Padding = 0.03,
 			Gap = 0.02,
 			Children =
 			[
@@ -1114,14 +1117,6 @@ internal static class MatchHudView
 			},
 		};
 	}
-
-	private static UiShape Divider(string key) => new UiShape
-	{
-		Key = key,
-		Shape = UiComponentShapes.Capsule,
-		Color = UiValue.Of("#4B5563"),
-		MainSize = 0.006,
-	};
 
 	private static UiStack IntelPage(UiState<MatchHudContent> content, MatchHudOptions options)
 	{
