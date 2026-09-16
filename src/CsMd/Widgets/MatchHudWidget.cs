@@ -217,7 +217,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "12";
+	internal const string TreeGeneration = "13";
 
 	private const string CardBackground = "#22252C";
 
@@ -545,6 +545,20 @@ internal static class MatchHudView
 								Align = UiComponentAlignments.Center,
 							},
 						},
+							new UiWhen
+							{
+								Key = "mp-when",
+								Condition = () => MatchHudWidget.MatchPoint(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName) is not null,
+								Content = () => new UiTextRun
+								{
+									Key = "mp",
+									Text = UiText.FromLocalized(() => MatchHudWidget.MatchPointText(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName)),
+									Size = UiSize.Capped(0.075, 10),
+									Weight = UiComponentTextWeights.SemiBold,
+									Color = UiValue.Of(MatchHudColors.Warn),
+									Align = UiComponentAlignments.Center,
+								},
+							},
 						],
 					},
 					SideScore(content, big, micro, ct: false),
@@ -760,8 +774,7 @@ internal static class MatchHudView
 		Gap = 0.02,
 		Children =
 		[
-			LocalizedPill("state", () => true, () => content.Value.Alive
-				? Strings.Widget.State.Alive() : Strings.Widget.State.Dead()),
+			AlivePill(content, "state"),
 			TextPill(content, "place", () => content.Value.HasPlace, () => content.Value.PlaceText),
 			TextPill(content, "bomb", () => content.Value.HasBomb, () => content.Value.BombText),
 		],
@@ -797,6 +810,13 @@ internal static class MatchHudView
 					Role = UiComponentTextRoles.Muted,
 					Align = UiComponentAlignments.Center,
 				},
+			},
+			new UiShape
+			{
+				Key = ct ? "ct-bar" : "t-bar",
+				Shape = UiComponentShapes.Capsule,
+				Color = UiValue.Of(ct ? MatchHudColors.Ct : MatchHudColors.T),
+				MainSize = 0.008,
 			},
 		],
 	};
@@ -934,8 +954,7 @@ internal static class MatchHudView
 							Align = UiComponentAlignments.Center,
 						},
 					},
-					LocalizedPill("hero-state", () => true, () => content.Value.Alive
-						? Strings.Widget.State.Alive() : Strings.Widget.State.Dead()),
+					AlivePill(content, "hero-state"),
 					LocalizedPill("hero-helm", () => content.Value.Helmet, Strings.Widget.Effects.Helmet),
 					LocalizedPill("hero-defuse", () => content.Value.DefuseKit, Strings.Widget.Effects.DefuseKit),
 				],
@@ -1356,6 +1375,22 @@ internal static class MatchHudView
 				},
 			},
 		],
+	};
+
+	private static UiWhen AlivePill(UiState<MatchHudContent> content, string key) => new()
+	{
+		Key = key + "-when",
+		Condition = () => true,
+		Content = () => new UiTextRun
+		{
+			Key = key,
+			Text = UiText.FromLocalized(() => content.Value.Alive
+				? Strings.Widget.State.Alive() : Strings.Widget.State.Dead()),
+			Size = UiSize.Capped(0.09, 11),
+			Weight = UiComponentTextWeights.Medium,
+			Color = UiValue.From(() => content.Value.Alive ? MatchHudColors.Good : MatchHudColors.Bad),
+			Align = UiComponentAlignments.Center,
+		},
 	};
 
 	private static UiWhen LocalizedPill(
@@ -1838,6 +1873,34 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 
 	public static string JoinParts(params string?[] parts) =>
 		string.Join(" · ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+	public static string? MatchPoint(int ctScore, int tScore, string? ctName, string? tName)
+	{
+		if (ctScore >= 12 && tScore >= 12)
+		{
+			return string.Empty;
+		}
+
+		if (ctScore == 12 && tScore < 12)
+		{
+			return string.IsNullOrWhiteSpace(ctName) ? "CT" : ctName;
+		}
+
+		if (tScore == 12 && ctScore < 12)
+		{
+			return string.IsNullOrWhiteSpace(tName) ? "T" : tName;
+		}
+
+		return null;
+	}
+
+	public static MacroDeck.Localization.LocalizedString MatchPointText(int ctScore, int tScore, string? ctName, string? tName)
+	{
+		var leader = MatchPoint(ctScore, tScore, ctName, tName);
+		return string.IsNullOrEmpty(leader)
+			? Strings.Widget.Match.Overtime()
+			: Strings.Widget.Match.Point(SanitizeDisplay(leader));
+	}
 
 	public static string ClanTag(string? clan)
 	{

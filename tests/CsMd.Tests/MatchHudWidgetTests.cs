@@ -335,6 +335,16 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Match_point_detects_leader_overtime_and_open_play()
+	{
+		Assert.That(MatchHudWidget.MatchPoint(12, 9, "NAVI", "FAZE"), Is.EqualTo("NAVI"));
+		Assert.That(MatchHudWidget.MatchPoint(9, 12, "NAVI", "FAZE"), Is.EqualTo("FAZE"));
+		Assert.That(MatchHudWidget.MatchPoint(12, 12, "NAVI", "FAZE"), Is.Empty);
+		Assert.That(MatchHudWidget.MatchPoint(9, 7, "NAVI", "FAZE"), Is.Null);
+		Assert.That(MatchHudWidget.MatchPoint(12, 9, "  ", "FAZE"), Is.EqualTo("CT"));
+	}
+
+	[Test]
 	public void Yaw_arrow_points_by_octant()
 	{
 		Assert.That(MatchHudWidget.YawArrow(0), Is.EqualTo("↑"));
