@@ -117,6 +117,27 @@ public sealed class ReplayMappingTests
 	}
 
 	[Test]
+	public void Quiet_import_builds_state_without_events_or_session()
+	{
+		using var service = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("ranked-r1.json")));
+		var seen = new List<R6MatchEvent>();
+		service.MatchEvent += (_, e) => seen.Add(e);
+		service.IntegrateMatch(
+			ReplayJson.ParseMatch(Fixture("ranked-r1.json"))!,
+			"ranked-r1",
+			DateTimeOffset.UtcNow.AddHours(-2),
+			quiet: true);
+
+		var snapshot = service.Snapshot();
+
+		Assert.That(snapshot.HasMatch, Is.True);
+		Assert.That(snapshot.RoundHistory, Is.EqualTo("L"));
+		Assert.That(seen, Is.Empty);
+		Assert.That(snapshot.HasFeed, Is.False);
+		Assert.That(snapshot.SessionKills, Is.EqualTo(0));
+	}
+
+	[Test]
 	public void Tolerant_dto_survives_unknown_shapes()
 	{
 		Assert.That(ReplayJson.ParseMatch("{}"), Is.Not.Null);

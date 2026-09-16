@@ -434,8 +434,10 @@ public sealed class ReplayService : IDisposable
 	}
 
 	// Tooling and tests: folds one parsed match document into the state,
-	// exactly as the file watcher does after a successful parse.
-	public void IntegrateMatch(ReplayMatch match, string sourceKey, DateTimeOffset? fileTime = null)
+	// exactly as the file watcher does after a successful parse. Quiet
+	// imports build state (scores, history, rosters) without events, feed or
+	// session accrual, for backfilling old replays without spamming.
+	public void IntegrateMatch(ReplayMatch match, string sourceKey, DateTimeOffset? fileTime = null, bool quiet = false)
 	{
 		var events = new List<R6MatchEvent>();
 		lock (_gate)
@@ -443,7 +445,7 @@ public sealed class ReplayService : IDisposable
 			var key = !string.IsNullOrWhiteSpace(match.MatchId) ? match.MatchId! : sourceKey;
 			if (_matchKey is not null && !string.Equals(_matchKey, key, StringComparison.Ordinal))
 			{
-				FinalizeMatchLocked(events);
+				FinalizeMatchLocked(events, quiet);
 			}
 
 			_matchKey = key;
@@ -461,21 +463,25 @@ public sealed class ReplayService : IDisposable
 			}
 
 			round.Update(match);
-			AccrueSessionLocked(match, roundNo, events);
-			CollectKillsLocked(match, roundNo, events);
+			if (!quiet)
+			{
+				AccrueSessionLocked(match, roundNo, events);
+			}
+
+			CollectKillsLocked(match, roundNo, events, quiet);
 			_lastParseAt = DateTimeOffset.UtcNow;
 		}
 
 		EmitEvents(events);
 	}
 
-	private void FinalizeMatchLocked(List<R6MatchEvent> events)
+	private void FinalizeMatchLocked(List<R6MatchEvent> events, bool quiet = false)
 	{
 		if (_rounds.Count > 0 && string.IsNullOrEmpty(_matchOutcome))
 		{
 			var last = _rounds.Values.OrderBy(r => r.Number).Last();
 			_matchOutcome = last.YourWon == true ? "victory" : last.YourWon == false ? "defeat" : string.Empty;
-			if (!string.IsNullOrEmpty(_matchOutcome))
+			if (!quiet && !string.IsNullOrEmpty(_matchOutcome))
 			{
 				events.Add(new R6MatchEvent(
 					_matchOutcome == "victory" ? R6EventIds.MatchWon : R6EventIds.MatchLost,
@@ -531,7 +537,7 @@ public sealed class ReplayService : IDisposable
 		}
 	}
 
-	private void CollectKillsLocked(ReplayMatch match, int roundNo, List<R6MatchEvent> events)
+	private void CollectKillsLocked(ReplayMatch match, int roundNo, List<R6MatchEvent> events, bool quiet = false)
 	{
 		var kills = (match.MatchFeedback ?? [])
 			.Where(f => string.Equals(f.TypeName, "Kill", StringComparison.OrdinalIgnoreCase))
@@ -547,6 +553,11 @@ public sealed class ReplayService : IDisposable
 			// A kill already announced live is not announced twice when its
 			// replay lands; the replay row still feeds history and session.
 			if (_liveKillPairs.Contains($"{kill.Username}|{kill.Target}"))
+			{
+				continue;
+			}
+
+			if (quiet)
 			{
 				continue;
 			}
@@ -603,17 +614,20 @@ public sealed class ReplayService : IDisposable
 		if (!round.AceChecked && byKiller.count >= 5)
 		{
 			round.AceChecked = true;
-			PushFeedLocked(new R6FeedItem($"ace-{_feedSeq++}", R6Strings.FeedAce(byKiller.name)));
-			events.Add(new R6MatchEvent(R6EventIds.Ace, new Dictionary<string, object?>
+			if (!quiet)
 			{
-				["player"] = byKiller.name,
-			}));
+				PushFeedLocked(new R6FeedItem($"ace-{_feedSeq++}", R6Strings.FeedAce(byKiller.name)));
+				events.Add(new R6MatchEvent(R6EventIds.Ace, new Dictionary<string, object?>
+				{
+					["player"] = byKiller.name,
+				}));
+			}
 		}
 
-		DetectRoundOutcomeLocked(match, roundNo, events);
+		DetectRoundOutcomeLocked(match, roundNo, events, quiet);
 	}
 
-	private void DetectRoundOutcomeLocked(ReplayMatch match, int roundNo, List<R6MatchEvent> events)
+	private void DetectRoundOutcomeLocked(ReplayMatch match, int roundNo, List<R6MatchEvent> events, bool quiet = false)
 	{
 		var yours = YourTeamIndex(match);
 		var your = TeamAt(match, yours);
@@ -644,6 +658,11 @@ public sealed class ReplayService : IDisposable
 
 		round.OutcomeCounted = true;
 		round.YourWon = won;
+		if (quiet)
+		{
+			return;
+		}
+
 		var winner = won ? your : opp;
 		PushFeedLocked(new R6FeedItem(
 			$"round-{_feedSeq++}",
@@ -651,12 +670,12 @@ public sealed class ReplayService : IDisposable
 		events.Add(new R6MatchEvent(
 			won ? R6EventIds.RoundWon : R6EventIds.RoundLost,
 			new Dictionary<string, object?> { ["round"] = (double)roundNo, ["condition"] = winner.WinCondition ?? string.Empty }));
-		DetectClutchLocked(match, roundNo, won, events);
+		DetectClutchLocked(match, roundNo, won, events, quiet);
 	}
 
-	private void DetectClutchLocked(ReplayMatch match, int roundNo, bool won, List<R6MatchEvent> events)
+	private void DetectClutchLocked(ReplayMatch match, int roundNo, bool won, List<R6MatchEvent> events, bool quiet = false)
 	{
-		if (!won)
+		if (!won || quiet)
 		{
 			return;
 		}
@@ -975,7 +994,10 @@ public sealed class ReplayService : IDisposable
 				var match = await _parser.ParseAsync(path, CancellationToken.None);
 				if (match is not null)
 				{
-					IntegrateMatch(match, Path.GetFileNameWithoutExtension(path), written);
+					// Backfill is quiet: files older than a few minutes are
+					// history, not news. No events, no feed, no session.
+					var quiet = DateTimeOffset.UtcNow - written > TimeSpan.FromMinutes(10);
+					IntegrateMatch(match, Path.GetFileNameWithoutExtension(path), written, quiet);
 				}
 			}
 			catch (Exception ex)
