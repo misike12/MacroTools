@@ -643,13 +643,13 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			snapshot.RoundHistory.Select((c, i) => new R6Dot(
 				i.ToString(System.Globalization.CultureInfo.InvariantCulture), c.ToString())).ToList(),
 			snapshot.Players
-				.Where(p => p.Team == 0)
+				.Where(p => p.Team == snapshot.YourTeamIndex)
 				.OrderByDescending(p => p.Kills)
 				.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
 				.Select(p => new R6RosterRow(p.Name, p.Operator, $"{p.Kills}-{p.Deaths}-{p.Assists}", p.IsYou))
 				.ToList(),
 			snapshot.Players
-				.Where(p => p.Team != 0)
+				.Where(p => p.Team != snapshot.YourTeamIndex)
 				.OrderByDescending(p => p.Kills)
 				.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
 				.Select(p => new R6RosterRow(p.Name, p.Operator, $"{p.Kills}-{p.Deaths}-{p.Assists}", false))
@@ -670,7 +670,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 	private static string FormatOppLine(R6Snapshot snapshot)
 	{
 		var best = snapshot.Players
-			.Where(p => p.Team != 0)
+			.Where(p => p.Team != snapshot.YourTeamIndex)
 			.OrderByDescending(p => p.Kills)
 			.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
 			.FirstOrDefault();
@@ -686,10 +686,9 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			return string.Empty;
 		}
 
-		var hs = snapshot.YourKills + snapshot.YourDeaths > 0 || snapshot.YourHeadshots > 0
-			? $" · HS {snapshot.YourHeadshots}"
-			: string.Empty;
-		return $"{snapshot.YourName} · {snapshot.YourOperator} · {snapshot.YourKills}-{snapshot.YourDeaths}-{snapshot.YourAssists}{hs}";
+		var hs = $" · HS {snapshot.YourHeadshots}";
+		var hp = snapshot.YourHp >= 0 ? $" · {snapshot.YourHp} HP" : string.Empty;
+		return $"{snapshot.YourName} · {snapshot.YourOperator} · {snapshot.YourKills}-{snapshot.YourDeaths}-{snapshot.YourAssists}{hs}{hp}";
 	}
 
 	private static MatchHudSession BuildConfigSession(

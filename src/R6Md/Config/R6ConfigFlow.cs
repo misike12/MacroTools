@@ -9,6 +9,7 @@ namespace R6Md.Config;
 public sealed class R6ConfigFlow : IConfigFlow
 {
 	private const string ReplaysStep = "replays";
+	private const string LiveStep = "live";
 	private const string EventsStep = "events";
 
 	private readonly Dictionary<string, object?> _input = new(StringComparer.Ordinal);
@@ -29,7 +30,8 @@ public sealed class R6ConfigFlow : IConfigFlow
 
 		return Task.FromResult(stepId switch
 		{
-			ReplaysStep => Validate(ReplaysStepDefinition(), CheckReplays(), EventsStepDefinition()),
+			ReplaysStep => Validate(ReplaysStepDefinition(), CheckReplays(), LiveStepDefinition()),
+			LiveStep => Validate(LiveStepDefinition(), CheckLive(), EventsStepDefinition()),
 			EventsStep => SubmitEvents(),
 			_ => ConfigFlowResult.Error(ReplaysStepDefinition(), Strings.Errors.InvalidSettings(), new Dictionary<string, LocalizedText>()),
 		});
@@ -59,6 +61,21 @@ public sealed class R6ConfigFlow : IConfigFlow
 		return errors;
 	}
 
+	private Dictionary<string, LocalizedText> CheckLive()
+	{
+		var errors = new Dictionary<string, LocalizedText>(StringComparer.Ordinal);
+		if (IsProvided(R6Keys.OverwolfPort))
+		{
+			var port = ReadNumber(R6Keys.OverwolfPort);
+			if (port is null || port < 1024 || port > 65535)
+			{
+				errors[R6Keys.OverwolfPort] = Strings.Errors.FieldInvalid();
+			}
+		}
+
+		return errors;
+	}
+
 	private bool IsProvided(string key) =>
 		_input.TryGetValue(key, out var raw)
 			&& raw is not null
@@ -70,6 +87,9 @@ public sealed class R6ConfigFlow : IConfigFlow
 		return new R6Settings(
 			ReplayRoot: ReadText(R6Keys.ReplayRoot, fallback.ReplayRoot).Trim(),
 			WatchEnabled: ReadBool(R6Keys.WatchEnabled) ?? fallback.WatchEnabled,
+			OverwolfEnabled: ReadBool(R6Keys.OverwolfEnabled) ?? fallback.OverwolfEnabled,
+			OverwolfPort: (int)Math.Round(ReadNumber(R6Keys.OverwolfPort) ?? fallback.OverwolfPort),
+			OverwolfToken: ReadText(R6Keys.OverwolfToken, fallback.OverwolfToken),
 			KillEvents: ReadBool(R6Keys.KillEvents) ?? fallback.KillEvents,
 			RoundEvents: ReadBool(R6Keys.RoundEvents) ?? fallback.RoundEvents,
 			MatchEvents: ReadBool(R6Keys.MatchEvents) ?? fallback.MatchEvents,
@@ -91,6 +111,30 @@ public sealed class R6ConfigFlow : IConfigFlow
 		};
 	}
 
+	private double? ReadNumber(string key)
+	{
+		if (!_input.TryGetValue(key, out var raw) || raw is null)
+		{
+			return null;
+		}
+
+		if (raw is string text && string.IsNullOrWhiteSpace(text))
+		{
+			return null;
+		}
+
+		double? value = raw switch
+		{
+			double d => d,
+			float f => f,
+			int i => i,
+			long l => l,
+			string s when double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed) => parsed,
+			_ => null,
+		};
+		return value is { } finite && double.IsFinite(finite) ? finite : null;
+	}
+
 	private string ReadText(string key, string fallback) =>
 		_input.TryGetValue(key, out var raw) ? raw?.ToString() ?? fallback : fallback;
 
@@ -103,6 +147,19 @@ public sealed class R6ConfigFlow : IConfigFlow
 		[
 			Text(R6Keys.ReplayRoot, Strings.Config.Replays.Folder.Label(), Strings.Config.Replays.Folder.Description(), string.Empty),
 			Toggle(R6Keys.WatchEnabled, Strings.Config.Replays.Watch.Label(), Strings.Config.Replays.Watch.Description(), R6Settings.Default.WatchEnabled),
+		],
+	};
+
+	private static ConfigFlowStep LiveStepDefinition() => new()
+	{
+		StepId = LiveStep,
+		Title = Strings.Config.Live.Title(),
+		Description = Strings.Config.Live.Description(),
+		Fields =
+		[
+			Toggle(R6Keys.OverwolfEnabled, Strings.Config.Live.Overwolf.Label(), Strings.Config.Live.Overwolf.Description(), R6Settings.Default.OverwolfEnabled),
+			Number(R6Keys.OverwolfPort, Strings.Config.Live.Port.Label(), Strings.Config.Live.Port.Description(), 1024, 65535, 1, R6Settings.Default.OverwolfPort),
+			Text(R6Keys.OverwolfToken, Strings.Config.Live.Token.Label(), Strings.Config.Live.Token.Description(), string.Empty),
 		],
 	};
 
@@ -122,6 +179,9 @@ public sealed class R6ConfigFlow : IConfigFlow
 
 	private static ActionParameter Text(string name, LocalizedText label, LocalizedText description, string defaultValue) =>
 		new() { Name = name, Type = ActionParameterType.String, Label = label, Description = description, DefaultValue = defaultValue };
+
+	private static ActionParameter Number(string name, LocalizedText label, LocalizedText description, double min, double max, double step, double defaultValue) =>
+		new() { Name = name, Type = ActionParameterType.Number, Label = label, Description = description, Min = min, Max = max, Step = step, DefaultValue = defaultValue };
 
 	private static ActionParameter Toggle(string name, LocalizedText label, LocalizedText description, bool defaultValue) =>
 		new() { Name = name, Type = ActionParameterType.Boolean, Label = label, Description = description, DefaultValue = defaultValue };

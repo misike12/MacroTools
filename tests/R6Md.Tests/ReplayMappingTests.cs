@@ -66,6 +66,57 @@ public sealed class ReplayMappingTests
 	}
 
 	[Test]
+	public void Current_season_shape_maps_by_team_index()
+	{
+		using var service = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("y11-r1.json")));
+		service.IntegrateMatch(ReplayJson.ParseMatch(Fixture("y11-r1.json"))!, "y11-r1");
+
+		var snapshot = service.Snapshot();
+
+		Assert.That(snapshot.HasMatch, Is.True);
+		Assert.That(snapshot.MapName, Is.EqualTo("Map 419965653950"));
+		Assert.That(snapshot.MapMode, Is.EqualTo("Bomb"));
+		Assert.That(snapshot.YourName, Is.EqualTo("anyadatis69"));
+		Assert.That(snapshot.YourTeamIndex, Is.EqualTo(1));
+		Assert.That(snapshot.YourScore, Is.EqualTo(0));
+		Assert.That(snapshot.OppScore, Is.EqualTo(1));
+		Assert.That(snapshot.YourRole, Is.EqualTo("Defense"));
+		Assert.That(snapshot.RoundHistory, Is.EqualTo("L"));
+		Assert.That(snapshot.TopFragger, Is.Not.Empty);
+	}
+
+	[Test]
+	public void Second_round_builds_history_kost_and_opener()
+	{
+		using var service = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("y11-r1.json")));
+		var first = ReplayJson.ParseMatch(Fixture("y11-r1.json"))!;
+		service.IntegrateMatch(first, "y11");
+
+		var yours = first.Teams!.Select((t, i) => (t, i)).First().t;
+		var second = first with
+		{
+			RoundNumber = 1,
+			Site = "1F Kitchen",
+			Teams = new[]
+			{
+				new ReplayTeam("ENEMY TEAM", 0, 1, false, null, "Defense"),
+				new ReplayTeam("YOUR TEAM", 0, 2, true, "KilledOpponents", "Attack"),
+			},
+		};
+		service.IntegrateMatch(second, "y11");
+
+		var snapshot = service.Snapshot();
+
+		Assert.That(snapshot.RoundNumber, Is.EqualTo(2));
+		Assert.That(snapshot.YourScore, Is.EqualTo(2));
+		Assert.That(snapshot.RoundHistory, Is.EqualTo("LW"));
+		Assert.That(snapshot.SiteHistory, Does.Contain("Kitchen"));
+		Assert.That(snapshot.Opener, Is.Not.Empty);
+		Assert.That(snapshot.YourKost, Is.InRange(0.0, 1.0));
+		Assert.That(snapshot.MatchDurationMinutes, Is.GreaterThanOrEqualTo(0.0));
+	}
+
+	[Test]
 	public void Tolerant_dto_survives_unknown_shapes()
 	{
 		Assert.That(ReplayJson.ParseMatch("{}"), Is.Not.Null);

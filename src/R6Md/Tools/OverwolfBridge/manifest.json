@@ -1,0 +1,21 @@
+{
+  "manifest_version": 1,
+  "type": "WebApp",
+  "meta": {
+    "name": "R6MD Bridge",
+    "author": "Misu",
+    "version": "1.0.0",
+    "minimum-overwolf-version": "0.200.0",
+    "description": "Forwards Rainbow Six Siege match data to the R6MD Macro Deck plugin over loopback. Personal use, no data leaves this machine."
+  },
+  "game_events": [10826],
+  "data": {
+    "start_window": "background",
+    "windows": {
+      "background": {
+        "file": "background.html",
+        "is_background_page": true
+      }
+    }
+  }
+}

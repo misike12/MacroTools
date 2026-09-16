@@ -1,7 +1,7 @@
 # Macro Deck plugin conformance report
 
 Suite version: `1.2.0`  
-Plugin: `com.misu.r6md` `1.0.0`  
+Plugin: `com.misu.r6md` `1.1.0`  
 Conformant: **yes**  
 Passed: 31 - Failed: 0 - Skipped: 18
 

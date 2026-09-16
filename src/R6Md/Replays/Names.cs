@@ -12,7 +12,13 @@ public static class MapNames
 			return string.Empty;
 		}
 
-		var parts = raw.Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		var clean = raw.Trim();
+		if (clean.StartsWith("Map(", StringComparison.OrdinalIgnoreCase) && clean.EndsWith(')'))
+		{
+			return "Map " + clean[4..^1].Trim();
+		}
+
+		var parts = clean.Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 		if (parts.Length == 0)
 		{
 			return raw.Trim();
@@ -22,7 +28,24 @@ public static class MapNames
 			part.Length <= 1 ? part.ToUpperInvariant() : char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
 	}
 
-	public static string Mode(string? raw) => string.IsNullOrWhiteSpace(raw) ? string.Empty : raw.Trim();
+	public static string Mode(string? raw)
+	{
+		if (string.IsNullOrWhiteSpace(raw))
+		{
+			return string.Empty;
+		}
+
+		var clean = raw.Trim();
+		foreach (var prefix in new[] { "QuickMatch", "Ranked", "Unranked" })
+		{
+			if (clean.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && clean.Length > prefix.Length)
+			{
+				return clean[prefix.Length..];
+			}
+		}
+
+		return clean;
+	}
 
 	public static string WinCondition(string? raw) => raw?.Trim().ToLowerInvariant() switch
 	{

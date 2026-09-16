@@ -31,6 +31,7 @@ public sealed record R6Snapshot(
 	string OppTeam,
 	int OppScore,
 	string OppRole,
+	int YourTeamIndex,
 	string RoundHistory,
 	IReadOnlyList<R6PlayerEntry> Players,
 	string YourName,
@@ -56,17 +57,48 @@ public sealed record R6Snapshot(
 	string MatchOutcome,
 	bool HasOutcome,
 	DateTimeOffset? LastParseAt,
-	int RoundsTracked)
+	int RoundsTracked,
+	int YourHp,
+	bool OwConnected,
+	string OwPhase,
+	string SiteHistory,
+	string Opener,
+	double YourKost,
+	int Dcs,
+	double MatchDurationMinutes)
 {
 	public static R6Snapshot Empty { get; } = new(
 		false, false, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
-		0, 0, false, string.Empty, 0, string.Empty, string.Empty, 0, string.Empty, string.Empty,
+		0, 0, false, string.Empty, 0, string.Empty, string.Empty, 0, string.Empty, 0, string.Empty,
 		[], string.Empty, string.Empty, 0, 0, 0, 0, string.Empty, 0,
 		string.Empty, string.Empty, false, false, [], false,
-		0, 0, 0, 0, 0, 0, string.Empty, false, null, 0);
+		0, 0, 0, 0, 0, 0, string.Empty, false, null, 0,
+		-1, false, string.Empty, string.Empty, string.Empty, 0, 0, 0);
 }
 
 public sealed record R6MatchEvent(string EventId, IReadOnlyDictionary<string, object?> Payload);
+
+// One info frame or event from the optional Overwolf bridge (Tools/OverwolfBridge).
+// The bridge forwards GEP data over localhost; the plugin never touches the
+// game or Overwolf itself. Live frames only ever surface what the HUD already
+// shows (score, roster, HP, phases) plus the same kill/round/match moments.
+public sealed record LiveRosterEntry(
+	string Name,
+	string Team,
+	string Operator,
+	int Kills,
+	int Deaths,
+	int Hp,
+	bool Local);
+
+public sealed record LiveMatchFrame(
+	string Phase,
+	string Map,
+	string Mode,
+	int BlueScore,
+	int OrangeScore,
+	IReadOnlyList<LiveRosterEntry> Roster,
+	DateTimeOffset At);
 
 public static class R6EventIds
 {
@@ -106,6 +138,10 @@ public sealed class ReplayService : IDisposable
 	private string _lastKiller = string.Empty;
 	private string _lastVictim = string.Empty;
 	private bool _lastHeadshot;
+	private LiveMatchFrame? _live;
+	private readonly HashSet<string> _liveKillPairs = new(StringComparer.OrdinalIgnoreCase);
+	private DateTimeOffset? _matchFirstSeen;
+	private DateTimeOffset? _matchLastSeen;
 	private int _sessionKills;
 	private int _sessionDeaths;
 	private int _sessionAssists;
@@ -208,6 +244,11 @@ public sealed class ReplayService : IDisposable
 		string? matchKey;
 		string? you;
 		string root;
+		string outcome;
+		string killer;
+		string victim;
+		bool headshot;
+		LiveMatchFrame? live;
 		lock (_gate)
 		{
 			rounds = _rounds.ToDictionary(p => p.Key, p => p.Value);
@@ -215,12 +256,41 @@ public sealed class ReplayService : IDisposable
 			matchKey = _matchKey;
 			you = _you;
 			root = _root ?? string.Empty;
+			outcome = _matchOutcome;
+			killer = _lastKiller;
+			victim = _lastVictim;
+			headshot = _lastHeadshot;
+			live = _live;
 		}
 
 		var connected = !string.IsNullOrEmpty(root) && Directory.Exists(root);
 		if (matchKey is null || rounds.Count == 0)
 		{
-			return R6Snapshot.Empty with { Connected = connected };
+			var fresh = live is not null && DateTimeOffset.UtcNow - live.At < LiveFreshness;
+			if (!fresh)
+			{
+				// No rounds, no live frame: the session, feed and last outcome
+				// still belong to the reader, not to a blank slate.
+				return R6Snapshot.Empty with
+				{
+					Connected = connected,
+					FeedItems = feed,
+					HasFeed = feed.Count > 0,
+					SessionKills = _sessionKills,
+					SessionDeaths = _sessionDeaths,
+					SessionAssists = _sessionAssists,
+					SessionHs = _sessionHs,
+					Streak = _streak,
+					BestStreak = _bestStreak,
+					MatchOutcome = outcome,
+					HasOutcome = !string.IsNullOrEmpty(outcome),
+					LastKiller = killer,
+					LastVictim = victim,
+					LastHeadshot = headshot,
+					HasLastKill = !string.IsNullOrEmpty(killer),
+					LastParseAt = _lastParseAt,
+				};
+			}
 		}
 
 		return BuildSnapshot(rounds, feed, you, connected);
@@ -241,6 +311,112 @@ public sealed class ReplayService : IDisposable
 
 	public void InjectSample() => IntegrateMatch(SampleMatch(), "sample");
 
+	public void IngestLiveInfo(LiveMatchFrame frame)
+	{
+		var events = new List<R6MatchEvent>();
+		lock (_gate)
+		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			_live = frame;
+		}
+
+		EmitEvents(events);
+	}
+
+	public void IngestLiveEvent(string name, string player, string target, bool headshot)
+	{
+		var events = new List<R6MatchEvent>();
+		lock (_gate)
+		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			switch (name.ToLowerInvariant())
+			{
+				case "kill":
+					// GEP kill events carry no names; the roster counters still
+					// move live, and the replay pass attributes names later.
+					// Nameless rows would read "? ▸ ?", so only attributed
+					// kills reach the feed and the last-kill variables.
+					if (!string.IsNullOrWhiteSpace(player) || !string.IsNullOrWhiteSpace(target))
+					{
+						PushFeedLocked(new R6FeedItem(
+							$"live-{_feedSeq++}",
+							headshot
+								? R6Strings.FeedHeadshot(player, target)
+								: R6Strings.FeedKill(player, target)));
+						_lastKiller = player;
+						_lastVictim = target;
+						_lastHeadshot = headshot;
+						_liveKillPairs.Add($"{player}|{target}");
+					}
+
+					events.Add(new R6MatchEvent(R6EventIds.Kill, new Dictionary<string, object?>
+					{
+						["player"] = player,
+						["target"] = target,
+						["headshot"] = headshot,
+					}));
+					if (headshot)
+					{
+						events.Add(new R6MatchEvent(R6EventIds.Headshot, new Dictionary<string, object?>
+						{
+							["player"] = player,
+						}));
+					}
+
+					break;
+				case "death":
+					events.Add(new R6MatchEvent(R6EventIds.YourDeath, new Dictionary<string, object?>
+					{
+						["player"] = player,
+					}));
+					break;
+			}
+		}
+
+		EmitEvents(events);
+	}
+
+	public void IngestLiveOutcome(string name, bool won)
+	{
+		var events = new List<R6MatchEvent>();
+		lock (_gate)
+		{
+			if (_disposed)
+			{
+				return;
+			}
+
+			switch (name.ToLowerInvariant())
+			{
+				case "roundoutcome":
+					events.Add(new R6MatchEvent(
+						won ? R6EventIds.RoundWon : R6EventIds.RoundLost,
+						new Dictionary<string, object?> { ["round"] = 0.0, ["condition"] = string.Empty }));
+					break;
+				case "matchoutcome":
+					if (string.IsNullOrEmpty(_matchOutcome))
+					{
+						_matchOutcome = won ? "victory" : "defeat";
+					}
+
+					events.Add(new R6MatchEvent(
+						won ? R6EventIds.MatchWon : R6EventIds.MatchLost,
+						new Dictionary<string, object?> { ["your-score"] = 0.0, ["opp-score"] = 0.0 }));
+					break;
+			}
+		}
+
+		EmitEvents(events);
+	}
+
 	public void Dispose()
 	{
 		lock (_gate)
@@ -259,7 +435,7 @@ public sealed class ReplayService : IDisposable
 
 	// Tooling and tests: folds one parsed match document into the state,
 	// exactly as the file watcher does after a successful parse.
-	public void IntegrateMatch(ReplayMatch match, string sourceKey)
+	public void IntegrateMatch(ReplayMatch match, string sourceKey, DateTimeOffset? fileTime = null)
 	{
 		var events = new List<R6MatchEvent>();
 		lock (_gate)
@@ -271,6 +447,11 @@ public sealed class ReplayService : IDisposable
 			}
 
 			_matchKey = key;
+			if (fileTime is { } seen)
+			{
+				_matchFirstSeen ??= seen;
+				_matchLastSeen = seen;
+			}
 			_you ??= ResolveYou(match);
 			var roundNo = (match.RoundNumber ?? 0) + 1;
 			if (!_rounds.TryGetValue(roundNo, out var round))
@@ -290,7 +471,7 @@ public sealed class ReplayService : IDisposable
 
 	private void FinalizeMatchLocked(List<R6MatchEvent> events)
 	{
-		if (_rounds.Count > 0)
+		if (_rounds.Count > 0 && string.IsNullOrEmpty(_matchOutcome))
 		{
 			var last = _rounds.Values.OrderBy(r => r.Number).Last();
 			_matchOutcome = last.YourWon == true ? "victory" : last.YourWon == false ? "defeat" : string.Empty;
@@ -304,10 +485,13 @@ public sealed class ReplayService : IDisposable
 
 		_rounds.Clear();
 		_seenKills.Clear();
+		_liveKillPairs.Clear();
 		_feed.Clear();
 		_lastKiller = string.Empty;
 		_lastVictim = string.Empty;
 		_lastHeadshot = false;
+		_matchFirstSeen = null;
+		_matchLastSeen = null;
 	}
 
 	private void AccrueSessionLocked(ReplayMatch match, int roundNo, List<R6MatchEvent> events)
@@ -356,6 +540,13 @@ public sealed class ReplayService : IDisposable
 		{
 			var id = $"{roundNo}:{(kill.Username ?? "?").ToLowerInvariant()}:{(kill.Target ?? "?").ToLowerInvariant()}:{kill.TimeInSeconds ?? -1}";
 			if (!_seenKills.Add(id))
+			{
+				continue;
+			}
+
+			// A kill already announced live is not announced twice when its
+			// replay lands; the replay row still feeds history and session.
+			if (_liveKillPairs.Contains($"{kill.Username}|{kill.Target}"))
 			{
 				continue;
 			}
@@ -424,9 +615,9 @@ public sealed class ReplayService : IDisposable
 
 	private void DetectRoundOutcomeLocked(ReplayMatch match, int roundNo, List<R6MatchEvent> events)
 	{
-		var teams = match.Teams;
-		var your = teams is { Count: > 0 } ? teams[0] : null;
-		var opp = teams is { Count: > 1 } ? teams[1] : null;
+		var yours = YourTeamIndex(match);
+		var your = TeamAt(match, yours);
+		var opp = TeamAt(match, yours == 0 ? 1 : 0);
 		if (your is null || opp is null)
 		{
 			return;
@@ -483,6 +674,28 @@ public sealed class ReplayService : IDisposable
 		}));
 	}
 
+	// teams[] is indexed by the players' teamIndex: the recording player's
+	// entry is your team. Newer builds list ENEMY TEAM first, so positional
+	// assumptions silently swap the scorebug.
+	private static int YourTeamIndex(ReplayMatch match)
+	{
+		var key = ReplayJson.PlayerKey(match.RecordingPlayerId);
+		if (!string.IsNullOrEmpty(key))
+		{
+			var entry = match.Players?.FirstOrDefault(p =>
+				string.Equals(ReplayJson.PlayerKey(p.Id), key, StringComparison.Ordinal));
+			if (entry?.TeamIndex is { } team)
+			{
+				return team;
+			}
+		}
+
+		return 0;
+	}
+
+	private static ReplayTeam? TeamAt(ReplayMatch match, int index) =>
+		match.Teams is { } teams && index >= 0 && index < teams.Count ? teams[index] : null;
+
 	private void PushFeedLocked(R6FeedItem item)
 	{
 		_feed.Insert(0, item);
@@ -492,15 +705,43 @@ public sealed class ReplayService : IDisposable
 		}
 	}
 
+	private static readonly TimeSpan LiveFreshness = TimeSpan.FromSeconds(60);
+
 	private R6Snapshot BuildSnapshot(
 		Dictionary<int, TrackedRound> rounds,
 		List<R6FeedItem> feed,
 		string? you,
 		bool connected)
 	{
+		LiveMatchFrame? live;
+		lock (_gate)
+		{
+			live = _live;
+		}
+
+		if (live is not null && DateTimeOffset.UtcNow - live.At >= LiveFreshness)
+		{
+			live = null;
+		}
+
 		var ordered = rounds.Values.OrderBy(r => r.Number).ToList();
+		if (ordered.Count == 0)
+		{
+			return live is not null
+				? LiveOnlySnapshot(live, feed, connected)
+				: R6Snapshot.Empty with { Connected = connected };
+		}
+
 		var last = ordered.Last();
 		var history = string.Concat(ordered.Select(r => r.YourWon == true ? "W" : r.YourWon == false ? "L" : "?"));
+		var siteHistory = string.Join(" · ", ordered
+			.Select(r => r.Site)
+			.Where(s => !string.IsNullOrWhiteSpace(s))
+			.Distinct(StringComparer.OrdinalIgnoreCase));
+		var kostRounds = string.IsNullOrEmpty(you) ? 0 : ordered.Count(r =>
+			r.Stats.TryGetValue(you, out var stat) && (!stat.Died || stat.Kills > 0 || stat.Assists > 0));
+		var kostTotal = string.IsNullOrEmpty(you) ? 0 : ordered.Count(r =>
+			r.Stats.ContainsKey(you!));
 		var roster = last.Players
 			.Select(p => new R6PlayerEntry(
 				p.Username,
@@ -518,11 +759,6 @@ public sealed class ReplayService : IDisposable
 		var mineStat = string.IsNullOrEmpty(you) || !last.Stats.TryGetValue(you, out var found)
 			? null
 			: found;
-		var fragger = roster
-			.Where(p => p.Team == 0)
-			.OrderByDescending(p => p.Kills)
-			.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-			.FirstOrDefault();
 		string lastKiller;
 		string lastVictim;
 		bool lastHeadshot;
@@ -535,25 +771,125 @@ public sealed class ReplayService : IDisposable
 			hasLastKill = !string.IsNullOrEmpty(_lastKiller);
 		}
 
+		// A fresh live frame wins for the fast-moving numbers (score, roster,
+		// your KDA and HP); the replay stays authoritative for history, sites,
+		// session totals and everything already settled.
+		var liveLocal = live?.Roster.FirstOrDefault(p => p.Local)
+			?? live?.Roster.FirstOrDefault(p => string.Equals(p.Name, you, StringComparison.OrdinalIgnoreCase));
+		var liveColor = (liveLocal?.Team ?? "blue").ToLowerInvariant();
+		var yourScore = live is not null
+			? liveColor == "orange" ? live.OrangeScore : live.BlueScore
+			: last.YourScore;
+		var oppScore = live is not null
+			? liveColor == "orange" ? live.BlueScore : live.OrangeScore
+			: last.OppScore;
+		if (live is not null)
+		{
+			var other = last.YourTeam == 0 ? 1 : 0;
+			roster = live.Roster
+				.OrderByDescending(p => p.Kills)
+				.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+				.Select(p => new R6PlayerEntry(
+					p.Name,
+					string.Equals(p.Team, liveColor, StringComparison.OrdinalIgnoreCase) ? last.YourTeam : other,
+					OperatorNames.Display(p.Operator),
+					p.Kills, 0, 0, 0,
+					p.Local || string.Equals(p.Name, you, StringComparison.OrdinalIgnoreCase)))
+				.ToList();
+			mine = roster.FirstOrDefault(p => p.IsYou);
+		}
+
+		var fragger = roster
+			.Where(p => p.Team == last.YourTeam)
+			.OrderByDescending(p => p.Kills)
+			.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+			.FirstOrDefault();
+		var yourHp = liveLocal?.Hp ?? -1;
 		return new R6Snapshot(
 			connected, true,
 			last.Match.GameVersion ?? string.Empty,
-			MapNames.Display(last.Match.Map?.Name),
-			MapNames.Mode(last.Match.Gamemode?.Name),
+			live is not null && !string.IsNullOrWhiteSpace(live.Map) ? live.Map : MapNames.Display(last.Match.Map?.Name),
+			live is not null && !string.IsNullOrWhiteSpace(live.Mode) ? live.Mode : MapNames.Mode(last.Match.Gamemode?.Name),
 			last.Match.MatchType?.Name ?? string.Empty,
 			last.Match.Site ?? string.Empty,
 			last.Number, last.RoundsPerMatch, last.Overtime,
-			"YOUR TEAM", last.YourScore, last.YourRole,
-			"OPPONENTS", last.OppScore, last.OppRole,
+			"YOUR TEAM", yourScore, last.YourRole,
+			"OPPONENTS", oppScore, last.OppRole, last.YourTeam,
 			history, roster,
-			mine?.Name ?? string.Empty, mine?.Operator ?? string.Empty,
-			mine?.Kills ?? 0, mineStat?.Died == true ? 1 : 0, mine?.Assists ?? 0, mine?.Headshots ?? 0,
+			mine?.Name ?? string.Empty,
+			liveLocal is not null && !string.IsNullOrWhiteSpace(liveLocal.Operator)
+				? OperatorNames.Display(liveLocal.Operator)
+				: mine?.Operator ?? string.Empty,
+			mine?.Kills ?? 0,
+			mineStat?.Died == true || (live is not null && liveLocal?.Hp == 0) ? 1 : 0,
+			live is not null ? mineStat?.Assists ?? 0 : mine?.Assists ?? 0,
+			live is not null ? mineStat?.Headshots ?? 0 : mine?.Headshots ?? 0,
 			fragger?.Name ?? string.Empty, fragger?.Kills ?? 0,
 			lastKiller, lastVictim, lastHeadshot, hasLastKill,
 			feed, feed.Count > 0,
 			_sessionKills, _sessionDeaths, _sessionAssists, _sessionHs, _streak, _bestStreak,
 			_matchOutcome, !string.IsNullOrEmpty(_matchOutcome),
-			_lastParseAt, rounds.Count);
+			_lastParseAt, rounds.Count,
+			yourHp, live is not null, live?.Phase ?? string.Empty,
+			siteHistory, last.Opener,
+			kostTotal > 0 ? (double)kostRounds / kostTotal : 0,
+			last.Dcs,
+			MatchDurationMinutes());
+	}
+
+	private double MatchDurationMinutes()
+	{
+		lock (_gate)
+		{
+			if (_matchFirstSeen is { } first && _matchLastSeen is { } last && last > first)
+			{
+				return (last - first).TotalMinutes;
+			}
+
+			return 0;
+		}
+	}
+
+	private R6Snapshot LiveOnlySnapshot(LiveMatchFrame live, List<R6FeedItem> feed, bool connected)
+	{
+		var local = live.Roster.FirstOrDefault(p => p.Local)
+			?? live.Roster.FirstOrDefault(p => string.Equals(p.Name, _you, StringComparison.OrdinalIgnoreCase));
+		var yourColor = (local?.Team ?? "blue").ToLowerInvariant();
+		var yourScore = yourColor == "orange" ? live.OrangeScore : live.BlueScore;
+		var oppScore = yourColor == "orange" ? live.BlueScore : live.OrangeScore;
+		var roster = live.Roster
+			.OrderByDescending(p => p.Kills)
+			.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+			.Select(p => new R6PlayerEntry(
+				p.Name,
+				string.Equals(p.Team, yourColor, StringComparison.OrdinalIgnoreCase) ? 0 : 1,
+				OperatorNames.Display(p.Operator),
+				p.Kills, 0, 0, 0,
+				p.Local || string.Equals(p.Name, _you, StringComparison.OrdinalIgnoreCase)))
+			.ToList();
+		var fragger = roster
+			.Where(p => p.Team == 0)
+			.OrderByDescending(p => p.Kills)
+			.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+			.FirstOrDefault();
+
+		return new R6Snapshot(
+			connected, true,
+			string.Empty, live.Map, live.Mode, string.Empty, string.Empty,
+			live.BlueScore + live.OrangeScore + 1, 0, false,
+			"YOUR TEAM", yourScore, string.Empty,
+			"OPPONENTS", oppScore, string.Empty, 0,
+			string.Empty, roster,
+			local?.Name ?? string.Empty, OperatorNames.Display(local?.Operator),
+			local?.Kills ?? 0, 0, 0, 0,
+			fragger?.Name ?? string.Empty, fragger?.Kills ?? 0,
+			_lastKiller, _lastVictim, _lastHeadshot, !string.IsNullOrEmpty(_lastKiller),
+			feed, feed.Count > 0,
+			_sessionKills, _sessionDeaths, _sessionAssists, _sessionHs, _streak, _bestStreak,
+			_matchOutcome, !string.IsNullOrEmpty(_matchOutcome),
+			_lastParseAt, 0,
+			local?.Hp ?? -1, true, live.Phase,
+			string.Empty, string.Empty, 0, 0, 0);
 	}
 
 	private static string? ResolveYou(ReplayMatch match)
@@ -635,10 +971,11 @@ public sealed class ReplayService : IDisposable
 					continue;
 				}
 
+				var written = File.GetLastWriteTimeUtc(path);
 				var match = await _parser.ParseAsync(path, CancellationToken.None);
 				if (match is not null)
 				{
-					IntegrateMatch(match, Path.GetFileNameWithoutExtension(path));
+					IntegrateMatch(match, Path.GetFileNameWithoutExtension(path), written);
 				}
 			}
 			catch (Exception ex)
@@ -754,6 +1091,10 @@ public sealed class ReplayService : IDisposable
 	{
 		public int Number { get; } = number;
 		public ReplayMatch Match { get; private set; } = new(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+		public int YourTeam { get; private set; }
+		public string Site { get; private set; } = string.Empty;
+		public string Opener { get; private set; } = string.Empty;
+		public int Dcs { get; private set; }
 		public int RoundsPerMatch { get; private set; }
 		public bool Overtime { get; private set; }
 		public int YourScore { get; private set; }
@@ -772,11 +1113,23 @@ public sealed class ReplayService : IDisposable
 			Match = match;
 			RoundsPerMatch = match.RoundsPerMatch ?? 0;
 			Overtime = (match.OvertimeRoundNumber ?? 0) > 0;
-			var teams = match.Teams;
-			YourScore = teams is { Count: > 0 } ? teams[0].Score ?? 0 : 0;
-			OppScore = teams is { Count: > 1 } ? teams[1].Score ?? 0 : 0;
-			YourRole = teams is { Count: > 0 } ? teams[0].Role ?? string.Empty : string.Empty;
-			OppRole = teams is { Count: > 1 } ? teams[1].Role ?? string.Empty : string.Empty;
+			var yours = YourTeamIndex(match);
+			YourTeam = yours;
+			var your = TeamAt(match, yours);
+			var opp = TeamAt(match, yours == 0 ? 1 : 0);
+			YourScore = your?.Score ?? 0;
+			OppScore = opp?.Score ?? 0;
+			YourRole = your?.Role ?? string.Empty;
+			OppRole = opp?.Role ?? string.Empty;
+			Site = match.Site ?? string.Empty;
+			Opener = (match.MatchFeedback ?? [])
+				.Where(f => string.Equals(f.TypeName, "Kill", StringComparison.OrdinalIgnoreCase))
+				.OrderByDescending(f => f.TimeInSeconds ?? -1)
+				.Select(f => f.Username ?? string.Empty)
+				.FirstOrDefault() ?? string.Empty;
+			Dcs = (match.MatchFeedback ?? [])
+				.Count(f => f.TypeName.StartsWith("PlayerLeave", StringComparison.OrdinalIgnoreCase)
+					|| f.TypeName.StartsWith("PlayerLeft", StringComparison.OrdinalIgnoreCase));
 			Players.Clear();
 			foreach (var player in match.Players ?? [])
 			{

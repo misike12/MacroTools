@@ -44,21 +44,31 @@ internal static class R6Variables
 		Eager("best-streak", VariableType.Numeric, Strings.Variables.BestStreak.DisplayName(), Strings.Variables.BestStreak.Description(), refresh: Refresh),
 		Eager("match-outcome", VariableType.Text, Strings.Variables.MatchOutcome.DisplayName(), Strings.Variables.MatchOutcome.Description(), refresh: Refresh),
 		Eager("rounds-tracked", VariableType.Numeric, Strings.Variables.RoundsTracked.DisplayName(), Strings.Variables.RoundsTracked.Description(), refresh: Refresh),
+		Eager("ow-connected", VariableType.Boolean, Strings.Variables.OwConnected.DisplayName(), Strings.Variables.OwConnected.Description(), refresh: Refresh),
+		Eager("ow-phase", VariableType.Text, Strings.Variables.OwPhase.DisplayName(), Strings.Variables.OwPhase.Description(), refresh: Refresh),
+		Eager("your-hp", VariableType.Numeric, Strings.Variables.YourHp.DisplayName(), Strings.Variables.YourHp.Description(), unit: "hp", refresh: Refresh),
+		Eager("site-history", VariableType.Text, Strings.Variables.SiteHistory.DisplayName(), Strings.Variables.SiteHistory.Description(), refresh: Refresh),
+		Eager("opener", VariableType.Text, Strings.Variables.Opener.DisplayName(), Strings.Variables.Opener.Description(), refresh: Refresh),
+		Eager("your-kost", VariableType.Numeric, Strings.Variables.YourKost.DisplayName(), Strings.Variables.YourKost.Description(), refresh: Refresh),
+		Eager("dcs", VariableType.Numeric, Strings.Variables.Dcs.DisplayName(), Strings.Variables.Dcs.Description(), refresh: Refresh),
+		Eager("match-duration-minutes", VariableType.Numeric, Strings.Variables.MatchDurationMinutes.DisplayName(), Strings.Variables.MatchDurationMinutes.Description(), unit: "min", refresh: Refresh),
 	];
 
 	private static VariableDefinition Eager(
 		string id,
 		VariableType type,
-		MacroDeck.Localization.LocalizedText displayName,
-		MacroDeck.Localization.LocalizedText description,
+		MacroDeck.Localization.LocalizedString displayName,
+		MacroDeck.Localization.LocalizedString description,
+		string? unit = null,
+		string? semanticKind = null,
 		TimeSpan? refresh = null) =>
 		VariableDefinition.Eager(id, type) with
 		{
 			Name = id.Replace("-", "_"),
 			DisplayName = displayName,
 			Description = description,
-			Unit = string.Empty,
-			SemanticKind = VariableSemanticKinds.None,
+			Unit = unit ?? string.Empty,
+			SemanticKind = semanticKind ?? VariableSemanticKinds.None,
 			RefreshInterval = refresh,
 		};
 }

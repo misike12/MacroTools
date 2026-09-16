@@ -6,6 +6,9 @@ public static class R6Keys
 {
 	public const string ReplayRoot = "replay-root";
 	public const string WatchEnabled = "watch-enabled";
+	public const string OverwolfEnabled = "overwolf-enabled";
+	public const string OverwolfPort = "overwolf-port";
+	public const string OverwolfToken = "overwolf-token";
 	public const string KillEvents = "events-kill";
 	public const string RoundEvents = "events-round";
 	public const string MatchEvents = "events-match";
@@ -15,6 +18,9 @@ public static class R6Keys
 public sealed record R6Settings(
 	string ReplayRoot,
 	bool WatchEnabled,
+	bool OverwolfEnabled,
+	int OverwolfPort,
+	string OverwolfToken,
 	bool KillEvents,
 	bool RoundEvents,
 	bool MatchEvents,
@@ -23,6 +29,9 @@ public sealed record R6Settings(
 	public static R6Settings Default { get; } = new(
 		ReplayRoot: string.Empty,
 		WatchEnabled: true,
+		OverwolfEnabled: false,
+		OverwolfPort: 32175,
+		OverwolfToken: string.Empty,
 		KillEvents: true,
 		RoundEvents: true,
 		MatchEvents: true,
@@ -79,10 +88,30 @@ public static class R6SettingsReader
 		return new R6Settings(
 			ReplayRoot: await ReadTextAsync(config, entry.Id, R6Keys.ReplayRoot, fallback.ReplayRoot, timeout.Token),
 			WatchEnabled: await ReadBoolAsync(config, entry.Id, R6Keys.WatchEnabled, fallback.WatchEnabled, timeout.Token),
+			OverwolfEnabled: await ReadBoolAsync(config, entry.Id, R6Keys.OverwolfEnabled, fallback.OverwolfEnabled, timeout.Token),
+			OverwolfPort: ClampInt(await ReadNumberAsync(config, entry.Id, R6Keys.OverwolfPort, fallback.OverwolfPort, timeout.Token), 1024, 65535, fallback.OverwolfPort),
+			OverwolfToken: await ReadSecretAsync(config, entry.Id, R6Keys.OverwolfToken, timeout.Token),
 			KillEvents: await ReadBoolAsync(config, entry.Id, R6Keys.KillEvents, fallback.KillEvents, timeout.Token),
 			RoundEvents: await ReadBoolAsync(config, entry.Id, R6Keys.RoundEvents, fallback.RoundEvents, timeout.Token),
 			MatchEvents: await ReadBoolAsync(config, entry.Id, R6Keys.MatchEvents, fallback.MatchEvents, timeout.Token),
 			StreakEvents: await ReadBoolAsync(config, entry.Id, R6Keys.StreakEvents, fallback.StreakEvents, timeout.Token));
+	}
+
+	private static int ClampInt(double value, int min, int max, int fallback)
+	{
+		if (double.IsNaN(value) || double.IsInfinity(value))
+		{
+			return fallback;
+		}
+
+		return Math.Clamp((int)Math.Round(value), min, max);
+	}
+
+	private static async Task<double> ReadNumberAsync(
+		MacroDeck.Sdk.ConfigFlow.IIntegrationConfig config, Guid entryId, string key, double fallback, CancellationToken cancellationToken)
+	{
+		var raw = await ReadTextAsync(config, entryId, key, string.Empty, cancellationToken);
+		return double.TryParse(raw, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : fallback;
 	}
 
 	private static async Task<bool> ReadBoolAsync(
@@ -90,6 +119,19 @@ public static class R6SettingsReader
 	{
 		var raw = await ReadTextAsync(config, entryId, key, string.Empty, cancellationToken);
 		return bool.TryParse(raw, out var value) ? value : fallback;
+	}
+
+	private static async Task<string> ReadSecretAsync(
+		MacroDeck.Sdk.ConfigFlow.IIntegrationConfig config, Guid entryId, string key, CancellationToken cancellationToken)
+	{
+		try
+		{
+			return await config.GetSecretAsync(entryId, key, cancellationToken) ?? string.Empty;
+		}
+		catch (Exception)
+		{
+			return string.Empty;
+		}
 	}
 
 	private static async Task<string> ReadTextAsync(
@@ -113,6 +155,9 @@ internal static class R6SettingsValues
 		{
 			[R6Keys.ReplayRoot] = MacroDeck.Sdk.ConfigFlow.ConfigFlowValue.Plain(settings.ReplayRoot),
 			[R6Keys.WatchEnabled] = Plain(settings.WatchEnabled),
+			[R6Keys.OverwolfEnabled] = Plain(settings.OverwolfEnabled),
+			[R6Keys.OverwolfPort] = MacroDeck.Sdk.ConfigFlow.ConfigFlowValue.Plain(settings.OverwolfPort.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+			[R6Keys.OverwolfToken] = MacroDeck.Sdk.ConfigFlow.ConfigFlowValue.Secret(settings.OverwolfToken),
 			[R6Keys.KillEvents] = Plain(settings.KillEvents),
 			[R6Keys.RoundEvents] = Plain(settings.RoundEvents),
 			[R6Keys.MatchEvents] = Plain(settings.MatchEvents),

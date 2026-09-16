@@ -69,7 +69,7 @@ public sealed record ReplayPlayerStat(
 	[property: JsonPropertyName("died")] bool? Died,
 	[property: JsonPropertyName("assists")] int? Assists,
 	[property: JsonPropertyName("headshots")] int? Headshots,
-	[property: JsonPropertyName("headshotPercentage")] int? HeadshotPercentage,
+	[property: JsonPropertyName("headshotPercentage")] double? HeadshotPercentage,
 	[property: JsonPropertyName("damageTaken")] int? DamageTaken,
 	[property: JsonPropertyName("damageDealt")] int? DamageDealt,
 	[property: JsonPropertyName("secondsAlive")] int? SecondsAlive);

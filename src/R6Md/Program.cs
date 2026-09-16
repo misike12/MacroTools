@@ -11,6 +11,7 @@ using R6Md.Replays;
 var builder = MacroDeckPlugin.CreatePlugin(args);
 builder.Services.AddSingleton<R6SettingsProvider>();
 builder.Services.AddSingleton<ReplayService>();
+builder.Services.AddSingleton<OverwolfBridge>();
 var plugin = builder
 	.UseMacroDeckLogging()
 	.UseLocalization(Strings.LocalizationCatalog)

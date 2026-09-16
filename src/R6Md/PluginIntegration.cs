@@ -18,15 +18,17 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 {
 	private readonly ReplayService _replays;
 	private readonly R6SettingsProvider _settings;
+	private readonly OverwolfBridge _bridge;
 	private readonly MatchHudWidget _widget;
 	private readonly ILogger _logger;
 	private IIntegrationContext? _context;
 	private bool _disposed;
 
-	public PluginIntegration(ReplayService replays, R6SettingsProvider settings, ILogger logger)
+	public PluginIntegration(ReplayService replays, R6SettingsProvider settings, OverwolfBridge bridge, ILogger logger)
 	{
 		_replays = replays;
 		_settings = settings;
+		_bridge = bridge;
 		_logger = logger.ForContext<PluginIntegration>();
 		_widget = new MatchHudWidget(replays, logger);
 		Actions =
@@ -117,6 +119,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public Task ShutdownAsync()
 	{
 		_replays.MatchEvent -= OnMatchEvent;
+		_bridge.Stop();
 		_replays.Stop();
 		return Task.CompletedTask;
 	}
@@ -169,6 +172,18 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		else
 		{
 			_replays.Stop();
+		}
+
+		if (settings.OverwolfEnabled)
+		{
+			if (!_bridge.Start(settings.OverwolfPort, settings.OverwolfToken))
+			{
+				_logger.Warning("Overwolf bridge could not bind port {Port}; live data stays unavailable.", settings.OverwolfPort);
+			}
+		}
+		else
+		{
+			_bridge.Stop();
 		}
 	}
 
@@ -253,6 +268,14 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"best-streak" => VariableReading.Of((double)snapshot.BestStreak),
 			"match-outcome" => TextOrUnavailable(snapshot.MatchOutcome),
 			"rounds-tracked" => VariableReading.Of((double)snapshot.RoundsTracked),
+			"ow-connected" => VariableReading.Of(snapshot.OwConnected),
+			"ow-phase" => TextOrUnavailable(snapshot.OwPhase),
+			"your-hp" => snapshot.YourHp >= 0 ? VariableReading.Of((double)snapshot.YourHp) : VariableReading.Unavailable,
+			"site-history" => TextOrUnavailable(snapshot.SiteHistory),
+			"opener" => TextOrUnavailable(snapshot.Opener),
+			"your-kost" => VariableReading.Of(snapshot.YourKost),
+			"dcs" => NumberOrUnavailable(snapshot.Dcs, snapshot.HasMatch),
+			"match-duration-minutes" => VariableReading.Of(snapshot.MatchDurationMinutes),
 			_ => VariableReading.Unavailable,
 		});
 	}

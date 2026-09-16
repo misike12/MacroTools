@@ -25,6 +25,7 @@ public sealed class PluginIntegrationTests
 		PluginTestHarness.Create(builder =>
 		{
 			builder.Services.AddSingleton(replays);
+			builder.Services.AddSingleton<R6Md.Replays.OverwolfBridge>();
 			builder.Services.AddSingleton(new R6Md.Config.R6SettingsProvider());
 			builder.UseLocalization(Strings.LocalizationCatalog);
 			builder.RegisterIntegration<PluginIntegration>();
@@ -100,6 +101,11 @@ public sealed class PluginIntegrationTests
 			new Dictionary<string, object?> { ["replay-root"] = "", ["watch-enabled"] = true },
 			new FakeConfigFlowContext(),
 			TestContext.CurrentContext.CancellationToken);
+		var live = await flow.SubmitAsync(
+			"live",
+			new Dictionary<string, object?> { ["overwolf-enabled"] = true, ["overwolf-port"] = 32175.0 },
+			new FakeConfigFlowContext(),
+			TestContext.CurrentContext.CancellationToken);
 		var done = await flow.SubmitAsync(
 			"events",
 			new Dictionary<string, object?> { ["events-kill"] = true, ["events-round"] = false, ["events-match"] = true, ["events-streak"] = true },
@@ -108,6 +114,7 @@ public sealed class PluginIntegrationTests
 
 		Assert.That(first.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Step));
 		Assert.That(second.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Step));
+		Assert.That(live.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Step));
 		Assert.That(done.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Complete));
 
 		var badRoot = await flow.SubmitAsync(
@@ -115,15 +122,22 @@ public sealed class PluginIntegrationTests
 			new Dictionary<string, object?> { ["replay-root"] = "C:\\no-such-dir-xyz" },
 			new FakeConfigFlowContext(),
 			TestContext.CurrentContext.CancellationToken);
+		var badPort = await flow.SubmitAsync(
+			"live",
+			new Dictionary<string, object?> { ["overwolf-port"] = 80.0 },
+			new FakeConfigFlowContext(),
+			TestContext.CurrentContext.CancellationToken);
 
 		Assert.That(badRoot.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Error));
+		Assert.That(badPort.Kind, Is.EqualTo(MacroDeck.Sdk.ConfigFlow.ConfigFlowResultKind.Error));
 	}
 
 	[Test]
 	public void Action_and_event_ids_are_unique_across_the_plugin()
 	{
 		using var replays = new ReplayService(TestLogger(), new ScriptParser(_ => null));
-		var integration = new PluginIntegration(replays, new R6Md.Config.R6SettingsProvider(), TestLogger());
+		using var bridge = new OverwolfBridge(replays, TestLogger());
+		var integration = new PluginIntegration(replays, new R6Md.Config.R6SettingsProvider(), bridge, TestLogger());
 
 		var duplicates = integration.Actions
 			.GroupBy(a => a.Id)
@@ -134,7 +148,7 @@ public sealed class PluginIntegrationTests
 		Assert.That(duplicates, Is.Empty);
 		Assert.That(integration.Actions.Count, Is.EqualTo(4));
 		Assert.That(integration.EventDefinitions.Count, Is.EqualTo(11));
-		Assert.That(integration.Variables.Count, Is.EqualTo(36));
+		Assert.That(integration.Variables.Count, Is.EqualTo(44));
 		Assert.That(integration.GetWidgetTypes().Count, Is.EqualTo(1));
 		Assert.That(integration.GetWidgetTypes()[0].Id, Is.EqualTo("match-hud"));
 	}

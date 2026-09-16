@@ -140,6 +140,38 @@
     <value>Publish aces, clutches and kill-streak milestones.</value>
     <comment>Highlight events toggle description.</comment>
   </data>
+  <data name="Config.Live.Title" xml:space="preserve">
+    <value>Live feed</value>
+    <comment>Config live step title.</comment>
+  </data>
+  <data name="Config.Live.Description" xml:space="preserve">
+    <value>Optional live data through the Overwolf bridge app. Needs Overwolf plus Tools/OverwolfBridge sideloaded, and does nothing when it is off.</value>
+    <comment>Config live step description.</comment>
+  </data>
+  <data name="Config.Live.Overwolf.Label" xml:space="preserve">
+    <value>Enable Overwolf bridge</value>
+    <comment>Overwolf toggle label.</comment>
+  </data>
+  <data name="Config.Live.Overwolf.Description" xml:space="preserve">
+    <value>Listen on loopback for the bridge app's match posts.</value>
+    <comment>Overwolf toggle description.</comment>
+  </data>
+  <data name="Config.Live.Port.Label" xml:space="preserve">
+    <value>Bridge port</value>
+    <comment>Bridge port label.</comment>
+  </data>
+  <data name="Config.Live.Port.Description" xml:space="preserve">
+    <value>Loopback port, matching the bridge app's target.</value>
+    <comment>Bridge port description.</comment>
+  </data>
+  <data name="Config.Live.Token.Label" xml:space="preserve">
+    <value>Bridge token</value>
+    <comment>Bridge token label.</comment>
+  </data>
+  <data name="Config.Live.Token.Description" xml:space="preserve">
+    <value>Optional shared secret. Empty means any local post is accepted.</value>
+    <comment>Bridge token description.</comment>
+  </data>
   <data name="Events.Kill.Name" xml:space="preserve">
     <value>Kill</value>
     <comment>Kill event name.</comment>
@@ -667,5 +699,69 @@
   <data name="Variables.RoundsTracked.Description" xml:space="preserve">
     <value>Rounds imported for the current match.</value>
     <comment>Rounds tracked description.</comment>
+  </data>
+  <data name="Variables.OwConnected.DisplayName" xml:space="preserve">
+    <value>Live feed connected</value>
+    <comment>Live connected variable.</comment>
+  </data>
+  <data name="Variables.OwConnected.Description" xml:space="preserve">
+    <value>Whether fresh Overwolf bridge data arrived in the last minute.</value>
+    <comment>Live connected description.</comment>
+  </data>
+  <data name="Variables.OwPhase.DisplayName" xml:space="preserve">
+    <value>Live phase</value>
+    <comment>Live phase variable.</comment>
+  </data>
+  <data name="Variables.OwPhase.Description" xml:space="preserve">
+    <value>The current live phase, such as action or prep.</value>
+    <comment>Live phase description.</comment>
+  </data>
+  <data name="Variables.YourHp.DisplayName" xml:space="preserve">
+    <value>Your HP</value>
+    <comment>Your HP variable.</comment>
+  </data>
+  <data name="Variables.YourHp.Description" xml:space="preserve">
+    <value>Your live health from the bridge, when available.</value>
+    <comment>Your HP description.</comment>
+  </data>
+  <data name="Variables.SiteHistory.DisplayName" xml:space="preserve">
+    <value>Site history</value>
+    <comment>Site history variable.</comment>
+  </data>
+  <data name="Variables.SiteHistory.Description" xml:space="preserve">
+    <value>Objective sites played this match, in order.</value>
+    <comment>Site history description.</comment>
+  </data>
+  <data name="Variables.Opener.DisplayName" xml:space="preserve">
+    <value>Opening kill</value>
+    <comment>Opener variable.</comment>
+  </data>
+  <data name="Variables.Opener.Description" xml:space="preserve">
+    <value>Author of the first kill of the latest round.</value>
+    <comment>Opener description.</comment>
+  </data>
+  <data name="Variables.YourKost.DisplayName" xml:space="preserve">
+    <value>Your KOST</value>
+    <comment>Your KOST variable.</comment>
+  </data>
+  <data name="Variables.YourKost.Description" xml:space="preserve">
+    <value>Share of rounds where you survived, killed or assisted.</value>
+    <comment>Your KOST description.</comment>
+  </data>
+  <data name="Variables.Dcs.DisplayName" xml:space="preserve">
+    <value>Disconnects</value>
+    <comment>Disconnects variable.</comment>
+  </data>
+  <data name="Variables.Dcs.Description" xml:space="preserve">
+    <value>Players who left during the latest round.</value>
+    <comment>Disconnects description.</comment>
+  </data>
+  <data name="Variables.MatchDurationMinutes.DisplayName" xml:space="preserve">
+    <value>Match duration</value>
+    <comment>Match duration variable.</comment>
+  </data>
+  <data name="Variables.MatchDurationMinutes.Description" xml:space="preserve">
+    <value>Minutes between the first and latest replay file.</value>
+    <comment>Match duration description.</comment>
   </data>
 </root>
