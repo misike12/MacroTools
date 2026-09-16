@@ -1,0 +1,121 @@
+using MacroDeck.Localization;
+using MacroDeck.Sdk;
+using MacroDeck.Sdk.Actions;
+using R6Md.Replays;
+
+namespace R6Md.Actions;
+
+internal static class R6ActionResults
+{
+	public static ActionResult ProviderError() =>
+		ActionResult.Failed(ActionErrorCodes.ProviderError, Strings.Errors.CommandFailed());
+}
+
+public sealed class SimulateMatchAction(ReplayService replays) : IActionDefinition
+{
+	public string Id => "simulate-match";
+	public LocalizedText Name => Strings.Actions.SimulateMatch.Name();
+	public LocalizedText Description => Strings.Actions.SimulateMatch.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.All;
+	public IActionExecutor CreateExecutor() => new Executor(replays);
+
+	private sealed class Executor(ReplayService replays) : IActionExecutor
+	{
+		public Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			try
+			{
+				replays.InjectSample();
+				return Task.FromResult(ActionResult.Success());
+			}
+			catch (Exception)
+			{
+				return Task.FromResult(R6ActionResults.ProviderError());
+			}
+		}
+	}
+}
+
+public sealed class ResetSessionStatsAction(ReplayService replays) : IActionDefinition
+{
+	public string Id => "reset-session-stats";
+	public LocalizedText Name => Strings.Actions.ResetSessionStats.Name();
+	public LocalizedText Description => Strings.Actions.ResetSessionStats.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.All;
+	public IActionExecutor CreateExecutor() => new Executor(replays);
+
+	private sealed class Executor(ReplayService replays) : IActionExecutor
+	{
+		public Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			try
+			{
+				replays.ResetSessionStats();
+				return Task.FromResult(ActionResult.Success());
+			}
+			catch (Exception)
+			{
+				return Task.FromResult(R6ActionResults.ProviderError());
+			}
+		}
+	}
+}
+
+public sealed class RescanReplaysAction(ReplayService replays) : IActionDefinition
+{
+	public string Id => "rescan-replays";
+	public LocalizedText Name => Strings.Actions.RescanReplays.Name();
+	public LocalizedText Description => Strings.Actions.RescanReplays.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.All;
+	public IActionExecutor CreateExecutor() => new Executor(replays);
+
+	private sealed class Executor(ReplayService replays) : IActionExecutor
+	{
+		public async Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			try
+			{
+				await replays.RescanNowAsync(context.CancellationToken);
+				return ActionResult.Success();
+			}
+			catch (OperationCanceledException)
+			{
+				throw;
+			}
+			catch (Exception)
+			{
+				return R6ActionResults.ProviderError();
+			}
+		}
+	}
+}
+
+public sealed class OpenReplayFolderAction(ReplayService replays, Serilog.ILogger logger) : IActionDefinition
+{
+	public string Id => "open-replay-folder";
+	public LocalizedText Name => Strings.Actions.OpenReplayFolder.Name();
+	public LocalizedText Description => Strings.Actions.OpenReplayFolder.Description();
+	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
+	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
+	public IActionExecutor CreateExecutor() => new Executor(replays, logger);
+
+	private sealed class Executor(ReplayService replays, Serilog.ILogger logger) : IActionExecutor
+	{
+		public Task<ActionResult> ExecuteAsync(ActionExecutionContext context)
+		{
+			try
+			{
+				return Task.FromResult(Widgets.MatchHudWidget.OpenReplayFolder(replays, logger)
+					? ActionResult.Success()
+					: ActionResult.Failed(ActionErrorCodes.NotFound, Strings.Errors.ReplayRootMissing()));
+			}
+			catch (Exception)
+			{
+				return Task.FromResult(R6ActionResults.ProviderError());
+			}
+		}
+	}
+}

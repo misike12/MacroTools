@@ -1,0 +1,671 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=a5d9ab4f2beb8cde</value>
+  </resheader>
+  <data name="Widget.MatchHud.Name" xml:space="preserve">
+    <value>Match HUD</value>
+    <comment>Match HUD widget type name.</comment>
+  </data>
+  <data name="Widget.MatchHud.Description" xml:space="preserve">
+    <value>Last Rainbow Six Siege match: score, operators, rounds and kill feed.</value>
+    <comment>Match HUD widget type description.</comment>
+  </data>
+  <data name="Errors.CommandFailed" xml:space="preserve">
+    <value>The command failed.</value>
+    <comment>Generic provider error.</comment>
+  </data>
+  <data name="Errors.InvalidSettings" xml:space="preserve">
+    <value>The settings are invalid.</value>
+    <comment>Config flow validation summary.</comment>
+  </data>
+  <data name="Errors.FieldInvalid" xml:space="preserve">
+    <value>This field is invalid.</value>
+    <comment>Config flow field error.</comment>
+  </data>
+  <data name="Errors.ReplayRootMissing" xml:space="preserve">
+    <value>No replay folder was found.</value>
+    <comment>Replay folder missing error.</comment>
+  </data>
+  <data name="Errors.ParserMissing" xml:space="preserve">
+    <value>The replay parser is missing.</value>
+    <comment>Parser executable missing error.</comment>
+  </data>
+  <data name="Errors.ReadOnlyVariable" xml:space="preserve">
+    <value>This variable is read-only.</value>
+    <comment>Variable write refusal.</comment>
+  </data>
+  <data name="Actions.SimulateMatch.Name" xml:space="preserve">
+    <value>Simulate match</value>
+    <comment>Simulate action name.</comment>
+  </data>
+  <data name="Actions.SimulateMatch.Description" xml:space="preserve">
+    <value>Loads a sample match so the widget and events can be tried without the game.</value>
+    <comment>Simulate action description.</comment>
+  </data>
+  <data name="Actions.ResetSessionStats.Name" xml:space="preserve">
+    <value>Reset session stats</value>
+    <comment>Reset action name.</comment>
+  </data>
+  <data name="Actions.ResetSessionStats.Description" xml:space="preserve">
+    <value>Clears the kills, deaths, streaks and headshots tracked since startup.</value>
+    <comment>Reset action description.</comment>
+  </data>
+  <data name="Actions.RescanReplays.Name" xml:space="preserve">
+    <value>Rescan replays</value>
+    <comment>Rescan action name.</comment>
+  </data>
+  <data name="Actions.RescanReplays.Description" xml:space="preserve">
+    <value>Imports any replay files the watcher may have missed.</value>
+    <comment>Rescan action description.</comment>
+  </data>
+  <data name="Actions.OpenReplayFolder.Name" xml:space="preserve">
+    <value>Open replay folder</value>
+    <comment>Open folder action name.</comment>
+  </data>
+  <data name="Actions.OpenReplayFolder.Description" xml:space="preserve">
+    <value>Opens the game's MatchReplay folder in Explorer.</value>
+    <comment>Open folder action description.</comment>
+  </data>
+  <data name="Config.Replays.Title" xml:space="preserve">
+    <value>Replays</value>
+    <comment>Config replays step title.</comment>
+  </data>
+  <data name="Config.Replays.Description" xml:space="preserve">
+    <value>Where the game writes its MatchReplay folder. Leave empty to detect it from the Steam and Ubisoft installs.</value>
+    <comment>Config replays step description.</comment>
+  </data>
+  <data name="Config.Replays.Folder.Label" xml:space="preserve">
+    <value>Replay folder</value>
+    <comment>Replay folder field label.</comment>
+  </data>
+  <data name="Config.Replays.Folder.Description" xml:space="preserve">
+    <value>Full path to the MatchReplay folder. Empty means auto-detect.</value>
+    <comment>Replay folder field description.</comment>
+  </data>
+  <data name="Config.Replays.Watch.Label" xml:space="preserve">
+    <value>Watch for new replays</value>
+    <comment>Watch toggle label.</comment>
+  </data>
+  <data name="Config.Replays.Watch.Description" xml:space="preserve">
+    <value>Import rounds within seconds of new replay files appearing.</value>
+    <comment>Watch toggle description.</comment>
+  </data>
+  <data name="Config.Events.Title" xml:space="preserve">
+    <value>Events</value>
+    <comment>Config events step title.</comment>
+  </data>
+  <data name="Config.Events.Description" xml:space="preserve">
+    <value>Which match moments publish host events.</value>
+    <comment>Config events step description.</comment>
+  </data>
+  <data name="Config.Events.Kills.Label" xml:space="preserve">
+    <value>Kill events</value>
+    <comment>Kill events toggle label.</comment>
+  </data>
+  <data name="Config.Events.Kills.Description" xml:space="preserve">
+    <value>Publish kill, headshot and personal kill/death events.</value>
+    <comment>Kill events toggle description.</comment>
+  </data>
+  <data name="Config.Events.Rounds.Label" xml:space="preserve">
+    <value>Round events</value>
+    <comment>Round events toggle label.</comment>
+  </data>
+  <data name="Config.Events.Rounds.Description" xml:space="preserve">
+    <value>Publish round won and lost events.</value>
+    <comment>Round events toggle description.</comment>
+  </data>
+  <data name="Config.Events.Matches.Label" xml:space="preserve">
+    <value>Match events</value>
+    <comment>Match events toggle label.</comment>
+  </data>
+  <data name="Config.Events.Matches.Description" xml:space="preserve">
+    <value>Publish match won and lost events.</value>
+    <comment>Match events toggle description.</comment>
+  </data>
+  <data name="Config.Events.Streaks.Label" xml:space="preserve">
+    <value>Highlight events</value>
+    <comment>Highlight events toggle label.</comment>
+  </data>
+  <data name="Config.Events.Streaks.Description" xml:space="preserve">
+    <value>Publish aces, clutches and kill-streak milestones.</value>
+    <comment>Highlight events toggle description.</comment>
+  </data>
+  <data name="Events.Kill.Name" xml:space="preserve">
+    <value>Kill</value>
+    <comment>Kill event name.</comment>
+  </data>
+  <data name="Events.Kill.Description" xml:space="preserve">
+    <value>A player was eliminated.</value>
+    <comment>Kill event description.</comment>
+  </data>
+  <data name="Events.Kill.Player.Label" xml:space="preserve">
+    <value>Killer</value>
+    <comment>Kill event player parameter.</comment>
+  </data>
+  <data name="Events.Kill.Target.Label" xml:space="preserve">
+    <value>Victim</value>
+    <comment>Kill event target parameter.</comment>
+  </data>
+  <data name="Events.Headshot.Name" xml:space="preserve">
+    <value>Headshot</value>
+    <comment>Headshot event name.</comment>
+  </data>
+  <data name="Events.Headshot.Description" xml:space="preserve">
+    <value>A player was eliminated with a headshot.</value>
+    <comment>Headshot event description.</comment>
+  </data>
+  <data name="Events.Headshot.Player.Label" xml:space="preserve">
+    <value>Killer</value>
+    <comment>Headshot event player parameter.</comment>
+  </data>
+  <data name="Events.Headshot.Target.Label" xml:space="preserve">
+    <value>Victim</value>
+    <comment>Headshot event target parameter.</comment>
+  </data>
+  <data name="Events.YourKill.Name" xml:space="preserve">
+    <value>Your kill</value>
+    <comment>Your-kill event name.</comment>
+  </data>
+  <data name="Events.YourKill.Description" xml:space="preserve">
+    <value>You eliminated an opponent.</value>
+    <comment>Your-kill event description.</comment>
+  </data>
+  <data name="Events.YourKill.Target.Label" xml:space="preserve">
+    <value>Victim</value>
+    <comment>Your-kill event target parameter.</comment>
+  </data>
+  <data name="Events.YourDeath.Name" xml:space="preserve">
+    <value>Your death</value>
+    <comment>Your-death event name.</comment>
+  </data>
+  <data name="Events.YourDeath.Description" xml:space="preserve">
+    <value>You were eliminated.</value>
+    <comment>Your-death event description.</comment>
+  </data>
+  <data name="Events.YourDeath.Player.Label" xml:space="preserve">
+    <value>Killer</value>
+    <comment>Your-death event player parameter.</comment>
+  </data>
+  <data name="Events.RoundWon.Name" xml:space="preserve">
+    <value>Round won</value>
+    <comment>Round-won event name.</comment>
+  </data>
+  <data name="Events.RoundWon.Description" xml:space="preserve">
+    <value>Your team won a round.</value>
+    <comment>Round-won event description.</comment>
+  </data>
+  <data name="Events.RoundWon.Round.Label" xml:space="preserve">
+    <value>Round</value>
+    <comment>Round event round parameter.</comment>
+  </data>
+  <data name="Events.RoundWon.Condition.Label" xml:space="preserve">
+    <value>Win condition</value>
+    <comment>Round event condition parameter.</comment>
+  </data>
+  <data name="Events.RoundLost.Name" xml:space="preserve">
+    <value>Round lost</value>
+    <comment>Round-lost event name.</comment>
+  </data>
+  <data name="Events.RoundLost.Description" xml:space="preserve">
+    <value>Your team lost a round.</value>
+    <comment>Round-lost event description.</comment>
+  </data>
+  <data name="Events.RoundLost.Round.Label" xml:space="preserve">
+    <value>Round</value>
+    <comment>Round event round parameter.</comment>
+  </data>
+  <data name="Events.RoundLost.Condition.Label" xml:space="preserve">
+    <value>Win condition</value>
+    <comment>Round event condition parameter.</comment>
+  </data>
+  <data name="Events.MatchWon.Name" xml:space="preserve">
+    <value>Match won</value>
+    <comment>Match-won event name.</comment>
+  </data>
+  <data name="Events.MatchWon.Description" xml:space="preserve">
+    <value>Your team won the match.</value>
+    <comment>Match-won event description.</comment>
+  </data>
+  <data name="Events.MatchWon.YourScore.Label" xml:space="preserve">
+    <value>Your score</value>
+    <comment>Match event score parameter.</comment>
+  </data>
+  <data name="Events.MatchWon.OppScore.Label" xml:space="preserve">
+    <value>Opponent score</value>
+    <comment>Match event opponent score parameter.</comment>
+  </data>
+  <data name="Events.MatchLost.Name" xml:space="preserve">
+    <value>Match lost</value>
+    <comment>Match-lost event name.</comment>
+  </data>
+  <data name="Events.MatchLost.Description" xml:space="preserve">
+    <value>Your team lost the match.</value>
+    <comment>Match-lost event description.</comment>
+  </data>
+  <data name="Events.MatchLost.YourScore.Label" xml:space="preserve">
+    <value>Your score</value>
+    <comment>Match event score parameter.</comment>
+  </data>
+  <data name="Events.MatchLost.OppScore.Label" xml:space="preserve">
+    <value>Opponent score</value>
+    <comment>Match event opponent score parameter.</comment>
+  </data>
+  <data name="Events.Ace.Name" xml:space="preserve">
+    <value>Ace</value>
+    <comment>Ace event name.</comment>
+  </data>
+  <data name="Events.Ace.Description" xml:space="preserve">
+    <value>One player eliminated five opponents in a round.</value>
+    <comment>Ace event description.</comment>
+  </data>
+  <data name="Events.Ace.Player.Label" xml:space="preserve">
+    <value>Player</value>
+    <comment>Ace event player parameter.</comment>
+  </data>
+  <data name="Events.Clutch.Name" xml:space="preserve">
+    <value>Clutch</value>
+    <comment>Clutch event name.</comment>
+  </data>
+  <data name="Events.Clutch.Description" xml:space="preserve">
+    <value>The last player alive won the round with multiple kills.</value>
+    <comment>Clutch event description.</comment>
+  </data>
+  <data name="Events.Clutch.Player.Label" xml:space="preserve">
+    <value>Player</value>
+    <comment>Clutch event player parameter.</comment>
+  </data>
+  <data name="Events.StreakMilestone.Name" xml:space="preserve">
+    <value>Kill-streak milestone</value>
+    <comment>Streak event name.</comment>
+  </data>
+  <data name="Events.StreakMilestone.Description" xml:space="preserve">
+    <value>Your kill streak without dying reached 3, 5, 10, 15 or 20.</value>
+    <comment>Streak event description.</comment>
+  </data>
+  <data name="Events.StreakMilestone.Streak.Label" xml:space="preserve">
+    <value>Streak</value>
+    <comment>Streak event parameter.</comment>
+  </data>
+  <data name="Widget.Feed.Kill" xml:space="preserve">
+    <value>{player} eliminated {target}</value>
+    <comment>Kill feed line.</comment>
+  </data>
+  <data name="Widget.Feed.KillHeadshot" xml:space="preserve">
+    <value>{player} eliminated {target} (headshot)</value>
+    <comment>Headshot feed line.</comment>
+  </data>
+  <data name="Widget.Feed.RoundWon" xml:space="preserve">
+    <value>R{round} won · {condition}</value>
+    <comment>[round:int] Round won feed line.</comment>
+  </data>
+  <data name="Widget.Feed.RoundLost" xml:space="preserve">
+    <value>R{round} lost · {condition}</value>
+    <comment>[round:int] Round lost feed line.</comment>
+  </data>
+  <data name="Widget.Feed.Ace" xml:space="preserve">
+    <value>{player} with the ace</value>
+    <comment>Ace feed line.</comment>
+  </data>
+  <data name="Widget.Feed.Clutch" xml:space="preserve">
+    <value>{player} clutched the round</value>
+    <comment>Clutch feed line.</comment>
+  </data>
+  <data name="Widget.NoData.Caption" xml:space="preserve">
+    <value>Waiting for match data</value>
+    <comment>No-data caption.</comment>
+  </data>
+  <data name="Widget.Idle.Title" xml:space="preserve">
+    <value>Match HUD</value>
+    <comment>Idle card title.</comment>
+  </data>
+  <data name="Widget.Idle.Simulate" xml:space="preserve">
+    <value>SIMULATE</value>
+    <comment>Idle simulate button label.</comment>
+  </data>
+  <data name="Widget.Idle.OpenFolder" xml:space="preserve">
+    <value>OPEN FOLDER</value>
+    <comment>Idle open-folder button label.</comment>
+  </data>
+  <data name="Widget.Idle.Hint" xml:space="preserve">
+    <value>Play a match with replays enabled, then watch this tile.</value>
+    <comment>Idle hint line.</comment>
+  </data>
+  <data name="Widget.Session.Line" xml:space="preserve">
+    <value>K {kills} · D {deaths} · A {assists} · HS {hs}</value>
+    <comment>[kills:int][deaths:int][assists:int][hs:int] Session footer line.</comment>
+  </data>
+  <data name="Widget.Roles.Attack" xml:space="preserve">
+    <value>Attack</value>
+    <comment>Attacker side label.</comment>
+  </data>
+  <data name="Widget.Roles.Defense" xml:space="preserve">
+    <value>Defense</value>
+    <comment>Defender side label.</comment>
+  </data>
+  <data name="Widget.Roles.Unknown" xml:space="preserve">
+    <value>—</value>
+    <comment>Unknown side label.</comment>
+  </data>
+  <data name="Widget.Config.LookHeading" xml:space="preserve">
+    <value>Look</value>
+    <comment>Widget config look heading.</comment>
+  </data>
+  <data name="Widget.Config.ShowScore" xml:space="preserve">
+    <value>Show score</value>
+    <comment>Show score toggle label.</comment>
+  </data>
+  <data name="Widget.Config.ShowRoster" xml:space="preserve">
+    <value>Show roster</value>
+    <comment>Show roster toggle label.</comment>
+  </data>
+  <data name="Widget.Config.ShowFeed" xml:space="preserve">
+    <value>Show feed</value>
+    <comment>Show feed toggle label.</comment>
+  </data>
+  <data name="Widget.Config.FeedCount" xml:space="preserve">
+    <value>Feed rows</value>
+    <comment>Feed count label.</comment>
+  </data>
+  <data name="Widget.Config.ShowSession" xml:space="preserve">
+    <value>Show session</value>
+    <comment>Show session toggle label.</comment>
+  </data>
+  <data name="Variables.ReplayConnected.DisplayName" xml:space="preserve">
+    <value>Replay folder connected</value>
+    <comment>Replay connected variable.</comment>
+  </data>
+  <data name="Variables.ReplayConnected.Description" xml:space="preserve">
+    <value>Whether a MatchReplay folder was found.</value>
+    <comment>Replay connected description.</comment>
+  </data>
+  <data name="Variables.ReplayRoot.DisplayName" xml:space="preserve">
+    <value>Replay folder</value>
+    <comment>Replay root variable.</comment>
+  </data>
+  <data name="Variables.ReplayRoot.Description" xml:space="preserve">
+    <value>The watched MatchReplay folder.</value>
+    <comment>Replay root description.</comment>
+  </data>
+  <data name="Variables.MatchActive.DisplayName" xml:space="preserve">
+    <value>Match active</value>
+    <comment>Match active variable.</comment>
+  </data>
+  <data name="Variables.MatchActive.Description" xml:space="preserve">
+    <value>Whether a match is currently tracked.</value>
+    <comment>Match active description.</comment>
+  </data>
+  <data name="Variables.GameVersion.DisplayName" xml:space="preserve">
+    <value>Game version</value>
+    <comment>Game version variable.</comment>
+  </data>
+  <data name="Variables.GameVersion.Description" xml:space="preserve">
+    <value>The season build the replay was recorded on.</value>
+    <comment>Game version description.</comment>
+  </data>
+  <data name="Variables.Map.DisplayName" xml:space="preserve">
+    <value>Map</value>
+    <comment>Map variable.</comment>
+  </data>
+  <data name="Variables.Map.Description" xml:space="preserve">
+    <value>The map of the tracked match.</value>
+    <comment>Map description.</comment>
+  </data>
+  <data name="Variables.Mode.DisplayName" xml:space="preserve">
+    <value>Mode</value>
+    <comment>Mode variable.</comment>
+  </data>
+  <data name="Variables.Mode.Description" xml:space="preserve">
+    <value>The game mode of the tracked match.</value>
+    <comment>Mode description.</comment>
+  </data>
+  <data name="Variables.MatchType.DisplayName" xml:space="preserve">
+    <value>Match type</value>
+    <comment>Match type variable.</comment>
+  </data>
+  <data name="Variables.MatchType.Description" xml:space="preserve">
+    <value>Ranked, unranked, quick match and the rest.</value>
+    <comment>Match type description.</comment>
+  </data>
+  <data name="Variables.Site.DisplayName" xml:space="preserve">
+    <value>Bomb site</value>
+    <comment>Site variable.</comment>
+  </data>
+  <data name="Variables.Site.Description" xml:space="preserve">
+    <value>The objective site of the latest round.</value>
+    <comment>Site description.</comment>
+  </data>
+  <data name="Variables.Round.DisplayName" xml:space="preserve">
+    <value>Round</value>
+    <comment>Round variable.</comment>
+  </data>
+  <data name="Variables.Round.Description" xml:space="preserve">
+    <value>The latest completed round number.</value>
+    <comment>Round description.</comment>
+  </data>
+  <data name="Variables.RoundsPerMatch.DisplayName" xml:space="preserve">
+    <value>Rounds per match</value>
+    <comment>Rounds per match variable.</comment>
+  </data>
+  <data name="Variables.RoundsPerMatch.Description" xml:space="preserve">
+    <value>Regulation rounds of the tracked match.</value>
+    <comment>Rounds per match description.</comment>
+  </data>
+  <data name="Variables.Overtime.DisplayName" xml:space="preserve">
+    <value>Overtime</value>
+    <comment>Overtime variable.</comment>
+  </data>
+  <data name="Variables.Overtime.Description" xml:space="preserve">
+    <value>Whether the tracked match reached overtime.</value>
+    <comment>Overtime description.</comment>
+  </data>
+  <data name="Variables.YourScore.DisplayName" xml:space="preserve">
+    <value>Your score</value>
+    <comment>Your score variable.</comment>
+  </data>
+  <data name="Variables.YourScore.Description" xml:space="preserve">
+    <value>Rounds won by your team.</value>
+    <comment>Your score description.</comment>
+  </data>
+  <data name="Variables.OppScore.DisplayName" xml:space="preserve">
+    <value>Opponent score</value>
+    <comment>Opponent score variable.</comment>
+  </data>
+  <data name="Variables.OppScore.Description" xml:space="preserve">
+    <value>Rounds won by the opponents.</value>
+    <comment>Opponent score description.</comment>
+  </data>
+  <data name="Variables.YourRole.DisplayName" xml:space="preserve">
+    <value>Your side</value>
+    <comment>Your side variable.</comment>
+  </data>
+  <data name="Variables.YourRole.Description" xml:space="preserve">
+    <value>Whether your team attacks or defends this round.</value>
+    <comment>Your side description.</comment>
+  </data>
+  <data name="Variables.OppRole.DisplayName" xml:space="preserve">
+    <value>Opponent side</value>
+    <comment>Opponent side variable.</comment>
+  </data>
+  <data name="Variables.OppRole.Description" xml:space="preserve">
+    <value>Whether the opponents attack or defend this round.</value>
+    <comment>Opponent side description.</comment>
+  </data>
+  <data name="Variables.RoundHistory.DisplayName" xml:space="preserve">
+    <value>Round history</value>
+    <comment>Round history variable.</comment>
+  </data>
+  <data name="Variables.RoundHistory.Description" xml:space="preserve">
+    <value>W and L per completed round from your perspective.</value>
+    <comment>Round history description.</comment>
+  </data>
+  <data name="Variables.PlayersCount.DisplayName" xml:space="preserve">
+    <value>Players</value>
+    <comment>Players variable.</comment>
+  </data>
+  <data name="Variables.PlayersCount.Description" xml:space="preserve">
+    <value>Players on the latest scoreboard.</value>
+    <comment>Players description.</comment>
+  </data>
+  <data name="Variables.TopFragger.DisplayName" xml:space="preserve">
+    <value>Top fragger</value>
+    <comment>Top fragger variable.</comment>
+  </data>
+  <data name="Variables.TopFragger.Description" xml:space="preserve">
+    <value>Highest-kill player on your team this match.</value>
+    <comment>Top fragger description.</comment>
+  </data>
+  <data name="Variables.TopFrags.DisplayName" xml:space="preserve">
+    <value>Top frags</value>
+    <comment>Top frags variable.</comment>
+  </data>
+  <data name="Variables.TopFrags.Description" xml:space="preserve">
+    <value>Their kill count.</value>
+    <comment>Top frags description.</comment>
+  </data>
+  <data name="Variables.LastKiller.DisplayName" xml:space="preserve">
+    <value>Last killer</value>
+    <comment>Last killer variable.</comment>
+  </data>
+  <data name="Variables.LastKiller.Description" xml:space="preserve">
+    <value>Killer of the most recent tracked elimination.</value>
+    <comment>Last killer description.</comment>
+  </data>
+  <data name="Variables.LastVictim.DisplayName" xml:space="preserve">
+    <value>Last victim</value>
+    <comment>Last victim variable.</comment>
+  </data>
+  <data name="Variables.LastVictim.Description" xml:space="preserve">
+    <value>Victim of the most recent tracked elimination.</value>
+    <comment>Last victim description.</comment>
+  </data>
+  <data name="Variables.LastHeadshot.DisplayName" xml:space="preserve">
+    <value>Last elimination headshot</value>
+    <comment>Last headshot variable.</comment>
+  </data>
+  <data name="Variables.LastHeadshot.Description" xml:space="preserve">
+    <value>Whether it was a headshot.</value>
+    <comment>Last headshot description.</comment>
+  </data>
+  <data name="Variables.YourName.DisplayName" xml:space="preserve">
+    <value>Your name</value>
+    <comment>Your name variable.</comment>
+  </data>
+  <data name="Variables.YourName.Description" xml:space="preserve">
+    <value>Your username as the replay recorded it.</value>
+    <comment>Your name description.</comment>
+  </data>
+  <data name="Variables.YourOperator.DisplayName" xml:space="preserve">
+    <value>Your operator</value>
+    <comment>Your operator variable.</comment>
+  </data>
+  <data name="Variables.YourOperator.Description" xml:space="preserve">
+    <value>The operator you played last round.</value>
+    <comment>Your operator description.</comment>
+  </data>
+  <data name="Variables.YourKills.DisplayName" xml:space="preserve">
+    <value>Your kills</value>
+    <comment>Your kills variable.</comment>
+  </data>
+  <data name="Variables.YourKills.Description" xml:space="preserve">
+    <value>Your kills in the tracked match.</value>
+    <comment>Your kills description.</comment>
+  </data>
+  <data name="Variables.YourDeaths.DisplayName" xml:space="preserve">
+    <value>Your deaths</value>
+    <comment>Your deaths variable.</comment>
+  </data>
+  <data name="Variables.YourDeaths.Description" xml:space="preserve">
+    <value>Your deaths in the tracked match.</value>
+    <comment>Your deaths description.</comment>
+  </data>
+  <data name="Variables.YourAssists.DisplayName" xml:space="preserve">
+    <value>Your assists</value>
+    <comment>Your assists variable.</comment>
+  </data>
+  <data name="Variables.YourAssists.Description" xml:space="preserve">
+    <value>Your assists in the tracked match.</value>
+    <comment>Your assists description.</comment>
+  </data>
+  <data name="Variables.YourHeadshots.DisplayName" xml:space="preserve">
+    <value>Your headshots</value>
+    <comment>Your headshots variable.</comment>
+  </data>
+  <data name="Variables.YourHeadshots.Description" xml:space="preserve">
+    <value>Your headshot kills in the tracked match.</value>
+    <comment>Your headshots description.</comment>
+  </data>
+  <data name="Variables.SessionKills.DisplayName" xml:space="preserve">
+    <value>Session kills</value>
+    <comment>Session kills variable.</comment>
+  </data>
+  <data name="Variables.SessionKills.Description" xml:space="preserve">
+    <value>Kills tracked since startup or reset.</value>
+    <comment>Session kills description.</comment>
+  </data>
+  <data name="Variables.SessionDeaths.DisplayName" xml:space="preserve">
+    <value>Session deaths</value>
+    <comment>Session deaths variable.</comment>
+  </data>
+  <data name="Variables.SessionDeaths.Description" xml:space="preserve">
+    <value>Deaths tracked since startup or reset.</value>
+    <comment>Session deaths description.</comment>
+  </data>
+  <data name="Variables.SessionAssists.DisplayName" xml:space="preserve">
+    <value>Session assists</value>
+    <comment>Session assists variable.</comment>
+  </data>
+  <data name="Variables.SessionAssists.Description" xml:space="preserve">
+    <value>Assists tracked since startup or reset.</value>
+    <comment>Session assists description.</comment>
+  </data>
+  <data name="Variables.SessionHs.DisplayName" xml:space="preserve">
+    <value>Session headshots</value>
+    <comment>Session headshots variable.</comment>
+  </data>
+  <data name="Variables.SessionHs.Description" xml:space="preserve">
+    <value>Headshot kills tracked since startup or reset.</value>
+    <comment>Session headshots description.</comment>
+  </data>
+  <data name="Variables.Streak.DisplayName" xml:space="preserve">
+    <value>Kill streak</value>
+    <comment>Streak variable.</comment>
+  </data>
+  <data name="Variables.Streak.Description" xml:space="preserve">
+    <value>Your current kill streak without dying.</value>
+    <comment>Streak description.</comment>
+  </data>
+  <data name="Variables.BestStreak.DisplayName" xml:space="preserve">
+    <value>Best streak</value>
+    <comment>Best streak variable.</comment>
+  </data>
+  <data name="Variables.BestStreak.Description" xml:space="preserve">
+    <value>Your best kill streak this session.</value>
+    <comment>Best streak description.</comment>
+  </data>
+  <data name="Variables.MatchOutcome.DisplayName" xml:space="preserve">
+    <value>Match outcome</value>
+    <comment>Match outcome variable.</comment>
+  </data>
+  <data name="Variables.MatchOutcome.Description" xml:space="preserve">
+    <value>Victory or defeat of the last completed match.</value>
+    <comment>Match outcome description.</comment>
+  </data>
+  <data name="Variables.RoundsTracked.DisplayName" xml:space="preserve">
+    <value>Rounds tracked</value>
+    <comment>Rounds tracked variable.</comment>
+  </data>
+  <data name="Variables.RoundsTracked.Description" xml:space="preserve">
+    <value>Rounds imported for the current match.</value>
+    <comment>Rounds tracked description.</comment>
+  </data>
+</root>

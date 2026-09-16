@@ -62,6 +62,10 @@ jobs:
             slug: csmd
             name: "CS:MD"
             tagPrefix: "csmd-"
+          - source: src/R6Md
+            slug: r6md
+            name: "R6MD"
+            tagPrefix: "r6md-"
     steps:
       - name: Checkout
         uses: actions/checkout@v5

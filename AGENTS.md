@@ -4,12 +4,13 @@ This file must be kept up to date. When a rule here stops matching reality, or a
 work in this repository, update this file as part of that change rather than leaving it to drift.
 
 This repository started from the **Macro Deck 3 out-of-process plugin template**, but it is
-now four real plugins in one solution, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
+now five real plugins in one solution, not a template checkout: `src/WindowsMediaControl/` holds the Windows Media
 Control integration (41 actions, 40 variables plus an app-volume catalog, 4 events, a music player, a Now Playing widget type
 and a 5-step configuration flow with 26 settings), `src/ScreenControl/` holds the Screen Control
 integration (14 actions with power/input/topmost button states, 6 variables plus a monitor-brightness catalog, and a Monitor Brightness slider widget type with relative drag: DDC monitor brightness/input/power, window state, topmost, snap and virtual-desktop control),
 `src/Timers/` holds the Timers integration (14 actions, 15 variables, 2 events: countdowns with adjust/toggle/progress, a stopwatch, an isolated Pomodoro cycle, and a Focus Timer widget type with configuration),
-and `src/CsMd/` holds the CS:MD integration (`com.misu.csmd`: 4 actions, 68 variables, 14 events, a tabbed Match HUD command-deck widget (segmented Match/Player/Intel pages: scorebug with history dots, bomb card with live countdown, meta/stat/battlefield card grids, full-ring HP gauge, health/damage/economy graphs, compass direction arrow, configurable event feed; idle card with working Simulate/Install buttons), 4-step config flow; live Counter-Strike 2 state over a loopback GSI listener with Steam discovery, map place names out of the game's own VPKs, plus a one-click cfg installer; positions and place names resolve only from spectator/GOTV feeds because the game withholds them from players, and console position tracking (Console/, polled getpos trigger plus console.log tail, gated on local-alive focus) fills them where the game permits the command (practice with sv_cheats, since both getpos variants are cheat-gated; quiet on official servers) once the user sets the -condebug launch options; Simulate injects a Mirage Middle position so the tiles stay verifiable).
+and `src/CsMd/` holds the CS:MD integration (`com.misu.csmd`: 4 actions, 68 variables, 14 events, a tabbed Match HUD command-deck widget (segmented Match/Player/Intel pages: scorebug with history dots, bomb card with live countdown, meta/stat/battlefield card grids, full-ring HP gauge, health/damage/economy graphs, compass direction arrow, configurable event feed; idle card with working Simulate/Install buttons), 4-step config flow; live Counter-Strike 2 state over a loopback GSI listener with Steam discovery, map place names out of the game's own VPKs, plus a one-click cfg installer; positions and place names resolve only from spectator/GOTV feeds because the game withholds them from players, and console position tracking (Console/, polled getpos trigger plus console.log tail, gated on local-alive focus) fills them where the game permits the command (practice with sv_cheats, since both getpos variants are cheat-gated; quiet on official servers) once the user sets the -condebug launch options; Simulate injects a Mirage Middle position so the tiles stay verifiable),
+and `src/R6Md/` holds the R6MD integration (`com.misu.r6md`: 4 actions, 36 variables, 11 events, a Match HUD widget type with scorebug, round history, team rosters, kill feed and session line plus Simulate/Open-folder idle actions, 2-step config flow; Rainbow Six Siege match state from the game's own MatchReplay `.rec` files via a vendored r6-dissect build (Tools/, MIT, rebuilt from upstream when the format drifts), with Steam/Ubisoft install discovery; round-granular by nature since replays land per round, and there is deliberately no memory reading, no Overwolf dependency and no Ubisoft credential handling).
 The template's example action is long gone. The orientation and
 identity checklists below still apply to the mechanics (manifest, build recipe, analyzers), but do
 not "restore" the minimal shape. Every plugin follows the same shape (manifest, build recipe,
@@ -43,6 +44,12 @@ src/WindowsMediaControl/
 src/ScreenControl/       same shape: DDC monitor service (Monitors/, with gamma-ramp software brightness plus a click-through dimmer veil below the driver floor, and caps-aware input cycling), Win32 window/desktop service (Windows/), 14 actions, 6 variables plus a monitor-brightness catalog
 src/Timers/              same shape: countdown/stopwatch service (Timing/), 10 actions, 8 variables, countdown-finished event, plus an isolated PomodoroService and a Focus Timer widget type (Widgets/, IWidgetTypeProvider+IUiProvider wired through the integration like NowPlayingWidget)
 src/CsMd/                same shape plus Config/: loopback GSI listener service (Gsi/, raw TcpListener so the game gets a stable port, ordered channel dispatch, tolerant DTOs), Steam discovery + cfg installer, 3 actions, 33 variables, 11 derived events, 3-step config flow (IConfigFlowProvider)
+src/R6Md/                same shape plus Config/ and Tools/: replay watcher service (Replays/, FileSystemWatcher plus rescan over the game's MatchReplay folder, Steam/Ubisoft discovery, tolerant DTOs over vendored-parser JSON), 4 actions, 36 variables, 11 derived events, 2-step config flow
+tests/R6Md.Tests/
+  ReplayMappingTests.cs   mapping tests against a real parser-output fixture
+  PluginIntegrationTests.cs   actions, variables, events, config flow
+  MatchHudWidgetTests.cs   previews plus the widget fit guardrail
+  WidgetFitEstimator.cs   shared tile-fit measuring helper
 tests/WindowsMediaControl.Tests/
   PluginIntegrationTests.cs   behaviour tests against FakeMediaControlService
   FakeMediaControlService.cs  controllable stand-in for SMTC/audio
@@ -56,7 +63,9 @@ directly (nothing leaves the process), Screen Control has no checked-in
 conformance run because the suite would drive real monitor brightness, input
 switches and window focus (see README.md). CS:MD runs it directly too (loopback
 listener plus in-process simulate/reset; the Install action only writes when it
-finds a real CS2 install). Unit tests plus
+finds a real CS2 install). R6MD runs it directly as well (file watcher plus
+in-process simulate/reset/rescan; nothing writes outside its own state).
+Unit tests plus
 `macrodeck-plugin build`, `validate --artifact` and `inspect` cover it instead.
 CS:MD widget layout has one more guardrail: the fit-estimator test
 (`Sample_trees_fit_a_three_by_three_tile_without_squeezing_text`) keeps the

@@ -10,11 +10,13 @@
     <Project Path="src/ScreenControl/ScreenControl.csproj" />
     <Project Path="src/Timers/Timers.csproj" />
     <Project Path="src/CsMd/CsMd.csproj" />
+    <Project Path="src/R6Md/R6Md.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WindowsMediaControl.Tests/WindowsMediaControl.Tests.csproj" />
     <Project Path="tests/ScreenControl.Tests/ScreenControl.Tests.csproj" />
     <Project Path="tests/Timers.Tests/Timers.Tests.csproj" />
     <Project Path="tests/CsMd.Tests/CsMd.Tests.csproj" />
+    <Project Path="tests/R6Md.Tests/R6Md.Tests.csproj" />
   </Folder>
 </Solution>
