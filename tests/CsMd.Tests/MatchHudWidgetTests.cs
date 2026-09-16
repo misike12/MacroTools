@@ -308,6 +308,22 @@ public sealed class MatchHudWidgetTests
 
 			session!.Dispatch(Change(tabs, 2));
 			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("intel-page"));
+
+			session!.Dispatch(new MacroDeck.Ui.Model.Events.UiEvent
+			{
+				NodeId = tabs,
+				Name = "change",
+				Data = JsonDocument.Parse("\"intel\"").RootElement.Clone(),
+			});
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("intel-page"));
+
+			session!.Dispatch(new MacroDeck.Ui.Model.Events.UiEvent
+			{
+				NodeId = tabs,
+				Name = "change",
+				Data = JsonDocument.Parse("9").RootElement.Clone(),
+			});
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("intel-page"));
 		}
 		finally
 		{

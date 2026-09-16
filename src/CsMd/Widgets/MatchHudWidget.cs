@@ -208,6 +208,7 @@ internal static class MatchHudColors
 
 public sealed record MatchHudActions(
 	Func<int, UiEventOutcome> SelectPage,
+	Func<UiEventData, UiEventOutcome> SelectPageData,
 	Func<UiEventOutcome> Simulate,
 	Func<UiEventOutcome> Install);
 
@@ -216,7 +217,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "11";
+	internal const string TreeGeneration = "12";
 
 	private const string CardBackground = "#22252C";
 
@@ -294,7 +295,7 @@ internal static class MatchHudView
 			MainSize = UiSize.Capped(0.08, 22),
 			Events = actions is null
 				? []
-				: [UiEventHandler.On(UiComponentEvents.Change, data => actions.SelectPage(PageIndex(data)))],
+				: [UiEventHandler.On(UiComponentEvents.Change, data => actions.SelectPageData(data))],
 			Children = segments,
 			Fallback = new UiStack
 			{
@@ -310,9 +311,6 @@ internal static class MatchHudView
 			},
 		};
 	}
-
-	private static int PageIndex(UiEventData data) =>
-		data.TryGetDouble(out var index) ? (int)index : MatchHudContent.PageMatch;
 
 	private static UiStack TabSegment(string key, string icon, MacroDeck.Localization.LocalizedString label) => new()
 	{
@@ -844,7 +842,7 @@ internal static class MatchHudView
 			new UiLayer
 			{
 				Key = "hp",
-				MainSize = UiSize.Capped(0.29, 68),
+				MainSize = UiSize.Capped(0.27, 64),
 				Children =
 				[
 					new UiStack
@@ -863,7 +861,7 @@ internal static class MatchHudView
 								StartAngle = 0,
 								EndAngle = 360,
 								Thickness = UiSize.Capped(0.05, 12),
-								MainSize = UiSize.Capped(0.29, 68),
+								MainSize = UiSize.Capped(0.27, 64),
 								Fallback = new UiRangeBar
 								{
 									Key = "hp-gauge-fallback",
@@ -983,7 +981,7 @@ internal static class MatchHudView
 		return new UiStack
 		{
 			Key = "player",
-			Gap = 0.012,
+			Gap = 0.016,
 			Children = body,
 		};
 	}
@@ -1017,7 +1015,7 @@ internal static class MatchHudView
 			Key = "charts",
 			Columns = UiValue.Of(3),
 			Gap = 0.02,
-			MainSize = UiSize.Capped(0.14, 30),
+			MainSize = UiSize.Capped(0.13, 28),
 			Children =
 			[
 				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
@@ -1061,7 +1059,7 @@ internal static class MatchHudView
 				Points = UiValue.From(() => points(content.Value)),
 						Color = UiValue.Of(color),
 						Thickness = 0.02,
-						MainSize = UiSize.Capped(0.08, 20),
+						MainSize = UiSize.Capped(0.075, 18),
 			},
 		};
 
@@ -1073,9 +1071,9 @@ internal static class MatchHudView
 					Condition = () => !string.IsNullOrWhiteSpace(caption(content.Value)),
 					Content = () => new UiTextRun
 					{
-						Key = prefix + "-caption",
-						Text = UiText.From(() => caption(content.Value)),
-						Size = UiSize.Capped(0.085, 10),
+					Key = prefix + "-caption",
+					Text = UiText.From(() => caption(content.Value)),
+					Size = UiSize.Capped(0.075, 9),
 						Role = UiComponentTextRoles.Muted,
 						Align = UiComponentAlignments.Center,
 					},
@@ -2010,6 +2008,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			CsSettingsProvider settings,
 			Serilog.ILogger logger) => new(
 			SelectPage: index => SelectPage(content, index),
+			SelectPageData: data => SelectPageData(content, data, logger),
 			Simulate: () => SimulateMatch(gsi, logger),
 			Install: () => InstallGsiConfig(gsi, settings, logger));
 
@@ -2024,6 +2023,20 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 
 			content.Set(content.Peek() with { Page = index });
 			return UiEventOutcome.Accepted;
+		}
+
+		private static UiEventOutcome SelectPageData(UiState<MatchHudContent> content, UiEventData data, Serilog.ILogger? logger)
+		{
+			// A payload that is not a segment index must never move the tree:
+			// defaulting it to the first page would snap a live tab back to
+			// MATCH on any stray change event instead.
+			if (!data.TryGetDouble(out var index))
+			{
+				logger?.Debug("Widget tab change carried no segment index.");
+				return UiEventOutcome.Rejected("Unknown page.");
+			}
+
+			return SelectPage(content, (int)index);
 		}
 
 		private static UiEventOutcome SimulateMatch(GsiService gsi, Serilog.ILogger logger)
