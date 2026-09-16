@@ -6,7 +6,9 @@
     "author": "Misu",
     "version": "1.0.0",
     "minimum-overwolf-version": "0.200.0",
-    "description": "Forwards Rainbow Six Siege match data to the R6MD Macro Deck plugin over loopback. Personal use, no data leaves this machine."
+    "description": "Forwards Rainbow Six Siege match data to the R6MD Macro Deck plugin over loopback. Personal use, no data leaves this machine.",
+    "icon": "icon.png",
+    "icon_gray": "icon_gray.png"
   },
   "data": {
     "start_window": "background",
