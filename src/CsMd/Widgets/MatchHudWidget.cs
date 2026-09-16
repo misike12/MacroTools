@@ -217,9 +217,15 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "14";
+	internal const string TreeGeneration = "15";
 
-	private const string CardBackground = "#22252C";
+	private const string CardBackground = "#262C38";
+	private const string ScoreCardBackground = "#20242D";
+	private const string PillNeutral = "#2C3340";
+	private const string PillGreen = "#123A24";
+	private const string PillRed = "#3D1F1F";
+	private const string PillBlue = "#1C3A4D";
+	private const string PillYellow = "#3D3417";
 
 	public static UiElement Build(UiState<MatchHudContent> content, MatchHudActions? actions = null)
 	{
@@ -292,7 +298,7 @@ internal static class MatchHudView
 		{
 			Key = "tabs",
 			Selected = UiValue.From(() => content.Value.Page),
-			MainSize = UiSize.Capped(0.08, 22),
+			MainSize = UiSize.Capped(0.075, 20),
 			Events = actions is null
 				? []
 				: [UiEventHandler.On(UiComponentEvents.Change, data => actions.SelectPageData(data))],
@@ -490,7 +496,7 @@ internal static class MatchHudView
 		};
 	}
 
-	private static UiStack Scorebug(UiState<MatchHudContent> content, MatchHudOptions options)
+	private static UiButton Scorebug(UiState<MatchHudContent> content, MatchHudOptions options)
 	{
 		var big = options.Compact ? UiSize.Capped(0.15, 24) : UiSize.Capped(0.19, 34);
 		var micro = UiSize.Capped(0.08, 10);
@@ -598,15 +604,18 @@ internal static class MatchHudView
 		});
 		body.Add(MicroLine(content, "map", () => content.Value.MapLine));
 
-		return new UiStack
+		return new UiButton
 		{
 			Key = "scorebug",
+			Justify = UiComponentJustify.Start,
+			Background = UiValue.Of(ScoreCardBackground),
+			Padding = 0.015,
 			Gap = 0.015,
 			Children = body,
 		};
 	}
 
-	private static UiStack StatCard(string key, MacroDeck.Localization.LocalizedString caption, Func<string> value, string? color = null)
+	private static UiButton StatCard(string key, MacroDeck.Localization.LocalizedString caption, Func<string> value, string? color = null)
 	{
 		var valueRun = new UiTextRun
 		{
@@ -616,9 +625,11 @@ internal static class MatchHudView
 			Weight = UiComponentTextWeights.SemiBold,
 			Align = UiComponentAlignments.Center,
 		};
-		return new UiStack
+		return new UiButton
 		{
 			Key = key,
+			Justify = UiComponentJustify.Center,
+			Align = UiComponentAlignments.Center,
 			Background = UiValue.Of(CardBackground),
 			Padding = 0.012,
 			Gap = 0.004,
@@ -696,7 +707,7 @@ internal static class MatchHudView
 		],
 	};
 
-	private static UiStack MetaStrip(string key, MacroDeck.Localization.LocalizedString caption, UiTextRun value) => new()
+	private static UiButton MetaStrip(string key, MacroDeck.Localization.LocalizedString caption, UiTextRun value) => new()
 	{
 		Key = key,
 		Direction = UiComponentDirections.Horizontal,
@@ -719,7 +730,7 @@ internal static class MatchHudView
 		],
 	};
 
-	private static UiStack BombCard(UiState<MatchHudContent> content)
+	private static UiButton BombCard(UiState<MatchHudContent> content)
 	{
 		var body = new List<UiElement>
 		{
@@ -757,7 +768,7 @@ internal static class MatchHudView
 			Content = () => BombPanel(content),
 		});
 
-		return new UiStack
+		return new UiButton
 		{
 			Key = "bomb-card",
 			Background = UiValue.Of(CardBackground),
@@ -777,7 +788,8 @@ internal static class MatchHudView
 		[
 			AlivePill(content, "state"),
 			TextPill(content, "place", () => content.Value.HasPlace, () => content.Value.PlaceText),
-			TextPill(content, "bomb", () => content.Value.HasBomb, () => content.Value.BombText),
+			TextPill(content, "bomb", () => content.Value.HasBomb, () => content.Value.BombText,
+				() => PillRed, () => MatchHudColors.Bad),
 		],
 	};
 
@@ -923,9 +935,9 @@ internal static class MatchHudView
 				Condition = () => !string.IsNullOrWhiteSpace(content.Value.NameLine),
 				Content = () => new UiTextRun
 				{
-					Key = "player-name",
-					Text = UiText.From(() => content.Value.NameLine),
-					Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.1, 15),
+						Key = "player-name",
+						Text = UiText.From(() => content.Value.NameLine),
+						Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.095, 14),
 					Weight = UiComponentTextWeights.SemiBold,
 					Align = UiComponentAlignments.Center,
 				},
@@ -939,25 +951,16 @@ internal static class MatchHudView
 				Gap = 0.02,
 				Children =
 				[
-					// Gated: an empty run still costs its line height plus a
-					// gap, which shoves the remaining pills off center.
-					new UiWhen
-					{
-						Key = "hero-team-when",
-						Condition = () => !string.IsNullOrWhiteSpace(content.Value.PlayerTeam),
-						Content = () => new UiTextRun
-						{
-							Key = "hero-team",
-							Text = UiText.From(() => content.Value.PlayerTeam),
-							Size = UiSize.Capped(0.045, 11),
-							Weight = UiComponentTextWeights.SemiBold,
-							Color = UiValue.From(() => content.Value.PlayerTeam == "CT" ? MatchHudColors.Ct : MatchHudColors.T),
-							Align = UiComponentAlignments.Center,
-						},
-					},
+					TextPill(content, "hero-team",
+						() => !string.IsNullOrWhiteSpace(content.Value.PlayerTeam),
+						() => content.Value.PlayerTeam,
+						() => content.Value.PlayerTeam == "CT" ? PillBlue : PillYellow,
+						() => content.Value.PlayerTeam == "CT" ? MatchHudColors.Ct : MatchHudColors.T),
 					AlivePill(content, "hero-state"),
-					LocalizedPill("hero-helm", () => content.Value.Helmet, Strings.Widget.Effects.Helmet),
-					LocalizedPill("hero-defuse", () => content.Value.DefuseKit, Strings.Widget.Effects.DefuseKit),
+					LocalizedPill("hero-helm", () => content.Value.Helmet, Strings.Widget.Effects.Helmet,
+						() => PillBlue, () => MatchHudColors.Ct),
+					LocalizedPill("hero-defuse", () => content.Value.DefuseKit, Strings.Widget.Effects.DefuseKit,
+						() => PillYellow, () => MatchHudColors.Warn),
 				],
 			},
 			new UiWhen
@@ -979,7 +982,7 @@ internal static class MatchHudView
 			{
 				Key = "round-line",
 				Text = UiText.FromLocalized(() => content.Value.RoundLine),
-				Size = UiSize.Capped(0.075, 9),
+				Size = UiSize.Capped(0.07, 8),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
 			},
@@ -991,7 +994,7 @@ internal static class MatchHudView
 				{
 					Key = "topweapon",
 					Text = UiText.FromLocalized(() => content.Value.TopWeaponLine ?? Strings.Widget.TopWeapon.Line(string.Empty, 0)),
-					Size = UiSize.Capped(0.075, 9),
+					Size = UiSize.Capped(0.07, 8),
 					Role = UiComponentTextRoles.Muted,
 					Align = UiComponentAlignments.Center,
 				},
@@ -1035,7 +1038,7 @@ internal static class MatchHudView
 			Key = "charts",
 			Columns = UiValue.Of(3),
 			Gap = 0.02,
-			MainSize = UiSize.Capped(0.13, 28),
+			MainSize = UiSize.Capped(0.12, 26),
 			Children =
 			[
 				ChartBox(content, "hp-chart", MatchHudColors.Good, static c => c.HpHistory, null),
@@ -1079,7 +1082,7 @@ internal static class MatchHudView
 				Points = UiValue.From(() => points(content.Value)),
 						Color = UiValue.Of(color),
 						Thickness = 0.02,
-						MainSize = UiSize.Capped(0.075, 18),
+						MainSize = UiSize.Capped(0.07, 16),
 			},
 		};
 
@@ -1093,7 +1096,7 @@ internal static class MatchHudView
 					{
 					Key = prefix + "-caption",
 					Text = UiText.From(() => caption(content.Value)),
-					Size = UiSize.Capped(0.075, 9),
+					Size = UiSize.Capped(0.07, 8),
 						Role = UiComponentTextRoles.Muted,
 						Align = UiComponentAlignments.Center,
 					},
@@ -1164,7 +1167,7 @@ internal static class MatchHudView
 		};
 	}
 
-	private static UiStack CompassCard(UiState<MatchHudContent> content) => new()
+	private static UiButton CompassCard(UiState<MatchHudContent> content) => new()
 	{
 		Key = "compass-card",
 		Background = UiValue.Of(CardBackground),
@@ -1241,7 +1244,7 @@ internal static class MatchHudView
 		],
 	};
 
-	private static UiStack BattlefieldCard(UiState<MatchHudContent> content) => new()
+	private static UiButton BattlefieldCard(UiState<MatchHudContent> content) => new()
 	{
 		Key = "battlefield-card",
 		Background = UiValue.Of(CardBackground),
@@ -1278,15 +1281,18 @@ internal static class MatchHudView
 				Gap = 0.02,
 				Children =
 				[
-					LocalizedPill("bf-smoked", () => content.Value.Smoked, Strings.Widget.Effects.Smoked),
-					LocalizedPill("bf-burning", () => content.Value.Burning, Strings.Widget.Effects.Burning),
-					LocalizedPill("bf-flashed", () => content.Value.Flashed, Strings.Widget.Effects.Flashed),
+					LocalizedPill("bf-smoked", () => content.Value.Smoked, Strings.Widget.Effects.Smoked,
+						() => PillRed, () => MatchHudColors.Bad),
+					LocalizedPill("bf-burning", () => content.Value.Burning, Strings.Widget.Effects.Burning,
+						() => PillRed, () => MatchHudColors.Bad),
+					LocalizedPill("bf-flashed", () => content.Value.Flashed, Strings.Widget.Effects.Flashed,
+						() => PillRed, () => MatchHudColors.Bad),
 				],
 			},
 		],
 	};
 
-	private static UiStack EventsCard(UiState<MatchHudContent> content) => new()
+	private static UiButton EventsCard(UiState<MatchHudContent> content) => new()
 	{
 		Key = "events-card",
 		Background = UiValue.Of(CardBackground),
@@ -1378,61 +1384,75 @@ internal static class MatchHudView
 		],
 	};
 
-	private static UiWhen AlivePill(UiState<MatchHudContent> content, string key) => new()
-	{
-		Key = key + "-when",
-		Condition = () => true,
-		Content = () => new UiTextRun
+	private static UiWhen AlivePill(UiState<MatchHudContent> content, string key) =>
+		PillButton(key, () => true, new UiTextRun
 		{
-			Key = key,
+			Key = key + "-label",
 			Text = UiText.FromLocalized(() => content.Value.Alive
 				? Strings.Widget.State.Alive() : Strings.Widget.State.Dead()),
-			Size = UiSize.Capped(0.09, 11),
+			Size = UiSize.Capped(0.085, 10),
 			Weight = UiComponentTextWeights.Medium,
 			Color = UiValue.From(() => content.Value.Alive ? MatchHudColors.Good : MatchHudColors.Bad),
 			Align = UiComponentAlignments.Center,
-		},
-	};
+		}, () => content.Value.Alive ? PillGreen : PillRed);
 
-	private static UiWhen LocalizedPill(
+	private static UiWhen PillButton(
 		string key,
 		Func<bool> condition,
-		Func<MacroDeck.Localization.LocalizedString> text)
+		UiTextRun run,
+		Func<string> background)
 	{
 		return new UiWhen
 		{
 			Key = key + "-when",
 			Condition = () => condition(),
-			Content = () => new UiTextRun
+			Content = () => new UiButton
 			{
 				Key = key,
-				Text = UiText.FromLocalized(() => text()),
-				Size = UiSize.Capped(0.09, 11),
-				Weight = UiComponentTextWeights.Medium,
+				Justify = UiComponentJustify.Center,
 				Align = UiComponentAlignments.Center,
+				Background = UiValue.From(background),
+				Padding = 0.008,
+				Children = [run],
 			},
 		};
+	}
+
+	private static UiWhen LocalizedPill(
+		string key,
+		Func<bool> condition,
+		Func<MacroDeck.Localization.LocalizedString> text,
+		Func<string>? background = null,
+		Func<string>? color = null)
+	{
+		return PillButton(key, condition, new UiTextRun
+		{
+			Key = key + "-label",
+			Text = UiText.FromLocalized(() => text()),
+			Size = UiSize.Capped(0.085, 10),
+			Weight = UiComponentTextWeights.Medium,
+			Color = color is null ? UiValue.None<string>() : UiValue.From(color),
+			Align = UiComponentAlignments.Center,
+		}, background ?? (() => PillNeutral));
 	}
 
 	private static UiWhen TextPill(
 		UiState<MatchHudContent> content,
 		string key,
 		Func<bool> condition,
-		Func<string> text)
+		Func<string> text,
+		Func<string>? background = null,
+		Func<string>? color = null)
 	{
-		return new UiWhen
+		return PillButton(key, condition, new UiTextRun
 		{
-			Key = key + "-when",
-			Condition = () => condition(),
-			Content = () => new UiTextRun
-			{
-				Key = key,
-				Text = UiText.From(() => text()),
-				Size = UiSize.Capped(0.09, 11),
-				Weight = UiComponentTextWeights.Medium,
-				Align = UiComponentAlignments.Center,
-			},
-		};
+			Key = key + "-label",
+			Text = UiText.From(() => text()),
+			Size = UiSize.Capped(0.085, 10),
+			Weight = UiComponentTextWeights.Medium,
+			Color = color is null ? UiValue.None<string>() : UiValue.From(color),
+			Align = UiComponentAlignments.Center,
+		}, background ?? (() => PillNeutral));
 	}
 
 	private static UiWhen MicroLine(UiState<MatchHudContent> content, string key, Func<string> text) => new UiWhen
