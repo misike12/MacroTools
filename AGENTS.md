@@ -347,6 +347,7 @@ Economy rules (measured 2026-09-15: host install ~6s, pack ~2s, publish ~40s+, c
 - Run only the affected test project(s) unless shared code changed.
 - Run conformance only after a change to capability shape, lifecycle/cancellation, the manifest, or settings flow. Layout, strings, values and docs need unit tests plus `macrodeck-plugin build`, `validate --artifact` and `inspect` only.
 - Never fire two installs concurrently; a wedged one blocks the next.
+- Large artifacts (CS:MD is ~250 MB) can keep the install endpoint busy for minutes: allow a 8-10 minute timeout before calling one wedged, and probe liveness first with a tiny bad-path request (fast `artifact_not_found` means the endpoint is fine, just slow).
 
 For an interactive verification, start the installed Macro Deck desktop app and debug the plugin with
 the **Macro Deck - Real Host** `.NET` launch profile. Keep the profile secret-free; supply a first-run
