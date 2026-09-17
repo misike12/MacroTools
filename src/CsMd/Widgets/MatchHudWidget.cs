@@ -1086,7 +1086,7 @@ internal static class MatchHudView
 		Children =
 		[
 			StatCard("stat-k", Strings.Widget.Cards.Kills(), () => content.Value.Kills.ToString(System.Globalization.CultureInfo.InvariantCulture),
-				() => content.Value.Kills >= content.Value.Deaths ? MatchHudColors.Good : MatchHudColors.White),
+				() => content.Value.Kills > content.Value.Deaths ? MatchHudColors.Good : MatchHudColors.White),
 			StatCard("stat-d", Strings.Widget.Cards.Deaths(), () => content.Value.Deaths.ToString(System.Globalization.CultureInfo.InvariantCulture)),
 			StatCard("stat-a", Strings.Widget.Cards.Assists(), () => content.Value.Assists.ToString(System.Globalization.CultureInfo.InvariantCulture)),
 			StatCard("stat-hs", Strings.Widget.Cards.Headshots(), () => content.Value.SessionHs.ToString(System.Globalization.CultureInfo.InvariantCulture)),
