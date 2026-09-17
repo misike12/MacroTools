@@ -164,6 +164,13 @@ macrodeck-plugin build --source src/Timers --output ./artifacts
 macrodeck-plugin build --source src/CsMd --output ./artifacts
 ```
 
+`scripts/install-plugin.ps1` installs packed artifacts into the running host over
+loopback, one at a time, with per-artifact timing:
+
+```powershell
+./scripts/install-plugin.ps1 ./artifacts/com.misu.timers-1.1.3.macroDeckPlugin
+```
+
 The locally packed artifacts are unsigned, so Macro Deck asks for an explicit confirmation on install. (Store releases are signed server-side by the Creator Portal.)
 
 Headless alternative over plain HTTP on the host machine (no auth on the loopback listener; the TLS port requires login). The port lives in `%TEMP%\macro-deck-host.port`:
