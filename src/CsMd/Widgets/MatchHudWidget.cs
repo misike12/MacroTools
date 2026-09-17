@@ -2204,16 +2204,32 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 
 		private static UiEventOutcome SelectPageData(UiState<MatchHudContent> content, UiEventData data, Serilog.ILogger? logger)
 		{
-			// A payload that is not a segment index must never move the tree:
-			// defaulting it to the first page would snap a live tab back to
-			// MATCH on any stray change event instead.
-			if (!data.TryGetDouble(out var index))
+			// Segmented control sends the segment index; payload shape varies by host version.
+			// Try double first (standard), then integer, then string.
+			double? index = null;
+			if (data.TryGetDouble(out var d))
 			{
-				logger?.Debug("Widget tab change carried no segment index.");
+				index = d;
+			}
+			else if (data.Raw is { ValueKind: System.Text.Json.JsonValueKind.Number } rawNumber)
+			{
+				try { index = rawNumber.GetDouble(); } catch { }
+			}
+			else if (data.Raw is { ValueKind: System.Text.Json.JsonValueKind.String } rawString)
+			{
+				if (double.TryParse(rawString.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+				{
+					index = parsed;
+				}
+			}
+
+			if (index is null)
+			{
+				logger?.Debug("Widget tab change carried no parseable segment index: {Raw}", data.Raw);
 				return UiEventOutcome.Rejected("Unknown page.");
 			}
 
-			return SelectPage(content, (int)index);
+			return SelectPage(content, (int)Math.Round(index.Value));
 		}
 
 		private static UiEventOutcome SimulateMatch(GsiService gsi, Serilog.ILogger logger)
