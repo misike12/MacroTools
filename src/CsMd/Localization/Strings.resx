@@ -774,6 +774,12 @@
   <data name="Widget.State.Dead" xml:space="preserve">
     <value>OUT</value>
   </data>
+  <data name="Widget.State.Live" xml:space="preserve">
+    <value>● LIVE</value>
+  </data>
+  <data name="Widget.State.Low" xml:space="preserve">
+    <value>LOW</value>
+  </data>
   <data name="Widget.NoData.Caption" xml:space="preserve">
     <value>Waiting for match data</value>
   </data>

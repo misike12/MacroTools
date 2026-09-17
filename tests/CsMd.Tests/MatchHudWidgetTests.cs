@@ -381,6 +381,44 @@ public sealed class MatchHudWidgetTests
 		Assert.That(patches, Does.Contain("\"3\""));
 	}
 
+	[Test]
+	public void Live_phase_renders_live_pill_instead_of_phase_text()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(MatchHudContent.SampleLive);
+		var live = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+		Assert.That(live, Does.Contain("live-pill"));
+		Assert.That(live, Does.Not.Contain("\"phase\""));
+
+		var freezetime = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(
+			new UiState<MatchHudContent>(MatchHudContent.SampleLive with { MapPhase = "FREEZETIME" }))).Tree);
+
+		Assert.That(freezetime, Does.Not.Contain("live-pill"));
+		Assert.That(freezetime, Does.Contain("FREEZETIME"));
+	}
+
+	[Test]
+	public void Low_hp_renders_low_pill_and_red_number()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(
+			MatchHudContent.SampleLive with { Page = MatchHudContent.PagePlayer, HpFrac = 0.2, HpText = "20" });
+		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+		Assert.That(tree, Does.Contain("hero-low"));
+	}
+
 	private static string ResolveEn(MacroDeck.Localization.LocalizedString text)
 	{
 		var registry = new MacroDeck.Localization.LocalizationCatalogRegistry();
