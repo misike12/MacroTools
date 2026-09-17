@@ -924,10 +924,21 @@ public sealed class GsiService : IDisposable
 			}
 		}
 
-			var focus = FocusedPlayer(current, previous);
+var focus = FocusedPlayer(current, previous);
 		var previousFocus = previous is not null ? FocusedPlayer(previous, null) : null;
 		if (focus is not null)
 		{
+			// Reset streak if the spectated player changed so it only tracks one person
+			if (previousFocus is not null
+				&& focus.SteamId is string
+				&& previousFocus.SteamId is string
+				&& !string.Equals(focus.SteamId, previousFocus.SteamId))
+			{
+				_streak = 0;
+				_bestStreak = 0;
+				_weaponKills.Clear();
+			}
+
 			var position = ResolvePosition(current, focus, previous);
 			var place = position is not null
 				? SafeFindPlace(current.Map?.Name, position.X, position.Y, position.Z)

@@ -222,7 +222,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "17";
+	internal const string TreeGeneration = "18";
 
 	private const string CardBackground = "#262C38";
 	private const string ScoreCardBackground = "#1D232D";
@@ -846,7 +846,7 @@ internal static class MatchHudView
 		Key = "match-pills",
 		Direction = UiComponentDirections.Horizontal,
 		Justify = UiComponentJustify.Center,
-		Gap = 0.02,
+		Gap = 0.015,
 		Children =
 		[
 			AlivePill(content, "state"),
@@ -862,6 +862,7 @@ internal static class MatchHudView
 	private static UiStack SideScore(UiState<MatchHudContent> content, UiSize big, bool ct) => new UiStack
 	{
 		Key = ct ? "ct-side" : "t-side",
+		Fill = false,
 		Gap = 0.008,
 		Children =
 		[
@@ -885,7 +886,7 @@ internal static class MatchHudView
 				{
 					Key = ct ? "ct-name" : "t-name",
 					Text = UiText.From(() => ct ? content.Value.CtName : content.Value.TName),
-					Size = UiSize.Capped(0.085, 11),
+					Size = UiSize.Capped(0.075, 11),
 					Weight = UiComponentTextWeights.SemiBold,
 					Color = UiValue.Of(MatchHudColors.White),
 					Align = UiComponentAlignments.Center,
@@ -1907,8 +1908,8 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			snapshot.Flashed,
 			snapshot.Helmet,
 			snapshot.DefuseKit,
-			snapshot.KillStreak,
-			snapshot.KillStreak >= 2,
+			snapshot.KillStreak + snapshot.TopWeaponKills,
+			snapshot.KillStreak + snapshot.TopWeaponKills >= 2,
 			sessionLine,
 			hpHistory,
 			hpHistory.Count > 0,
