@@ -21,7 +21,7 @@ public sealed class StartStopwatchAction(TimerService timers) : IActionDefinitio
 			try
 			{
 				timers.StartStopwatch();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -47,7 +47,7 @@ public sealed class StopStopwatchAction(TimerService timers) : IActionDefinition
 			try
 			{
 				timers.StopStopwatch();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -73,7 +73,7 @@ public sealed class ResetStopwatchAction(TimerService timers) : IActionDefinitio
 			try
 			{
 				timers.ResetStopwatch();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -99,7 +99,7 @@ public sealed class ToggleStopwatchAction(TimerService timers) : IActionDefiniti
 			try
 			{
 				timers.ToggleStopwatch();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{

@@ -548,8 +548,9 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 		return new FocusTimerContent(
 			"countdown",
 			string.Empty,
+			label,
 			hasSession ? FocusTimerContent.FormatRemaining(remaining) : FocusTimerContent.FormatRemaining(TimeSpan.FromMinutes(options.CountdownMinutes)),
-			label, string.Empty, 0, 0,
+			string.Empty, 0, 0,
 			new UiProgressReference
 			{
 				PositionMs = (long)Math.Clamp(elapsed.TotalMilliseconds, 0, double.MaxValue),
@@ -568,8 +569,8 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 		return new FocusTimerContent(
 			"stopwatch",
 			string.Empty,
-			FocusTimerContent.FormatRemaining(elapsed),
-			string.Empty, string.Empty, 0, 0,
+			string.Empty,
+			FocusTimerContent.FormatRemaining(elapsed), string.Empty, 0, 0,
 			new UiProgressReference
 			{
 				PositionMs = (long)Math.Clamp(elapsed.TotalMilliseconds, 0, double.MaxValue),

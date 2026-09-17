@@ -1146,7 +1146,7 @@ public sealed class ReplayService : IDisposable
 			Site = match.Site ?? string.Empty;
 			Opener = (match.MatchFeedback ?? [])
 				.Where(f => string.Equals(f.TypeName, "Kill", StringComparison.OrdinalIgnoreCase))
-				.OrderByDescending(f => f.TimeInSeconds ?? -1)
+				.OrderBy(f => f.TimeInSeconds ?? -1)
 				.Select(f => f.Username ?? string.Empty)
 				.FirstOrDefault() ?? string.Empty;
 			Dcs = (match.MatchFeedback ?? [])

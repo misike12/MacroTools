@@ -409,7 +409,16 @@ public sealed class GsiService : IDisposable
 			catch (Exception ex)
 			{
 				_logger.Debug(ex, "GSI accept failed.");
-				break;
+				try
+				{
+					await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+				}
+				catch (OperationCanceledException)
+				{
+					break;
+				}
+
+				continue;
 			}
 
 			_ = HandleAsync(client, cancellationToken);

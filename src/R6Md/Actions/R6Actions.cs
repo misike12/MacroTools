@@ -27,7 +27,7 @@ public sealed class SimulateMatchAction(ReplayService replays) : IActionDefiniti
 			try
 			{
 				replays.InjectSample();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -53,7 +53,7 @@ public sealed class ResetSessionStatsAction(ReplayService replays) : IActionDefi
 			try
 			{
 				replays.ResetSessionStats();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{

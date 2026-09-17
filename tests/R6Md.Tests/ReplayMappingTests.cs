@@ -111,7 +111,7 @@ public sealed class ReplayMappingTests
 		Assert.That(snapshot.YourScore, Is.EqualTo(2));
 		Assert.That(snapshot.RoundHistory, Is.EqualTo("LW"));
 		Assert.That(snapshot.SiteHistory, Does.Contain("Kitchen"));
-		Assert.That(snapshot.Opener, Is.Not.Empty);
+		Assert.That(snapshot.Opener, Is.EqualTo("qqtmiku"));
 		Assert.That(snapshot.YourKost, Is.InRange(0.0, 1.0));
 		Assert.That(snapshot.MatchDurationMinutes, Is.GreaterThanOrEqualTo(0.0));
 	}

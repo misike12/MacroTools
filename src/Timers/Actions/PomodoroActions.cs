@@ -91,7 +91,7 @@ public sealed class StartPomodoroAction(PomodoroService pomodoro) : IActionDefin
 			try
 			{
 				pomodoro.Start(new PomodoroSettings(work.Value, shortBreak.Value, longBreak.Value, (int)rounds.Value, autoAdvance.Value));
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -117,7 +117,7 @@ public sealed class StopPomodoroAction(PomodoroService pomodoro) : IActionDefini
 			try
 			{
 				pomodoro.Stop();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -143,7 +143,7 @@ public sealed class SkipPomodoroPhaseAction(PomodoroService pomodoro) : IActionD
 			try
 			{
 				pomodoro.Skip();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -169,7 +169,7 @@ public sealed class TogglePomodoroAction(PomodoroService pomodoro) : IActionDefi
 			try
 			{
 				pomodoro.Toggle();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{

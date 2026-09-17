@@ -49,13 +49,18 @@ public sealed class PositionTrigger : IPositionTrigger
 				new() { Type = InputKeyboard, Vk = virtualKey, Scan = 0, Flags = 0 },
 				new() { Type = InputKeyboard, Vk = virtualKey, Scan = 0, Flags = KeyEventKeyUp },
 			};
-			return SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Input>()) == inputs.Length;
+			return SendInput((uint)inputs.Length, inputs, InputSize) == inputs.Length;
 		}
 		catch (Exception)
 		{
 			return false;
 		}
 	}
+
+	// sizeof(INPUT) is 28 on x86 and 40 on x64. SendInput rejects the call
+	// when cbSize does not match, so the explicit 32-byte layout below must
+	// not be passed as the size on either architecture.
+	private static int InputSize => IntPtr.Size == 8 ? 40 : 28;
 
 	[StructLayout(LayoutKind.Explicit, Size = 32)]
 	private struct Input

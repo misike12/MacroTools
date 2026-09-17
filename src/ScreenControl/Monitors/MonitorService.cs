@@ -85,9 +85,10 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		{
 			foreach (var handle in target.Handles)
 			{
-				if (BrightnessRange(handle) is (int min, int max))
+				if (BrightnessRange(handle) is (int min, int max)
+					&& NativeMethods.SetMonitorBrightness(handle, ToNative(percent, min, max)))
 				{
-					return NativeMethods.SetMonitorBrightness(handle, ToNative(percent, min, max));
+					return true;
 				}
 			}
 
@@ -213,6 +214,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 	{
 		try
 		{
+			RestoreGamma();
 			_dimmer.HideAll();
 		}
 		catch (Exception)
@@ -230,10 +232,31 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		_disposed = true;
 		try
 		{
+			RestoreGamma();
 			_dimmer.Dispose();
 		}
 		catch (Exception)
 		{
+		}
+	}
+
+	// The dimmer veil hides instantly, but the GPU gamma ramp it pairs with
+	// does not: without an explicit restore the screen stays color-crushed
+	// after HideOverlays or shutdown with no veil to explain it.
+	private void RestoreGamma()
+	{
+		foreach (var device in _gammaLevel.Keys)
+		{
+			try
+			{
+				if (GammaRamp.TrySet(device, 100))
+				{
+					_gammaLevel[device] = 100;
+				}
+			}
+			catch (Exception)
+			{
+			}
 		}
 	}
 
@@ -466,12 +489,20 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		{
 			MonitorEnumProc callback = (IntPtr hMonitor, IntPtr _, ref NativeMethods.Rect __, IntPtr ___) =>
 			{
+				// Count only monitors GetMonitors would list: Describe skips
+				// anything GetMonitorInfo fails on, so TargetFor must skip those
+				// too or indexes shift past the first undescribable monitor.
+				var geometry = GeometryOf(hMonitor);
+				if (geometry is null)
+				{
+					return true;
+				}
+
 				current++;
 				if (current == index)
 				{
 					var handles = OpenPhysicalMonitors(hMonitor);
-					var geometry = GeometryOf(hMonitor);
-					if (handles is not null && geometry is not null)
+					if (handles is not null)
 					{
 						target = new Target(
 							handles, geometry.Value.Device,

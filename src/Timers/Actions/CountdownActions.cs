@@ -143,7 +143,7 @@ public sealed class StartCountdownAction(TimerService timers) : IActionDefinitio
 			try
 			{
 				timers.StartCountdown(total, TimerParameters.ReadLabel(context.Parameters));
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -169,7 +169,7 @@ public sealed class PauseCountdownAction(TimerService timers) : IActionDefinitio
 			try
 			{
 				timers.PauseCountdown();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -195,7 +195,7 @@ public sealed class ResumeCountdownAction(TimerService timers) : IActionDefiniti
 			try
 			{
 				timers.ResumeCountdown();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -221,7 +221,7 @@ public sealed class CancelCountdownAction(TimerService timers) : IActionDefiniti
 			try
 			{
 				timers.CancelCountdown();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -247,7 +247,7 @@ public sealed class ToggleCountdownAction(TimerService timers) : IActionDefiniti
 			try
 			{
 				timers.ToggleCountdown();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -293,13 +293,13 @@ public sealed class AdjustCountdownAction(TimerService timers) : IActionDefiniti
 
 			if (delta == 0)
 			{
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 
 			try
 			{
 				timers.AdjustCountdown(TimeSpan.FromSeconds(delta.Value));
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{

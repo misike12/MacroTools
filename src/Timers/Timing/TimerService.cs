@@ -175,6 +175,7 @@ public sealed class TimerService : IDisposable
 				current = _countdownCts;
 				_countdownRemaining = updated;
 				_countdownEndsAt = DateTimeOffset.UtcNow + updated;
+				_countdownSeconds = Math.Max(0, _countdownSeconds - left.TotalSeconds) + updated.TotalSeconds;
 				remaining = updated;
 				label = _countdownLabel;
 				seconds = _countdownSeconds;
@@ -183,6 +184,7 @@ public sealed class TimerService : IDisposable
 			else
 			{
 				_countdownRemaining = updated;
+				_countdownSeconds = Math.Max(0, _countdownSeconds - left.TotalSeconds) + updated.TotalSeconds;
 			}
 		}
 

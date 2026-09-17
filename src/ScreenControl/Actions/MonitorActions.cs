@@ -93,7 +93,7 @@ public sealed class AdjustMonitorBrightnessAction(IMonitorService monitors) : IA
 			var delta = DisplayParameters.ReadNumber(context.Parameters, "delta") ?? 5.0;
 			if (delta == 0)
 			{
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 
 			try

@@ -5,6 +5,7 @@ using MacroDeck.Ui.Model.References;
 using MacroDeck.Ui.Model.Surfaces;
 using MacroDeck.Ui.Runtime;
 using NUnit.Framework;
+using Serilog;
 using Timers.Timing;
 using Timers.Widgets;
 
@@ -13,6 +14,7 @@ namespace Timers.Tests;
 [TestFixture]
 public sealed class PomodoroTests
 {
+	private static Serilog.Core.Logger TestLogger() => new LoggerConfiguration().CreateLogger();
 	private static PomodoroSettings QuickSettings(bool autoAdvance = true) =>
 		new(FocusMinutes: 0.05, ShortBreakMinutes: 0.05, LongBreakMinutes: 0.05, Rounds: 2, AutoAdvance: autoAdvance);
 
@@ -263,5 +265,48 @@ public sealed class PomodoroTests
 				Is.LessThanOrEqualTo(WidgetFitEstimator.BudgetUnits),
 				$"Tree is {height:F1} ref units tall on a 3x3 tile with a {WidgetFitEstimator.BudgetUnits} budget, so the reader squeezes rows and clips glyph bottoms. Slim sizes, gaps or rows until it fits.");
 		}
+	}
+
+	[Test]
+	public void Countdown_content_shows_time_as_hero_and_label_as_subtitle()
+	{
+		using var timers = new TimerService();
+		using var pomodoro = new PomodoroService();
+		timers.StartCountdown(TimeSpan.FromMinutes(5), "tea");
+
+		var widget = new FocusTimerWidget(timers, pomodoro, TestLogger());
+		var content = widget.BuildContent(FocusTimerOptions.Default with { Mode = "countdown" });
+
+		Assert.That(content.Hero, Is.EqualTo(FocusTimerContent.FormatRemaining(timers.CountdownRemaining)));
+		Assert.That(content.Label, Is.EqualTo("tea"));
+		Assert.That(content.HasSession, Is.True);
+		timers.CancelCountdown();
+	}
+
+	[Test]
+	public void Stopwatch_content_shows_elapsed_as_hero()
+	{
+		using var timers = new TimerService();
+		using var pomodoro = new PomodoroService();
+		timers.StartStopwatch();
+
+		var widget = new FocusTimerWidget(timers, pomodoro, TestLogger());
+		var content = widget.BuildContent(FocusTimerOptions.Default with { Mode = "stopwatch" });
+
+		Assert.That(content.Hero, Is.EqualTo(FocusTimerContent.FormatRemaining(timers.StopwatchElapsed)));
+		Assert.That(content.HasSession, Is.True);
+		timers.ResetStopwatch();
+	}
+
+	[Test]
+	public void Countdown_adjust_rebases_the_progress_total()
+	{
+		using var timers = new TimerService();
+		timers.StartCountdown(TimeSpan.FromMinutes(5), "tea");
+		timers.AdjustCountdown(TimeSpan.FromMinutes(1));
+
+		Assert.That(timers.CountdownTotalSeconds, Is.EqualTo(360).Within(1));
+		Assert.That(timers.CountdownProgressPercent, Is.GreaterThanOrEqualTo(0).And.LessThanOrEqualTo(100));
+		timers.CancelCountdown();
 	}
 }

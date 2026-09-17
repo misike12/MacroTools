@@ -48,8 +48,12 @@ public sealed class InstallGsiConfigAction(CsSettingsProvider settings, GsiServi
 						: ActionResult.Failed(ActionErrorCodes.ProviderError, Strings.Errors.ConfigWriteFailed()));
 				}
 
-				gsi.Start(current.Port, current.AuthToken);
-				return Task.FromResult(ActionResult.Success());
+				if (!gsi.Start(current.Port, current.AuthToken))
+				{
+					return Task.FromResult(CsActionResults.ListenerDown());
+				}
+
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -75,7 +79,7 @@ public sealed class ResetSessionStatsAction(GsiService gsi) : IActionDefinition
 			try
 			{
 				gsi.ResetSessionStats();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
@@ -101,7 +105,7 @@ public sealed class SimulateMatchAction(GsiService gsi) : IActionDefinition
 			try
 			{
 				gsi.InjectTestState();
-				return Task.FromResult(ActionResult.Success());
+				return ActionResult.SucceededTask;
 			}
 			catch (Exception)
 			{
