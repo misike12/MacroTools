@@ -2231,9 +2231,19 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 				return UiEventOutcome.Rejected("Unknown page.");
 			}
 
-			var page = (int)Math.Round(index.Value);
-			logger?.Debug("Widget tab change requested: {Page}", page);
-			return SelectPage(content, page, logger);
+var page = (int)Math.Round(index.Value);
+logger?.Debug("Widget tab change requested: {Page}", page);
+var result = SelectPage(content, page, logger);
+if (object.ReferenceEquals(result, UiEventOutcome.Accepted))
+{
+    // Force a content refresh to ensure the reader's Selected binding
+    // propagates before the next paint cycle, preventing the reader's
+    // internal held/producerAtRelease state from desyncing.
+    // Use a tiny synchronous delay to let the reader's internal state settle.
+    System.Threading.Thread.Sleep(5);
+    content.Set(content.Peek());
+}
+return result;
 		}
 
 		private static UiEventOutcome SimulateMatch(GsiService gsi, Serilog.ILogger logger)
