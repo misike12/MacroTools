@@ -2184,20 +2184,22 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			GsiService gsi,
 			CsSettingsProvider settings,
 			Serilog.ILogger logger) => new(
-			SelectPage: index => SelectPage(content, index),
+			SelectPage: index => SelectPage(content, index, logger),
 			SelectPageData: data => SelectPageData(content, data, logger),
 			Simulate: () => SimulateMatch(gsi, logger),
 			Install: () => InstallGsiConfig(gsi, settings, logger));
 
 		// Rejection reasons travel as plain strings with no localization reference,
 		// so these stay English literals rather than keys that would render raw.
-		private static UiEventOutcome SelectPage(UiState<MatchHudContent> content, int index)
+		private static UiEventOutcome SelectPage(UiState<MatchHudContent> content, int index, Serilog.ILogger? logger = null)
 		{
 			if (index is < MatchHudContent.PageMatch or > MatchHudContent.PageIntel)
 			{
+				logger?.Debug("Widget tab change rejected: page {Index} out of range", index);
 				return UiEventOutcome.Rejected($"Unknown page {index}.");
 			}
 
+			logger?.Debug("Widget tab change accepted: {Page}", index);
 			content.Set(content.Peek() with { Page = index });
 			return UiEventOutcome.Accepted;
 		}
@@ -2229,7 +2231,9 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 				return UiEventOutcome.Rejected("Unknown page.");
 			}
 
-			return SelectPage(content, (int)Math.Round(index.Value));
+			var page = (int)Math.Round(index.Value);
+			logger?.Debug("Widget tab change requested: {Page}", page);
+			return SelectPage(content, page, logger);
 		}
 
 		private static UiEventOutcome SimulateMatch(GsiService gsi, Serilog.ILogger logger)
