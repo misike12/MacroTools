@@ -439,7 +439,6 @@ internal static class MatchHudView
 					Size = UiSize.Capped(0.13, 34),
 					MainSize = UiSize.Capped(0.13, 34),
 					Color = UiValue.Of(MatchHudColors.Ct),
-					Role = UiComponentTextRoles.Muted,
 				},
 			new UiTextRun
 			{
