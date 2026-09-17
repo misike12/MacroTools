@@ -862,7 +862,6 @@ internal static class MatchHudView
 	private static UiStack SideScore(UiState<MatchHudContent> content, UiSize big, bool ct) => new UiStack
 	{
 		Key = ct ? "ct-side" : "t-side",
-		Fill = false,
 		Gap = 0.008,
 		Children =
 		[
@@ -886,7 +885,7 @@ internal static class MatchHudView
 				{
 					Key = ct ? "ct-name" : "t-name",
 					Text = UiText.From(() => ct ? content.Value.CtName : content.Value.TName),
-					Size = UiSize.Capped(0.075, 11),
+					Size = UiSize.Capped(0.07, 11),
 					Weight = UiComponentTextWeights.SemiBold,
 					Color = UiValue.Of(MatchHudColors.White),
 					Align = UiComponentAlignments.Center,
@@ -897,7 +896,7 @@ internal static class MatchHudView
 				Key = ct ? "ct-bar" : "t-bar",
 				Shape = UiComponentShapes.Capsule,
 				Color = UiValue.Of(ct ? MatchHudColors.Ct : MatchHudColors.T),
-				MainSize = 0.012,
+				MainSize = 0.01,
 			},
 		],
 	};
