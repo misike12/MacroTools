@@ -76,6 +76,7 @@ internal static class CsVariables
 		Eager("session-hs", VariableType.Numeric, Strings.Variables.SessionHs.DisplayName(), Strings.Variables.SessionHs.Description(), refresh: FastRefresh),
 		Eager("hs-rate", VariableType.Numeric, Strings.Variables.HsRate.DisplayName(), Strings.Variables.HsRate.Description(), refresh: FastRefresh),
 		Eager("match-elapsed", VariableType.Numeric, Strings.Variables.MatchElapsed.DisplayName(), Strings.Variables.MatchElapsed.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration, refresh: FastRefresh),
+		Eager("session-match-time", VariableType.Numeric, Strings.Variables.SessionMatchTime.DisplayName(), Strings.Variables.SessionMatchTime.Description(), unit: "s", semanticKind: VariableSemanticKinds.Duration, refresh: SlowRefresh),
 		Eager("last-chat", VariableType.Text, Strings.Variables.LastChat.DisplayName(), Strings.Variables.LastChat.Description(), refresh: TimeSpan.FromSeconds(2)),
 	];
 

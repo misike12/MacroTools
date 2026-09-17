@@ -95,8 +95,9 @@ public sealed record GsiSnapshot(
 	int RoundsPlayed,
 	int SessionDamage,
 	int SessionHs,
-	double MatchElapsed,
-	string? LastChat);
+double MatchElapsed,
+		double SessionMatchTime,
+		string? LastChat);
 
 public sealed record PositionOptions(bool Enabled, int IntervalSeconds, int KeyCode)
 {
@@ -149,6 +150,7 @@ public sealed class GsiService : IDisposable
 	private int _sessionDamage;
 	private int _sessionHs;
 	private DateTimeOffset? _matchStartUtc;
+	private double _sessionMatchTimeAccumulated; // cumulative match time across matches (excludes lobby/menu)
 	private string? _lastPlace;
 	private DateTimeOffset? _lastChatAt;
 
@@ -272,6 +274,7 @@ public sealed class GsiService : IDisposable
 		_sessionDamage = 0;
 		_sessionHs = 0;
 		_matchStartUtc = null;
+		_sessionMatchTimeAccumulated = 0;
 		_lastPlace = null;
 		_lastChatAt = null;
 	}
@@ -284,20 +287,44 @@ public sealed class GsiService : IDisposable
 		SessionStats stats;
 		bool connected;
 		lock (_gate)
+{
+		var now = DateTimeOffset.UtcNow;
+		connected = _lastReceivedAt is { } seen && now - seen <= ConnectedWindow;
+		payload = _last;
+
+		// Determine current match phase and whether to run the match timer
+		var map = payload?.Map;
+		var mapPhase = map?.Phase ?? string.Empty;
+		var isLive = string.Equals(mapPhase, "live", StringComparison.OrdinalIgnoreCase);
+
+		// Update match timer: only runs when phase is "live"
+		if (isLive && _matchStartUtc is null)
 		{
-			var now = DateTimeOffset.UtcNow;
-			connected = _lastReceivedAt is { } seen && now - seen <= ConnectedWindow;
-			payload = _last;
-			stats = new SessionStats(
-				_sessionKills,
-				_sessionDeaths,
-				_streak,
-				_bestStreak,
-				_weaponKills.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
-				_roundsSeen.Count,
-				_sessionDamage,
-				_sessionHs,
-				connected && _matchStartUtc is { } started ? Math.Max(0, (now - started).TotalSeconds) : 0);
+			_matchStartUtc = now;
+		}
+		else if (!isLive && _matchStartUtc is not null)
+		{
+			// Match ended (went from live to something else) - accumulate the match time
+			var matchElapsed = (now - _matchStartUtc.Value).TotalSeconds;
+			_sessionMatchTimeAccumulated += Math.Max(0, matchElapsed);
+			_matchStartUtc = null;
+		}
+
+		var currentMatchElapsed = isLive && _matchStartUtc is { } started
+			? Math.Max(0, (now - started).TotalSeconds)
+			: 0;
+
+		stats = new SessionStats(
+			_sessionKills,
+			_sessionDeaths,
+			_streak,
+			_bestStreak,
+			_weaponKills.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
+			_roundsSeen.Count,
+			_sessionDamage,
+			_sessionHs,
+			currentMatchElapsed,
+			_sessionMatchTimeAccumulated);
 			if (!connected || payload is null)
 			{
 				return EmptySnapshot(false);
@@ -319,7 +346,8 @@ public sealed class GsiService : IDisposable
 		int RoundsPlayed,
 		int Damage,
 		int Hs,
-		double Elapsed);
+		double Elapsed,
+		double SessionMatchTime);
 
 	public void Dispose()
 	{
@@ -1493,7 +1521,7 @@ public sealed class GsiService : IDisposable
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
 		0, 0, 0, false, PositionSources.Off, null, null, null,
 		0, 0, 0, false, false, false, 0, null, null, string.Empty,
-		null, null, 0, 0, null, 0, 0, 0, null, 0, 0, 0, 0, 0.0, null);
+		null, null, 0, 0, null, 0, 0, 0, null, 0, 0, 0, 0, 0.0, 0.0, null);
 
 	private GsiSnapshot BuildSnapshot(GsiPayload payload, bool connected, SessionStats session)
 	{
@@ -1562,6 +1590,7 @@ public sealed class GsiService : IDisposable
 			session.Damage,
 			session.Hs,
 			session.Elapsed,
+			session.SessionMatchTime,
 			ConsoleChatLine());
 	}
 

@@ -471,6 +471,12 @@
   <data name="Variables.MatchElapsed.Description" xml:space="preserve">
     <value>Seconds since match data started flowing.</value>
   </data>
+  <data name="Variables.SessionMatchTime.DisplayName" xml:space="preserve">
+    <value>Session match time</value>
+  </data>
+  <data name="Variables.SessionMatchTime.Description" xml:space="preserve">
+    <value>Total seconds spent in live matches this session (excludes lobby/menu).</value>
+  </data>
   <data name="Variables.LastChat.DisplayName" xml:space="preserve">
     <value>Last chat</value>
   </data>

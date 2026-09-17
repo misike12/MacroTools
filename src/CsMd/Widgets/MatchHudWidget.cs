@@ -141,6 +141,7 @@ public sealed record MatchHudContent(
 	int TimeoutsCt,
 	int TimeoutsT,
 	string ElapsedLine,
+	string SessionMatchTimeLine,
 	string BombDetail,
 	double? FacingYaw,
 	int Smokes,
@@ -156,8 +157,9 @@ public sealed record MatchHudContent(
 		[], false,
 		string.Empty, string.Empty, false, false, 0, string.Empty, 0, string.Empty, Strings.Widget.Round.Line(0, 0, 0), null,
 		string.Empty, false, string.Empty, false, string.Empty, string.Empty, false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
-		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(0, 0, "0.00"),		[], false, [], string.Empty, false, [], false, [], false,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, string.Empty, string.Empty, null, 0, 0, 0,
+		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(0, 0, "0.00"),
+		[], false, [], string.Empty, false, [], false, [], false,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, string.Empty, string.Empty, string.Empty, null, 0, 0, 0,
 		MatchHudOptions.Default);
 
 	public static MatchHudContent SampleLive { get; } = new(
@@ -168,7 +170,7 @@ public sealed record MatchHudContent(
 		false, false, false, true, true, 4, true, Strings.Widget.Session.Line(18, 9, "2.00"),
 		[0.9, 0.85, 0.87, 0.6, 0.62, 0.87], true, [0.2, 0.5, 0.3], "250 / 400", true, [0.1, 0.2, 0.29], true,
 		[new FeedItem("f2", Strings.Widget.Feed.Kill("s1mple", "AWP", "Middle"), MatchHudColors.White), new FeedItem("f1", Strings.Widget.Feed.RoundWon(), MatchHudColors.Good)], true,
-		0, 18, 9, 4, 11, 2450, 2, 42, 5200, 2, 1, 250, 6, 1, 0, "38:12", "s1mple", 135, 1, 0, 2,
+		0, 18, 9, 4, 11, 2450, 2, 42, 5200, 2, 1, 250, 6, 1, 0, "38:12", "25:30", "s1mple", 135, 1, 0, 2,
 		MatchHudOptions.Default);
 
 	public static MatchHudContent SampleBomb { get; } = new(
@@ -179,7 +181,7 @@ public sealed record MatchHudContent(
 		new UiProgressReference { PositionMs = 8000, Anchor = DateTimeOffset.UtcNow, DurationMs = 40000, Rate = 1 }, true,
 		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(14, 12, "1.17"),
 		[], false, [], string.Empty, false, [], false, [new FeedItem("f1", Strings.Widget.Feed.BombPlanted("B"), MatchHudColors.Bad)], true,
-		0, 14, 12, 3, 9, 1980, 1, 35, 4700, 0, 0, 0, 3, 1, 1, "41:05", "Bombsite A", null, 2, 1, 0,
+		0, 14, 12, 3, 9, 1980, 1, 35, 4700, 0, 0, 0, 3, 1, 1, "41:05", "12:45", "Bombsite A", null, 2, 1, 0,
 		MatchHudOptions.Default);
 
 	public static string FormatClock(double seconds)
@@ -1935,6 +1937,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			snapshot.TimeoutsCt,
 			snapshot.TimeoutsT,
 			MatchHudContent.FormatClock(snapshot.MatchElapsed),
+			MatchHudContent.FormatClock(snapshot.SessionMatchTime),
 			SanitizeDisplay(snapshot.BombCarrier),
 			snapshot.FacingYaw,
 			snapshot.SmokesActive,

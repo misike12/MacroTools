@@ -373,6 +373,9 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			"match-elapsed" => snapshot.Connected
 				? VariableReading.Of(snapshot.MatchElapsed)
 				: VariableReading.Unavailable,
+			"session-match-time" => snapshot.Connected
+				? VariableReading.Of(snapshot.SessionMatchTime)
+				: VariableReading.Unavailable,
 			"last-chat" => TextOrUnavailable(snapshot.LastChat),
 			_ => VariableReading.Unavailable,
 		});
