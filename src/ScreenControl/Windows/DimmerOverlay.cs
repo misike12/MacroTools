@@ -217,7 +217,7 @@ public sealed class DimmerOverlay : IDisposable
 				"ScreenControl dimmer",
 				WsPopup,
 				0, 0, 1, 1,
-				IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
+				IntPtr.Zero, IntPtr.Zero, NativeMethods.GetModuleHandle(null),
 				GCHandle.ToIntPtr(self));
 			if (handle == IntPtr.Zero)
 			{
@@ -340,10 +340,15 @@ public sealed class DimmerOverlay : IDisposable
 	{
 		try
 		{
+			// A null module handle only works by accident for a process-local
+			// class. Pass the real one so registration and window creation
+			// cannot silently disagree about which module owns the class.
+			var instance = NativeMethods.GetModuleHandle(null);
 			var definition = new NativeMethods.WndClassEx
 			{
 				Size = (uint)Marshal.SizeOf<NativeMethods.WndClassEx>(),
 				WndProc = StaticProc,
+				Instance = instance,
 				Cursor = NativeMethods.LoadCursor(IntPtr.Zero, 32512),
 				Background = NativeMethods.GetStockObject(NativeMethods.BlackBrush),
 				ClassName = "ScreenControlDimmer",
@@ -498,6 +503,10 @@ public sealed class DimmerOverlay : IDisposable
 
 		[DllImport("kernel32.dll")]
 		public static extern uint GetCurrentThreadId();
+
+		[DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+		public static extern IntPtr GetModuleHandle(
+			[MarshalAs(UnmanagedType.LPWStr)] string? moduleName);
 
 		[DllImport("user32.dll")]
 		[return: MarshalAs(UnmanagedType.Bool)]

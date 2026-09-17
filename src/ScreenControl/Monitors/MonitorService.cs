@@ -111,7 +111,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		}
 		finally
 		{
-			ClosePhysicalMonitors(target.Handles);
+			ClosePhysicalMonitors(target.Physical);
 		}
 	}
 
@@ -204,7 +204,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		}
 		finally
 		{
-			ClosePhysicalMonitors(target.Handles);
+			ClosePhysicalMonitors(target.Physical);
 		}
 
 		return [];
@@ -305,17 +305,17 @@ public sealed class MonitorService : IMonitorService, IDisposable
 
 	private static (int Percent, int Min, int Max)? ReadBrightness(IntPtr hMonitor)
 	{
-		var handles = OpenPhysicalMonitors(hMonitor);
-		if (handles is null)
+		var monitors = OpenPhysicalMonitors(hMonitor);
+		if (monitors is null)
 		{
 			return null;
 		}
 
 		try
 		{
-			foreach (var handle in handles)
+			foreach (var monitor in monitors)
 			{
-				if (NativeMethods.GetMonitorBrightness(handle, out var min, out var current, out var max) && max > min)
+				if (NativeMethods.GetMonitorBrightness(monitor.Handle, out var min, out var current, out var max) && max > min)
 				{
 					return ((int)Math.Round((current - min) * 100.0 / (max - min)), min, max);
 				}
@@ -326,7 +326,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		}
 		finally
 		{
-			ClosePhysicalMonitors(handles);
+			ClosePhysicalMonitors(monitors);
 		}
 
 		return null;
@@ -356,7 +356,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		}
 		finally
 		{
-			ClosePhysicalMonitors(target.Handles);
+			ClosePhysicalMonitors(target.Physical);
 		}
 
 		return false;
@@ -389,7 +389,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		}
 		finally
 		{
-			ClosePhysicalMonitors(target.Handles);
+			ClosePhysicalMonitors(target.Physical);
 		}
 
 		return false;
@@ -479,7 +479,10 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		return null;
 	}
 
-	private sealed record Target(IntPtr[] Handles, string DeviceName, int Left, int Top, int Right, int Bottom);
+	private sealed record Target(NativeMethods.PhysicalMonitor[] Physical, string DeviceName, int Left, int Top, int Right, int Bottom)
+	{
+		public IntPtr[] Handles { get; } = Array.ConvertAll(Physical, static monitor => monitor.Handle);
+	};
 
 	private static Target? TargetFor(int index)
 	{
@@ -501,17 +504,17 @@ public sealed class MonitorService : IMonitorService, IDisposable
 				current++;
 				if (current == index)
 				{
-					var handles = OpenPhysicalMonitors(hMonitor);
-					if (handles is not null)
+					var physical = OpenPhysicalMonitors(hMonitor);
+					if (physical is not null)
 					{
 						target = new Target(
-							handles, geometry.Value.Device,
+							physical, geometry.Value.Device,
 							geometry.Value.Left, geometry.Value.Top,
 							geometry.Value.Right, geometry.Value.Bottom);
 					}
 					else
 					{
-						ClosePhysicalMonitors(handles);
+						ClosePhysicalMonitors(physical);
 					}
 				}
 
@@ -557,7 +560,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 
 	private static string? DeviceNameOf(IntPtr hMonitor) => GeometryOf(hMonitor)?.Device;
 
-	private static IntPtr[]? OpenPhysicalMonitors(IntPtr hMonitor)
+	private static NativeMethods.PhysicalMonitor[]? OpenPhysicalMonitors(IntPtr hMonitor)
 	{
 		try
 		{
@@ -572,13 +575,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 				return null;
 			}
 
-			var handles = new IntPtr[count];
-			for (var i = 0; i < count; i++)
-			{
-				handles[i] = physical[i].Handle;
-			}
-
-			return handles;
+			return physical;
 		}
 		catch (Exception)
 		{
@@ -586,22 +583,19 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		}
 	}
 
-	private static void ClosePhysicalMonitors(IntPtr[]? handles)
+	private static void ClosePhysicalMonitors(NativeMethods.PhysicalMonitor[]? monitors)
 	{
-		if (handles is null || handles.Length == 0)
+		if (monitors is null || monitors.Length == 0)
 		{
 			return;
 		}
 
 		try
 		{
-			var physical = new NativeMethods.PhysicalMonitor[handles.Length];
-			for (var i = 0; i < handles.Length; i++)
-			{
-				physical[i] = new NativeMethods.PhysicalMonitor { Handle = handles[i] };
-			}
-
-			NativeMethods.DestroyPhysicalMonitors((uint)handles.Length, physical);
+			// Pass back the exact structs GetPhysicalMonitorsFromHMONITOR filled
+			// in. Rebuilding them from bare handles leaves the fixed-size
+			// description buffer null, which is an interop hazard on destroy.
+			NativeMethods.DestroyPhysicalMonitors((uint)monitors.Length, monitors);
 		}
 		catch (Exception)
 		{
