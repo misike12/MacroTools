@@ -554,6 +554,55 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Player_name_follows_team_color()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+
+		static string NodeColor(string treeJson, string idSuffix)
+		{
+			using var document = JsonDocument.Parse(treeJson);
+			var queue = new Queue<JsonElement>();
+			queue.Enqueue(document.RootElement.GetProperty("Root"));
+			while (queue.Count > 0)
+			{
+				var node = queue.Dequeue();
+				if (node.GetProperty("Id").GetString()!.EndsWith(idSuffix, StringComparison.Ordinal))
+				{
+					return node.GetProperty("Properties").GetProperty("color").GetString()!;
+				}
+
+				foreach (var child in node.GetProperty("Children").EnumerateArray())
+				{
+					queue.Enqueue(child);
+				}
+
+				if (node.TryGetProperty("Fallback", out var fallback)
+					&& fallback.ValueKind == JsonValueKind.Object)
+				{
+					queue.Enqueue(fallback);
+				}
+			}
+
+			throw new InvalidOperationException($"No node ending in '{idSuffix}' in the tree.");
+		}
+
+		var ct = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(
+				MatchHudContent.SampleLive with { Page = MatchHudContent.PagePlayer, PlayerTeam = "CT" }))).Tree);
+		var t = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(
+				MatchHudContent.SampleLive with { Page = MatchHudContent.PagePlayer, PlayerTeam = "T" }))).Tree);
+
+		Assert.That(NodeColor(ct, ".player-name"), Is.EqualTo("#7DD3FC"));
+		Assert.That(NodeColor(t, ".player-name"), Is.EqualTo("#FCD34D"));
+	}
+
+	[Test]
 	public void Match_point_detects_leader_overtime_and_open_play()
 	{
 		Assert.That(MatchHudWidget.MatchPoint(12, 9, "NAVI", "FAZE"), Is.EqualTo("NAVI"));

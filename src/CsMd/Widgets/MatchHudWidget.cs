@@ -1084,6 +1084,7 @@ internal static class MatchHudView
 						Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.095, 14),
 						MinSize = UiSize.Capped(0.07, 10),
 					Weight = UiComponentTextWeights.SemiBold,
+					Color = UiValue.From(() => TeamColor(content.Value.PlayerTeam)),
 					Align = UiComponentAlignments.Center,
 				},
 			},
@@ -1100,7 +1101,7 @@ internal static class MatchHudView
 						() => !string.IsNullOrWhiteSpace(content.Value.PlayerTeam),
 						() => content.Value.PlayerTeam,
 						() => content.Value.PlayerTeam == "CT" ? PillBlue : PillYellow,
-						() => content.Value.PlayerTeam == "CT" ? MatchHudColors.Ct : MatchHudColors.T),
+						() => TeamColor(content.Value.PlayerTeam)),
 					AlivePill(content, "hero-state"),
 					LocalizedPill("hero-low", () => content.Value.Alive && content.Value.HpFrac is > 0 and <= 0.25, Strings.Widget.State.Low,
 						() => PillRed, () => MatchHudColors.Bad),
@@ -1180,6 +1181,9 @@ internal static class MatchHudView
 
 	private static string HpColor(double frac) =>
 		frac > 0.5 ? MatchHudColors.Good : frac > 0.25 ? MatchHudColors.Warn : MatchHudColors.Bad;
+
+	private static string TeamColor(string team) =>
+		team == "CT" ? MatchHudColors.Ct : team == "T" ? MatchHudColors.T : MatchHudColors.White;
 
 	private static UiGrid Charts(UiState<MatchHudContent> content)
 	{
