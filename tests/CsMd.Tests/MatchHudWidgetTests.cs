@@ -563,7 +563,7 @@ public sealed class MatchHudWidgetTests
 			Attributes = new Dictionary<string, JsonElement>(),
 		};
 
-		static string NodeColor(string treeJson, string idSuffix)
+		static string NodeProperty(string treeJson, string idSuffix, string property)
 		{
 			using var document = JsonDocument.Parse(treeJson);
 			var queue = new Queue<JsonElement>();
@@ -573,7 +573,7 @@ public sealed class MatchHudWidgetTests
 				var node = queue.Dequeue();
 				if (node.GetProperty("Id").GetString()!.EndsWith(idSuffix, StringComparison.Ordinal))
 				{
-					return node.GetProperty("Properties").GetProperty("color").GetString()!;
+					return node.GetProperty("Properties").GetProperty(property).GetString()!;
 				}
 
 				foreach (var child in node.GetProperty("Children").EnumerateArray())
@@ -591,6 +591,8 @@ public sealed class MatchHudWidgetTests
 			throw new InvalidOperationException($"No node ending in '{idSuffix}' in the tree.");
 		}
 
+		static string NodeColor(string treeJson, string idSuffix) => NodeProperty(treeJson, idSuffix, "color");
+
 		var ct = JsonSerializer.Serialize(new UiView(surface,
 			MatchHudPreviews.FromState(new UiState<MatchHudContent>(
 				MatchHudContent.SampleLive with { Page = MatchHudContent.PagePlayer, PlayerTeam = "CT" }))).Tree);
@@ -600,6 +602,13 @@ public sealed class MatchHudWidgetTests
 
 		Assert.That(NodeColor(ct, ".player-name"), Is.EqualTo("#7DD3FC"));
 		Assert.That(NodeColor(t, ".player-name"), Is.EqualTo("#FCD34D"));
+
+		var unknown = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(
+				MatchHudContent.SampleLive with { Page = MatchHudContent.PagePlayer, PlayerTeam = "SPEC" }))).Tree);
+
+		Assert.That(NodeColor(unknown, ".player-name"), Is.EqualTo("#FFFFFF"));
+		Assert.That(NodeProperty(unknown, ".hero-team", "background"), Is.EqualTo("#323A48"));
 	}
 
 	[Test]

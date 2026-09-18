@@ -1100,7 +1100,7 @@ internal static class MatchHudView
 					TextPill(content, "hero-team",
 						() => !string.IsNullOrWhiteSpace(content.Value.PlayerTeam),
 						() => content.Value.PlayerTeam,
-						() => content.Value.PlayerTeam == "CT" ? PillBlue : PillYellow,
+						() => content.Value.PlayerTeam == "CT" ? PillBlue : content.Value.PlayerTeam == "T" ? PillYellow : PillNeutral,
 						() => TeamColor(content.Value.PlayerTeam)),
 					AlivePill(content, "hero-state"),
 					LocalizedPill("hero-low", () => content.Value.Alive && content.Value.HpFrac is > 0 and <= 0.25, Strings.Widget.State.Low,
