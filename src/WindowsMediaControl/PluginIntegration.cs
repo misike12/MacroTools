@@ -191,7 +191,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		}
 	}
 
-	public Task ShutdownAsync()
+	public async Task ShutdownAsync()
 	{
 		_media.MediaChanged -= OnMediaChanged;
 		foreach (var action in Actions.OfType<SleepTimerAction>())
@@ -204,7 +204,10 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			_loopCts?.Cancel();
 		}
 
-		return Task.CompletedTask;
+		if (_loopTask != null)
+		{
+			await _loopTask;
+		}
 	}
 
 	private void OnMediaChanged(object? sender, EventArgs e)
@@ -735,6 +738,10 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			}
 
 			_loopCts?.Cancel();
+			if (_loopTask != null)
+			{
+				_loopTask.GetAwaiter().GetResult();
+			}
 			_loopCts?.Dispose();
 		}
 	}

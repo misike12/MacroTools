@@ -103,7 +103,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public Task<IUiSession?> CreateSessionAsync(UiSessionRequest request, CancellationToken cancellationToken) =>
 		_brightness.CreateSessionAsync(request, cancellationToken);
 
-	public Task ShutdownAsync()
+	public async Task ShutdownAsync()
 	{
 		try
 		{
@@ -119,7 +119,10 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			_loopCts?.Cancel();
 		}
 
-		return Task.CompletedTask;
+		if (_loopTask != null)
+		{
+			await _loopTask;
+		}
 	}
 
 	public void Dispose()
@@ -133,6 +136,10 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 			_disposed = true;
 			_loopCts?.Cancel();
+			if (_loopTask != null)
+			{
+				_loopTask.GetAwaiter().GetResult();
+			}
 			_loopCts?.Dispose();
 		}
 	}
