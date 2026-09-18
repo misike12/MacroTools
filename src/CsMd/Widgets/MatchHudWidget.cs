@@ -621,26 +621,26 @@ internal static class MatchHudView
 						{
 							Key = "live-when",
 							Condition = () => content.Value.MapPhase == "LIVE",
-							Content = () => new UiButton
-							{
-								Key = "live-pill",
-								Justify = UiComponentJustify.Center,
-								Align = UiComponentAlignments.Center,
-								Background = UiValue.Of(PillRed),
-								Padding = 0.008,
-								Children =
-								[
-									new UiTextRun
-									{
-										Key = "live-pill-label",
-										Text = UiText.FromLocalized(() => Strings.Widget.State.Live()),
-										Size = UiSize.Capped(0.07, 10),
-										Weight = UiComponentTextWeights.Bold,
-										Color = UiValue.Of(MatchHudColors.Bad),
-										Align = UiComponentAlignments.Center,
-									},
-								],
-							},
+						Content = () => PillChrome("live-pill", new UiButton
+						{
+							Key = "live-pill",
+							Justify = UiComponentJustify.Center,
+							Align = UiComponentAlignments.Center,
+							Background = UiValue.Of(PillRed),
+							Padding = 0.008,
+							Children =
+							[
+								new UiTextRun
+								{
+									Key = "live-pill-label",
+									Text = UiText.FromLocalized(() => Strings.Widget.State.Live()),
+									Size = UiSize.Capped(0.07, 10),
+									Weight = UiComponentTextWeights.Bold,
+									Color = UiValue.Of(MatchHudColors.Bad),
+									Align = UiComponentAlignments.Center,
+								},
+							],
+						}),
 						},
 							new UiWhen
 							{
