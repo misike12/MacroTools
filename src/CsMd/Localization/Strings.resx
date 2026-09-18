@@ -772,7 +772,7 @@
     <value>Match HUD</value>
   </data>
   <data name="Widget.MatchHud.Description" xml:space="preserve">
-    <value>Live match scorebug, player plate and status pills.</value>
+    <value>Live match scorebug, player plate and status pills. Swipe the scorebug or tab bar to switch pages.</value>
   </data>
   <data name="Widget.State.Alive" xml:space="preserve">
     <value>ALIVE</value>

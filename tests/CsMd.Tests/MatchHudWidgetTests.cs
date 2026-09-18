@@ -335,6 +335,165 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public async Task Swipe_left_and_right_switch_pages_with_wrap()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.InjectTestState();
+		var widget = new MatchHudWidget(gsi, new CsSettingsProvider(), TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Data] = JsonDocument.Parse("""{"showScore":true,"showHistory":true,"showPlayer":true,"showCharts":true,"showStatus":true,"showSession":true,"showFeed":true,"feedCount":3,"compactMode":false}""").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+		Assert.That(session, Is.Not.Null);
+		try
+		{
+			static string ScorebugId(string treeJson)
+			{
+				using var document = JsonDocument.Parse(treeJson);
+				var queue = new Queue<JsonElement>();
+				queue.Enqueue(document.RootElement.GetProperty("Root"));
+				while (queue.Count > 0)
+				{
+					var node = queue.Dequeue();
+					if (node.GetProperty("Type").GetString() == "ui.button"
+						&& node.GetProperty("Id").GetString()!.EndsWith("scorebug", StringComparison.Ordinal))
+					{
+						return node.GetProperty("Id").GetString()!;
+					}
+
+					foreach (var child in node.GetProperty("Children").EnumerateArray())
+					{
+						queue.Enqueue(child);
+					}
+				}
+
+				throw new InvalidOperationException("No scorebug card in the tree.");
+			}
+
+			static MacroDeck.Ui.Model.Events.UiEvent Swipe(string nodeId, string direction) => new()
+			{
+				NodeId = nodeId,
+				Name = "swipe",
+				Data = JsonDocument.Parse($"\"{direction}\"").RootElement.Clone(),
+			};
+
+			static string TabsId(string treeJson)
+			{
+				using var document = JsonDocument.Parse(treeJson);
+				var queue = new Queue<JsonElement>();
+				queue.Enqueue(document.RootElement.GetProperty("Root"));
+				while (queue.Count > 0)
+				{
+					var node = queue.Dequeue();
+					if (node.GetProperty("Type").GetString() == "ui.segmented")
+					{
+						return node.GetProperty("Id").GetString()!;
+					}
+
+					foreach (var child in node.GetProperty("Children").EnumerateArray())
+					{
+						queue.Enqueue(child);
+					}
+				}
+
+				throw new InvalidOperationException("No segmented tab bar in the tree.");
+			}
+
+			var scorebug = ScorebugId(JsonSerializer.Serialize(session!.BuildTree()));
+			var tabs = TabsId(JsonSerializer.Serialize(session!.BuildTree()));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("match-page"));
+
+			// The scorebug only exists on the match page; the tab bar is the
+			// always-visible swipe zone everywhere else.
+			session!.Dispatch(Swipe(scorebug, "left"));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("player-page"));
+
+			session!.Dispatch(Swipe(tabs, "left"));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("intel-page"));
+
+			session!.Dispatch(Swipe(tabs, "left"));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("match-page"));
+
+			session!.Dispatch(Swipe(scorebug, "right"));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("intel-page"));
+
+			session!.Dispatch(Swipe(tabs, "right"));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("player-page"));
+
+			session!.Dispatch(Swipe(tabs, "up"));
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("player-page"));
+		}
+		finally
+		{
+			if (session is IAsyncDisposable asyncDisposable)
+			{
+				await asyncDisposable.DisposeAsync();
+			}
+		}
+	}
+
+	[Test]
+	public void Compass_needle_rotates_with_yaw_and_keeps_octant_fallback()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(
+			MatchHudContent.SampleLive with { Page = MatchHudContent.PageIntel, FacingYaw = 90 });
+		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+		Assert.That(tree, Does.Contain("compass-needle"));
+		Assert.That(tree, Does.Contain("\"rotation\":90"));
+		Assert.That(tree, Does.Contain("compass-arrow"));
+	}
+
+	[Test]
+	public void Cards_render_gradient_chrome()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(MatchHudContent.SampleLive);
+		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+		Assert.That(tree, Does.Contain("\"linear\""));
+		Assert.That(tree, Does.Contain("#28303F"));
+		Assert.That(tree, Does.Contain("scorebug"));
+	}
+
+	[Test]
+	public void Long_names_shrink_instead_of_clipping()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(MatchHudContent.SampleLive);
+		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+		Assert.That(tree, Does.Contain("minSize"));
+	}
+
+	[Test]
 	public void Match_point_detects_leader_overtime_and_open_play()
 	{
 		Assert.That(MatchHudWidget.MatchPoint(12, 9, "NAVI", "FAZE"), Is.EqualTo("NAVI"));

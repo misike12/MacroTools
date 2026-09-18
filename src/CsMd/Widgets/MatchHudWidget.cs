@@ -214,6 +214,7 @@ internal static class MatchHudColors
 public sealed record MatchHudActions(
 	Func<int, UiEventOutcome> SelectPage,
 	Func<UiEventData, UiEventOutcome> SelectPageData,
+	Func<UiEventData, UiEventOutcome> SwipePage,
 	Func<UiEventOutcome> Simulate,
 	Func<UiEventOutcome> Install);
 
@@ -222,10 +223,9 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "18";
+	internal const string TreeGeneration = "19";
 
 	private const string CardBackground = "#262C38";
-	private const string ScoreCardBackground = "#1D232D";
 	private const string BombCardBackground = "#33222B";
 	private const string AccentBackground = "#38BDF8";
 	private const string AccentInk = "#0B1220";
@@ -234,6 +234,33 @@ internal static class MatchHudView
 	private const string PillRed = "#3D1F1F";
 	private const string PillBlue = "#1C3A4D";
 	private const string PillYellow = "#3D3417";
+	private const string ChromeEdge = "#39435A";
+
+	// Broadcast-dark depth system. These are modifier-only members (background,
+	// radius, hairline border), so they merge onto the wrapped card node: older
+	// readers simply draw it flatter, no fallback is owed, and no geometry
+	// changes, so the tile fit budget is untouched. Never add Padding, Opacity,
+	// Clip, Mask or Frame here: those promote the modifier to its own node and
+	// would need a fallback per card. Never set Background on the wrapped card
+	// itself: the same member twice on one node is rejected at view build.
+	private static UiModifier CardChrome(string key, UiButton card) => new()
+	{
+		Key = key + "-deco",
+		Background = UiGradient.Linear(135,
+		[
+			new UiGradientStop { Offset = 0, Color = "#28303F" },
+			new UiGradientStop { Offset = 1, Color = "#1C222D" },
+		]),
+		Radius = 0.02,
+		Child = card,
+	};
+
+	private static UiModifier PillChrome(string key, UiButton pill) => new()
+	{
+		Key = key + "-deco",
+		Radius = 0.03,
+		Child = pill,
+	};
 
 	public static UiElement Build(UiState<MatchHudContent> content, MatchHudActions? actions = null)
 	{
@@ -276,7 +303,7 @@ internal static class MatchHudView
 				{
 					Key = "page-match",
 					Condition = () => content.Value.Page == MatchHudContent.PageMatch,
-					Content = () => MatchPage(content, options),
+					Content = () => MatchPage(content, options, actions),
 				},
 				new UiWhen
 				{
@@ -306,10 +333,17 @@ internal static class MatchHudView
 		{
 			Key = "tabs",
 			Selected = UiValue.From(() => content.Value.Page),
+			LevelColor = UiValue.Of("#38BDF8"),
 			MainSize = UiSize.Capped(0.075, 20),
 			Events = actions is null
 				? []
-				: [UiEventHandler.On(UiComponentEvents.Change, data => actions.SelectPageData(data))],
+				: [
+					UiEventHandler.On(UiComponentEvents.Change, data => actions.SelectPageData(data)),
+					// A swipe on the always-visible tab bar flips pages the same way
+					// a swipe on the scorebug does. Taps still select: the inner
+					// press wins until the pointer travels past slop.
+					UiEventHandler.On(UiComponentEvents.Swipe, data => actions.SwipePage(data)),
+				],
 			Children = segments,
 			Fallback = new UiStack
 			{
@@ -380,7 +414,7 @@ internal static class MatchHudView
 			: button with { Events = [UiEventHandler.On(UiComponentEvents.Press, _ => actions.SelectPage(page))] };
 	}
 
-	private static UiButton IdleCard(MatchHudActions? actions)
+	private static UiModifier IdleCard(MatchHudActions? actions)
 	{
 		var simulate = new UiButton
 		{
@@ -424,16 +458,26 @@ internal static class MatchHudView
 				},
 			],
 		};
-		return new UiButton
+		return new UiModifier
 		{
-			Key = "idle",
-			Justify = UiComponentJustify.Center,
-			Align = UiComponentAlignments.Center,
-			Background = UiValue.Of(ScoreCardBackground),
-			Padding = 0.04,
-			Gap = 0.025,
-			Children =
+			Key = "idle-deco",
+			Background = UiGradient.Linear(135,
 			[
+				new UiGradientStop { Offset = 0, Color = "#1C2942" },
+				new UiGradientStop { Offset = 1, Color = "#131A29" },
+			]),
+			Radius = 0.03,
+			BorderColor = UiValue.Of("#33507A"),
+			BorderWidth = 0.004,
+			Child = new UiButton
+			{
+				Key = "idle",
+				Justify = UiComponentJustify.Center,
+				Align = UiComponentAlignments.Center,
+				Padding = 0.04,
+				Gap = 0.025,
+				Children =
+				[
 				new UiIcon
 				{
 					Key = "idle-icon",
@@ -484,17 +528,18 @@ internal static class MatchHudView
 					Role = UiComponentTextRoles.Muted,
 					Align = UiComponentAlignments.Center,
 				},
-			],
+				],
+			},
 		};
 	}
 
-	private static UiStack MatchPage(UiState<MatchHudContent> content, MatchHudOptions options)
+	private static UiStack MatchPage(UiState<MatchHudContent> content, MatchHudOptions options, MatchHudActions? actions)
 	{
 		var body = new List<UiElement>();
 
 		if (options.ShowScore)
 		{
-			body.Add(Scorebug(content, options));
+			body.Add(Scorebug(content, options, actions));
 		}
 
 		if (options.ShowStatus)
@@ -517,7 +562,7 @@ internal static class MatchHudView
 		};
 	}
 
-	private static UiButton Scorebug(UiState<MatchHudContent> content, MatchHudOptions options)
+	private static UiModifier Scorebug(UiState<MatchHudContent> content, MatchHudOptions options, MatchHudActions? actions)
 	{
 		var big = options.Compact ? UiSize.Capped(0.15, 24) : UiSize.Capped(0.19, 34);
 		var body = new List<UiElement>
@@ -650,18 +695,32 @@ internal static class MatchHudView
 		});
 		body.Add(MicroLine(content, "map", () => content.Value.MapLine));
 
-		return new UiButton
+		return new UiModifier
 		{
-			Key = "scorebug",
-			Justify = UiComponentJustify.Start,
-			Background = UiValue.Of(ScoreCardBackground),
-			Padding = 0.015,
-			Gap = 0.015,
-			Children = body,
+			Key = "scorebug-deco",
+			Background = UiGradient.Linear(135,
+			[
+				new UiGradientStop { Offset = 0, Color = "#202839" },
+				new UiGradientStop { Offset = 1, Color = "#141A26" },
+			]),
+			Radius = 0.025,
+			BorderColor = UiValue.Of(ChromeEdge),
+			BorderWidth = 0.004,
+			Child = new UiButton
+			{
+				Key = "scorebug",
+				Justify = UiComponentJustify.Start,
+				Padding = 0.015,
+				Gap = 0.015,
+				Events = actions is null
+					? []
+					: [UiEventHandler.On(UiComponentEvents.Swipe, data => actions.SwipePage(data))],
+				Children = body,
+			},
 		};
 	}
 
-	private static UiButton StatCard(string key, MacroDeck.Localization.LocalizedString caption, Func<string> value, Func<string>? color = null)
+	private static UiModifier StatCard(string key, MacroDeck.Localization.LocalizedString caption, Func<string> value, Func<string>? color = null)
 	{
 		var valueRun = new UiTextRun
 		{
@@ -673,12 +732,11 @@ internal static class MatchHudView
 			Digits = UiValue.Of(4.0),
 			Align = UiComponentAlignments.Center,
 		};
-		return new UiButton
+		return CardChrome(key, new UiButton
 		{
 			Key = key,
 			Justify = UiComponentJustify.Center,
 			Align = UiComponentAlignments.Center,
-			Background = UiValue.Of(CardBackground),
 			Padding = 0.012,
 			Gap = 0.004,
 			Children =
@@ -694,7 +752,7 @@ internal static class MatchHudView
 				},
 				valueRun,
 			],
-		};
+		});
 	}
 
 	private static UiStack MetaRows(UiState<MatchHudContent> content) => new()
@@ -756,14 +814,13 @@ internal static class MatchHudView
 		],
 	};
 
-	private static UiButton MetaStrip(string key, MacroDeck.Localization.LocalizedString caption, UiTextRun value) => new()
+	private static UiModifier MetaStrip(string key, MacroDeck.Localization.LocalizedString caption, UiTextRun value) => CardChrome(key, new UiButton
 	{
 		Key = key,
 		Direction = UiComponentDirections.Horizontal,
 		Align = UiComponentAlignments.Baseline,
 		Gap = 0.015,
 		Fill = true,
-		Background = UiValue.Of(CardBackground),
 		Padding = 0.012,
 		Children =
 		[
@@ -777,20 +834,39 @@ internal static class MatchHudView
 			},
 			value,
 		],
-	};
+	});
 
 	private static UiButton BombCard(UiState<MatchHudContent> content)
 	{
 		var body = new List<UiElement>
 		{
-			new UiTextRun
+			new UiStack
 			{
-				Key = "bomb-state",
-				Text = UiText.From(() => content.Value.BombText),
-				Size = UiSize.Capped(0.075, 17),
-				Weight = UiComponentTextWeights.Bold,
-				Color = UiValue.Of(MatchHudColors.Bad),
+				Key = "bomb-head",
+				Direction = UiComponentDirections.Horizontal,
+				Justify = UiComponentJustify.Center,
 				Align = UiComponentAlignments.Center,
+				Gap = 0.02,
+				Children =
+				[
+					new UiIcon
+					{
+						Key = "bomb-icon",
+						Icon = UiIcons.AlertTriangle,
+						Size = UiSize.Capped(0.075, 17),
+						MainSize = UiSize.Capped(0.075, 17),
+						Color = UiValue.Of(MatchHudColors.Bad),
+					},
+					new UiTextRun
+					{
+						Key = "bomb-state",
+						Text = UiText.From(() => content.Value.BombText),
+						Size = UiSize.Capped(0.075, 17),
+						Weight = UiComponentTextWeights.Bold,
+						Color = UiValue.Of(MatchHudColors.Bad),
+						Align = UiComponentAlignments.Center,
+					},
+				],
 			},
 			new UiWhen
 			{
@@ -883,10 +959,11 @@ internal static class MatchHudView
 				Condition = () => !string.IsNullOrWhiteSpace(ct ? content.Value.CtName : content.Value.TName),
 				Content = () => new UiTextRun
 				{
-					Key = ct ? "ct-name" : "t-name",
-					Text = UiText.From(() => ct ? content.Value.CtName : content.Value.TName),
-					Size = UiSize.Capped(0.07, 11),
-					Weight = UiComponentTextWeights.SemiBold,
+						Key = ct ? "ct-name" : "t-name",
+						Text = UiText.From(() => ct ? content.Value.CtName : content.Value.TName),
+						Size = UiSize.Capped(0.07, 11),
+						MinSize = UiSize.Capped(0.05, 8),
+						Weight = UiComponentTextWeights.SemiBold,
 					Color = UiValue.Of(MatchHudColors.White),
 					Align = UiComponentAlignments.Center,
 				},
@@ -1005,6 +1082,7 @@ internal static class MatchHudView
 						Key = "player-name",
 						Text = UiText.From(() => content.Value.NameLine),
 						Size = options.Compact ? UiSize.Capped(0.09, 12) : UiSize.Capped(0.095, 14),
+						MinSize = UiSize.Capped(0.07, 10),
 					Weight = UiComponentTextWeights.SemiBold,
 					Align = UiComponentAlignments.Center,
 				},
@@ -1231,10 +1309,9 @@ internal static class MatchHudView
 		};
 	}
 
-	private static UiButton CompassCard(UiState<MatchHudContent> content) => new()
+	private static UiModifier CompassCard(UiState<MatchHudContent> content) => CardChrome("compass-card", new UiButton
 	{
 		Key = "compass-card",
-		Background = UiValue.Of(CardBackground),
 		Padding = 0.015,
 		Children =
 		[
@@ -1248,16 +1325,36 @@ internal static class MatchHudView
 				[
 					new UiWhen
 					{
-						Key = "compass-arrow-when",
+						Key = "compass-needle-when",
 						Condition = () => content.Value.FacingYaw.HasValue,
-						Content = () => new UiTextRun
+						// A smooth needle on new readers, the octant glyph as the
+						// fallback: yaw degrees clockwise match the arrow glyph
+						// convention exactly (0 is up, 90 is right).
+						Content = () => new UiTransform
 						{
-							Key = "compass-arrow",
-							Text = UiText.From(() => MatchHudWidget.YawArrow(content.Value.FacingYaw)),
-							Size = UiSize.Capped(0.09, 24),
-							Weight = UiComponentTextWeights.Bold,
-							Color = UiValue.Of(MatchHudColors.Good),
-							Align = UiComponentAlignments.Center,
+							Key = "compass-needle",
+							Rotation = UiValue.From(() => NeedleRotation(content.Value.FacingYaw)),
+							Children =
+							[
+								new UiTextRun
+								{
+									Key = "compass-needle-arrow",
+									Text = UiText.From(() => "↑"),
+									Size = UiSize.Capped(0.09, 24),
+									Weight = UiComponentTextWeights.Bold,
+									Color = UiValue.Of(MatchHudColors.Good),
+									Align = UiComponentAlignments.Center,
+								},
+							],
+							Fallback = new UiTextRun
+							{
+								Key = "compass-arrow",
+								Text = UiText.From(() => MatchHudWidget.YawArrow(content.Value.FacingYaw)),
+								Size = UiSize.Capped(0.09, 24),
+								Weight = UiComponentTextWeights.Bold,
+								Color = UiValue.Of(MatchHudColors.Good),
+								Align = UiComponentAlignments.Center,
+							},
 						},
 					},
 					new UiStack
@@ -1281,10 +1378,11 @@ internal static class MatchHudView
 								Condition = () => content.Value.HasPlace,
 								Content = () => new UiTextRun
 								{
-									Key = "compass-place",
-									Text = UiText.From(() => content.Value.PlaceText),
-									Size = UiSize.Capped(0.055, 13),
-									Weight = UiComponentTextWeights.SemiBold,
+								Key = "compass-place",
+								Text = UiText.From(() => content.Value.PlaceText),
+								Size = UiSize.Capped(0.055, 13),
+								MinSize = UiSize.Capped(0.04, 10),
+								Weight = UiComponentTextWeights.SemiBold,
 									Align = UiComponentAlignments.Start,
 								},
 							},
@@ -1295,23 +1393,32 @@ internal static class MatchHudView
 								Content = () => new UiTextRun
 								{
 									Key = "compass-coords",
-									Text = UiText.From(() => content.Value.TrackingLine),
-									Size = UiSize.Capped(0.04, 10),
-									Role = UiComponentTextRoles.Muted,
-									Align = UiComponentAlignments.Start,
-								},
+								Text = UiText.From(() => content.Value.TrackingLine),
+								Size = UiSize.Capped(0.04, 10),
+								Role = UiComponentTextRoles.Muted,
+								Align = UiComponentAlignments.Start,
 							},
-						],
-					},
-				],
+						},
+					],
+				},
+			],
 			},
 		],
-	};
+	});
 
-	private static UiButton BattlefieldCard(UiState<MatchHudContent> content) => new()
+	private static double NeedleRotation(double? yaw)
+	{
+		if (yaw is not { } degrees || !double.IsFinite(degrees))
+		{
+			return 0;
+		}
+
+		return degrees;
+	}
+
+	private static UiModifier BattlefieldCard(UiState<MatchHudContent> content) => CardChrome("battlefield-card", new UiButton
 	{
 		Key = "battlefield-card",
-		Background = UiValue.Of(CardBackground),
 		Padding = 0.015,
 		Gap = 0.008,
 		Children =
@@ -1362,12 +1469,11 @@ internal static class MatchHudView
 				],
 			},
 		],
-	};
+	});
 
-	private static UiButton EventsCard(UiState<MatchHudContent> content) => new()
+	private static UiModifier EventsCard(UiState<MatchHudContent> content) => CardChrome("events-card", new UiButton
 	{
 		Key = "events-card",
-		Background = UiValue.Of(CardBackground),
 		Padding = 0.015,
 		Gap = 0.008,
 		Children =
@@ -1395,7 +1501,7 @@ internal static class MatchHudView
 				Content = () => FeedList(content),
 			},
 		],
-	};
+	});
 
 	private static UiStack BombPanel(UiState<MatchHudContent> content) => new UiStack
 	{
@@ -1488,7 +1594,7 @@ internal static class MatchHudView
 		{
 			Key = key + "-when",
 			Condition = () => condition(),
-			Content = () => new UiButton
+			Content = () => PillChrome(key, new UiButton
 			{
 				Key = key,
 				Justify = UiComponentJustify.Center,
@@ -1496,7 +1602,7 @@ internal static class MatchHudView
 				Background = UiValue.From(background),
 				Padding = 0.01,
 				Children = [run],
-			},
+			}),
 		};
 	}
 
@@ -2189,6 +2295,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			Serilog.ILogger logger) => new(
 			SelectPage: index => SelectPage(content, index, logger),
 			SelectPageData: data => SelectPageData(content, data, logger),
+			SwipePage: data => SwipePage(content, data, logger),
 			Simulate: () => SimulateMatch(gsi, logger),
 			Install: () => InstallGsiConfig(gsi, settings, logger));
 
@@ -2234,19 +2341,36 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 				return UiEventOutcome.Rejected("Unknown page.");
 			}
 
-var page = (int)Math.Round(index.Value);
-logger?.Debug("Widget tab change requested: {Page}", page);
-var result = SelectPage(content, page, logger);
-if (result == UiEventOutcome.Accepted)
-{
-    // Force a content refresh to ensure the reader's Selected binding
-    // propagates before the next paint cycle, preventing the reader's
-    // internal held/producerAtRelease state from desyncing.
-    // Use a tiny synchronous delay to let the reader's internal state settle.
-    System.Threading.Thread.Sleep(5);
-    content.Set(content.Peek());
-}
-return result;
+			var page = (int)Math.Round(index.Value);
+			logger?.Debug("Widget tab change requested: {Page}", page);
+			return SelectPage(content, page, logger);
+		}
+
+		private static UiEventOutcome SwipePage(UiState<MatchHudContent> content, UiEventData data, Serilog.ILogger? logger)
+		{
+			// A swipe carries the direction as a bare string. Left advances through
+			// Match, Player, Intel and wraps; right goes back. Anything else is a
+			// no-op rejection, like an unknown tab index.
+			if (!data.TryGetString(out var direction))
+			{
+				return UiEventOutcome.Rejected("Unknown swipe.");
+			}
+
+			var page = content.Value.Page;
+			var next = direction switch
+			{
+				"left" => (page + 1) % 3,
+				"right" => (page + 2) % 3,
+				_ => -1,
+			};
+			if (next < 0)
+			{
+				logger?.Debug("Widget swipe rejected: {Direction}.", direction);
+				return UiEventOutcome.Rejected("Unknown swipe.");
+			}
+
+			logger?.Debug("Widget swipe accepted: {Direction} to page {Page}.", direction, next);
+			return SelectPage(content, next, logger);
 		}
 
 		private static UiEventOutcome SimulateMatch(GsiService gsi, Serilog.ILogger logger)
