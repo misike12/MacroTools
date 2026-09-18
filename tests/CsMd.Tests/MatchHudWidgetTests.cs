@@ -166,6 +166,10 @@ public sealed class MatchHudWidgetTests
 		Assert.That(longHistory[0].Key, Is.EqualTo("8"));
 
 		Assert.That(MatchHudHistory.BuildDots(string.Empty, "CT"), Is.Empty);
+
+		var latest = MatchHudHistory.BuildDots("CCT", "CT").ToList();
+
+		Assert.That(latest.Select(dot => dot.Latest), Is.EqualTo([false, false, true]));
 	}
 
 	[Test]
@@ -433,6 +437,23 @@ public sealed class MatchHudWidgetTests
 
 			session!.Dispatch(Swipe(tabs, "up"));
 			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("player-page"));
+
+			// A plain press cycles forward too, for readers without swipe.
+			session!.Dispatch(new MacroDeck.Ui.Model.Events.UiEvent
+			{
+				NodeId = tabs,
+				Name = "change",
+				Data = JsonDocument.Parse("0").RootElement.Clone(),
+			});
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("match-page"));
+
+			var bug = ScorebugId(JsonSerializer.Serialize(session!.BuildTree()));
+			session!.Dispatch(new MacroDeck.Ui.Model.Events.UiEvent
+			{
+				NodeId = bug,
+				Name = "press",
+			});
+			Assert.That(JsonSerializer.Serialize(session!.BuildTree()), Does.Contain("player-page"));
 		}
 		finally
 		{
@@ -660,6 +681,43 @@ public sealed class MatchHudWidgetTests
 				view?.Dispose();
 			}
 		}
+	}
+
+	[Test]
+	public void Live_pill_pulses_with_a_heartbeat_border()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var tree = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(MatchHudContent.SampleLive))).Tree);
+
+		Assert.That(tree, Does.Contain("live-pill"));
+		Assert.That(tree, Does.Contain("\"heartbeat\""));
+	}
+
+	[Test]
+	public void Streak_pill_runs_hot_from_five_up()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var warm = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(
+				MatchHudContent.SampleLive with { Streak = 4, HasStreak = true }))).Tree);
+		var hot = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(
+				MatchHudContent.SampleLive with { Streak = 7, HasStreak = true }))).Tree);
+
+		Assert.That(warm, Does.Contain("\"background\":\"#3D3417\""));
+		Assert.That(hot, Does.Contain("\"background\":\"#3D2317\""));
+		Assert.That(hot, Does.Contain("\"color\":\"#FB923C\""));
 	}
 
 	[Test]

@@ -72,7 +72,7 @@ public sealed record MatchHudOptions(
 	}
 }
 
-public sealed record RoundDot(string Key, string Glyph, string? Color);
+public sealed record RoundDot(string Key, string Glyph, string? Color, bool Latest);
 
 public sealed record FeedItem(string Key, MacroDeck.Localization.LocalizedString Text, string? Accent);
 
@@ -164,7 +164,7 @@ public sealed record MatchHudContent(
 
 	public static MatchHudContent SampleLive { get; } = new(
 		true, "DE_MIRAGE · COMPETITIVE", "NAVI", 9, "FAZE", 7, "R17", "LIVE", "1:23", true,
-		[new RoundDot("1", "●", "#4ADE80"), new RoundDot("2", "●", "#4ADE80"), new RoundDot("3", "●", "#F87171")], true,
+		[new RoundDot("1", "●", "#4ADE80", false), new RoundDot("2", "●", "#4ADE80", false), new RoundDot("3", "●", "#F87171", true)], true,
 		"s1mple [NAVI]", "CT", true, true, 0.87, "87", 1.0, "100 · AWP · Rifle · 5 / 30 · $4,700 · 18 / 9 / 4", Strings.Widget.Round.Line(17, 2, 250), Strings.Widget.TopWeapon.Line("AWP", 14),
 		"Middle", true, "512 · -735 · -148", true, "CONSOLE", "CARRIED", false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
 		false, false, false, true, true, 4, true, Strings.Widget.Session.Line(18, 9, "2.00"),
@@ -215,6 +215,7 @@ public sealed record MatchHudActions(
 	Func<int, UiEventOutcome> SelectPage,
 	Func<UiEventData, UiEventOutcome> SelectPageData,
 	Func<UiEventData, UiEventOutcome> SwipePage,
+	Func<UiEventOutcome> CyclePage,
 	Func<UiEventOutcome> Simulate,
 	Func<UiEventOutcome> Install);
 
@@ -234,6 +235,7 @@ internal static class MatchHudView
 	private const string PillRed = "#3D1F1F";
 	private const string PillBlue = "#1C3A4D";
 	private const string PillYellow = "#3D3417";
+	private const string PillHot = "#3D2317";
 	private const string ChromeEdge = "#39435A";
 
 	// Broadcast-dark depth system. These are modifier-only members (background,
@@ -627,6 +629,8 @@ internal static class MatchHudView
 							Justify = UiComponentJustify.Center,
 							Align = UiComponentAlignments.Center,
 							Background = UiValue.Of(PillRed),
+							BorderStyle = UiValue.Of(UiComponentBorderStyles.Heartbeat),
+							BorderColor = UiValue.Of(MatchHudColors.Bad),
 							Padding = 0.008,
 							Children =
 							[
@@ -684,7 +688,7 @@ internal static class MatchHudView
 						{
 							Key = key,
 							Text = UiText.From(() => dot.Glyph),
-							Size = UiSize.Capped(0.075, 11),
+							Size = dot.Latest ? UiSize.Capped(0.09, 13) : UiSize.Capped(0.075, 11),
 							Weight = UiComponentTextWeights.Bold,
 							Color = dot.Color is null ? UiValue.None<string>() : UiValue.Of(dot.Color),
 							Align = UiComponentAlignments.Center,
@@ -714,7 +718,10 @@ internal static class MatchHudView
 				Gap = 0.015,
 				Events = actions is null
 					? []
-					: [UiEventHandler.On(UiComponentEvents.Swipe, data => actions.SwipePage(data))],
+					: [
+						UiEventHandler.On(UiComponentEvents.Press, _ => actions.CyclePage()),
+						UiEventHandler.On(UiComponentEvents.Swipe, data => actions.SwipePage(data)),
+					],
 				Children = body,
 			},
 		};
@@ -931,7 +938,8 @@ internal static class MatchHudView
 				() => PillRed, () => MatchHudColors.Bad),
 			LocalizedPill("streak", () => content.Value.HasStreak,
 				() => Strings.Widget.Streak.Label(content.Value.Streak),
-				() => PillYellow, () => MatchHudColors.Warn),
+				() => content.Value.Streak >= 5 ? PillHot : PillYellow,
+				() => content.Value.Streak >= 5 ? MatchHudColors.Hot : MatchHudColors.Warn),
 		],
 	};
 
@@ -1712,7 +1720,7 @@ public static class MatchHudHistory
 					_ => null,
 				},
 			};
-			dots.Add(new RoundDot((offset + i).ToString(System.Globalization.CultureInfo.InvariantCulture), won is null && color is null ? "○" : "●", color));
+			dots.Add(new RoundDot((offset + i).ToString(System.Globalization.CultureInfo.InvariantCulture), won is null && color is null ? "○" : "●", color, i == rounds.Length - 1));
 		}
 
 		return dots;
@@ -2310,6 +2318,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			SelectPage: index => SelectPage(content, index, logger),
 			SelectPageData: data => SelectPageData(content, data, logger),
 			SwipePage: data => SwipePage(content, data, logger),
+			CyclePage: () => CyclePage(content, logger),
 			Simulate: () => SimulateMatch(gsi, logger),
 			Install: () => InstallGsiConfig(gsi, settings, logger));
 
@@ -2384,6 +2393,15 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			}
 
 			logger?.Debug("Widget swipe accepted: {Direction} to page {Page}.", direction, next);
+			return SelectPage(content, next, logger);
+		}
+
+		// Tap advances one page with wrap: the control readers without touch
+		// or swipe support (hardware decks, older hosts) can still flip pages.
+		private static UiEventOutcome CyclePage(UiState<MatchHudContent> content, Serilog.ILogger? logger)
+		{
+			var next = (content.Value.Page + 1) % 3;
+			logger?.Debug("Widget scorebug press advances to page {Page}.", next);
 			return SelectPage(content, next, logger);
 		}
 

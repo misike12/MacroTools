@@ -145,7 +145,7 @@ One Valve rule shapes the position variables: the game only sends coordinates an
 
 ### Widget (1)
 
-Match HUD: a broadcast-style scorebug (team scores with team colors, round, phase, live clock and round-history dots), a player plate (name with clan tag, health number with state-colored bar and armor bar, loadout, money, KDA, round and top-weapon lines), health-trend, per-round-damage and economy graphs, a bomb panel with a live-ticking countdown bar, status pills (alive state, streak, place, bomb, smoke, fire, flash, helmet, kit), a tracking line (place, coordinates, facing) and a configurable event feed. Swipe the scorebug or the tab bar to flip between the Match, Player and Intel pages. Sections, graphs, feed length and compact mode are configurable per widget; sized for a 2 by 2 tile.
+Match HUD: a broadcast-style scorebug (team scores with team colors, round, phase, live clock and round-history dots), a player plate (name with clan tag, health number with state-colored bar and armor bar, loadout, money, KDA, round and top-weapon lines), health-trend, per-round-damage and economy graphs, a bomb panel with a live-ticking countdown bar, status pills (alive state, streak, place, bomb, smoke, fire, flash, helmet, kit), a tracking line (place, coordinates, facing) and a configurable event feed. Swipe the scorebug or the tab bar to flip between the Match, Player and Intel pages (tapping the scorebug advances one page, for readers without touch). Sections, graphs, feed length and compact mode are configurable per widget; sized for a 2 by 2 tile.
 
 Deliberately out of scope: Steam Web API history (needs an API key and offers no live data; GSI is the live API) and sending commands into the game (CS2 exposes no such channel).
 
