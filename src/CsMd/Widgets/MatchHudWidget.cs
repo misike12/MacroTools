@@ -592,73 +592,86 @@ internal static class MatchHudView
 								Weight = UiComponentTextWeights.Bold,
 								Align = UiComponentAlignments.Center,
 							},
-						new UiWhen
-						{
-							Key = "phase-when",
-							Condition = () => !string.IsNullOrWhiteSpace(content.Value.MapPhase) && content.Value.MapPhase != "LIVE",
-							Content = () => new UiTextRun
-							{
-								Key = "phase",
-								Text = UiText.From(() => content.Value.MapPhase),
-								Size = UiSize.Capped(0.08, 10),
-								Role = UiComponentTextRoles.Muted,
-								Align = UiComponentAlignments.Center,
-							},
-						},
 							new UiWhen
-						{
-							Key = "clock-when",
-							Condition = () => content.Value.HasTimer,
-							Content = () => new UiTextRun
 							{
-								Key = "clock",
-								Text = UiText.From(() => content.Value.PhaseTime),
-								Size = UiSize.Capped(0.105, 15),
-								Weight = UiComponentTextWeights.Bold,
-								Digits = UiValue.Of(4.0),
-								Align = UiComponentAlignments.Center,
-							},
-						},
-						new UiWhen
-						{
-							Key = "live-when",
-							Condition = () => content.Value.MapPhase == "LIVE",
-						Content = () => PillChrome("live-pill", new UiButton
-						{
-							Key = "live-pill",
-							Justify = UiComponentJustify.Center,
-							Align = UiComponentAlignments.Center,
-							Background = UiValue.Of(PillRed),
-							BorderStyle = UiValue.Of(UiComponentBorderStyles.Heartbeat),
-							BorderColor = UiValue.Of(MatchHudColors.Bad),
-							Padding = 0.008,
-							Children =
-							[
-								new UiTextRun
+								Key = "phase-when",
+								Condition = () => !string.IsNullOrWhiteSpace(content.Value.MapPhase) && content.Value.MapPhase != "LIVE",
+								Content = () => new UiTextRun
 								{
-									Key = "live-pill-label",
-									Text = UiText.FromLocalized(() => Strings.Widget.State.Live()),
-									Size = UiSize.Capped(0.07, 10),
-									Weight = UiComponentTextWeights.Bold,
-									Color = UiValue.Of(MatchHudColors.Bad),
+									Key = "phase",
+									Text = UiText.From(() => content.Value.MapPhase),
+									Size = UiSize.Capped(0.08, 10),
+									Role = UiComponentTextRoles.Muted,
 									Align = UiComponentAlignments.Center,
 								},
-							],
-						}),
-						},
+							},
+							new UiWhen
+							{
+								Key = "clock-when",
+								Condition = () => content.Value.HasTimer,
+								Content = () => new UiTextRun
+								{
+									Key = "clock",
+									Text = UiText.From(() => content.Value.PhaseTime),
+									Size = UiSize.Capped(0.105, 15),
+									Weight = UiComponentTextWeights.Bold,
+									Digits = UiValue.Of(4.0),
+									Align = UiComponentAlignments.Center,
+								},
+							},
+							new UiWhen
+							{
+								Key = "live-when",
+								Condition = () => content.Value.MapPhase == "LIVE",
+								Content = () => PillChrome("live-pill", new UiButton
+								{
+									Key = "live-pill",
+									Justify = UiComponentJustify.Center,
+									Align = UiComponentAlignments.Center,
+									Background = UiValue.Of(PillRed),
+									BorderStyle = UiValue.Of(UiComponentBorderStyles.Heartbeat),
+									BorderColor = UiValue.Of(MatchHudColors.Bad),
+									Padding = 0.008,
+									Children =
+									[
+										new UiTextRun
+										{
+											Key = "live-pill-label",
+											Text = UiText.FromLocalized(() => Strings.Widget.State.Live()),
+											Size = UiSize.Capped(0.07, 10),
+											Weight = UiComponentTextWeights.Bold,
+											Color = UiValue.Of(MatchHudColors.Bad),
+											Align = UiComponentAlignments.Center,
+										},
+									],
+								}),
+							},
 							new UiWhen
 							{
 								Key = "mp-when",
 								Condition = () => MatchHudWidget.MatchPoint(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName) is not null,
-							Content = () => new UiTextRun
-							{
-								Key = "mp",
-								Text = UiText.FromLocalized(() => MatchHudWidget.MatchPointText(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName)),
-								Size = UiSize.Capped(0.075, 10),
-								Weight = UiComponentTextWeights.Bold,
-								Color = UiValue.Of(MatchHudColors.Warn),
-								Align = UiComponentAlignments.Center,
-							},
+								Content = () => PillChrome("mp-pill", new UiButton
+								{
+									Key = "mp-pill",
+									Justify = UiComponentJustify.Center,
+									Align = UiComponentAlignments.Center,
+									Background = UiValue.Of(PillYellow),
+									BorderStyle = UiValue.Of(UiComponentBorderStyles.Blink),
+									BorderColor = UiValue.Of(MatchHudColors.Warn),
+									Padding = 0.008,
+									Children =
+									[
+										new UiTextRun
+										{
+											Key = "mp-label",
+											Text = UiText.FromLocalized(() => MatchHudWidget.MatchPointText(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName)),
+											Size = UiSize.Capped(0.075, 10),
+											Weight = UiComponentTextWeights.Bold,
+											Color = UiValue.Of(MatchHudColors.Warn),
+											Align = UiComponentAlignments.Center,
+										},
+									],
+								}),
 							},
 						],
 					},
@@ -1540,40 +1553,57 @@ internal static class MatchHudView
 		],
 	});
 
-	private static UiStack BombPanel(UiState<MatchHudContent> content) => new UiStack
-	{
-		Key = "bomb-panel",
-		Gap = 0.02,
-		Children =
-		[
-			new UiProgressBar
-			{
-				Key = "bomb-bar",
-				Value = UiValue.From(() => content.Value.BombProgress),
-				StartColor = UiValue.Of(MatchHudColors.Bad),
-				EndColor = UiValue.Of(MatchHudColors.Hot),
-				Thickness = 0.045,
-				Fallback = new UiRangeBar
+private static UiStack BombPanel(UiState<MatchHudContent> content) => new UiStack
+		{
+			Key = "bomb-panel",
+			Gap = 0.02,
+			Children =
+			[
+				// Progress bar with gradient - red to orange as it counts down
+				new UiProgressBar
 				{
-					Key = "bomb-bar-fallback",
-					Start = UiValue.Of(0.0),
-					End = UiValue.From(() => BombFallbackFrac(content.Value.BombProgress)),
+					Key = "bomb-bar",
+					Value = UiValue.From(() => content.Value.BombProgress),
 					StartColor = UiValue.Of(MatchHudColors.Bad),
 					EndColor = UiValue.Of(MatchHudColors.Hot),
-					Thickness = 0.045,
+					Thickness = 0.05,
+					Fallback = new UiRangeBar
+					{
+						Key = "bomb-bar-fallback",
+						Start = UiValue.Of(0.0),
+						End = UiValue.From(() => BombFallbackFrac(content.Value.BombProgress)),
+						StartColor = UiValue.Of(MatchHudColors.Bad),
+						EndColor = UiValue.Of(MatchHudColors.Hot),
+						Thickness = 0.05,
+					},
 				},
-			},
+// Timer text with animated urgency - color handled by progress bar fallback
 			new UiProgressText
 			{
 				Key = "bomb-clock",
 				Value = UiValue.From(() => content.Value.BombProgress),
 				Format = UiValue.Of(UiProgressFormats.Remaining),
-				Size = UiSize.Capped(0.11, 20),
+				Size = UiSize.Capped(0.13, 22),
 				Weight = UiComponentTextWeights.Bold,
 				Align = UiComponentAlignments.Center,
 			},
-		],
-	};
+				// Site label
+				new UiWhen
+				{
+					Key = "bomb-site-when",
+					Condition = () => !string.IsNullOrWhiteSpace(content.Value.BombDetail),
+					Content = () => new UiTextRun
+					{
+						Key = "bomb-site",
+						Text = UiText.From(() => content.Value.BombDetail),
+						Size = UiSize.Capped(0.055, 12),
+						Weight = UiComponentTextWeights.SemiBold,
+						Role = UiComponentTextRoles.Muted,
+						Align = UiComponentAlignments.Center,
+					},
+				},
+			],
+		};
 
 	private static double BombFallbackFrac(UiProgressReference progress)
 	{
