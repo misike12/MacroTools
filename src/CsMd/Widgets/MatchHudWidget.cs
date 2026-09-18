@@ -2237,7 +2237,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 var page = (int)Math.Round(index.Value);
 logger?.Debug("Widget tab change requested: {Page}", page);
 var result = SelectPage(content, page, logger);
-if (object.ReferenceEquals(result, UiEventOutcome.Accepted))
+if (result == UiEventOutcome.Accepted)
 {
     // Force a content refresh to ensure the reader's Selected binding
     // propagates before the next paint cycle, preventing the reader's
@@ -2330,6 +2330,9 @@ return result;
 			_cts.Dispose();
 			_view.Changed -= OnChanged;
 			_view.HandlerFaulted -= OnHandlerFaulted;
+			// UiView is disposable since SDK beta.11: disposing detaches it from the
+			// state it reads, so a closed session no longer leaks on every write.
+			_view.Dispose();
 		}
 
 		public ValueTask DisposeAsync()

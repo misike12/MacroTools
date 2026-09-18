@@ -932,7 +932,7 @@ var focus = FocusedPlayer(current, previous);
 			if (previousFocus is not null
 				&& focus.SteamId is string
 				&& previousFocus.SteamId is string
-				&& !string.Equals(focus.SteamId, previousFocus.SteamId))
+				&& !string.Equals(focus.SteamId, previousFocus.SteamId, StringComparison.Ordinal))
 			{
 				_streak = 0;
 				_bestStreak = 0;

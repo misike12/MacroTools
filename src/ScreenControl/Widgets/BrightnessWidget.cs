@@ -174,6 +174,10 @@ internal static class BrightnessView
 			[
 				UiEventHandler.On(UiComponentEvents.Adjust, data => actions.Adjust(data)),
 				UiEventHandler.On(UiComponentEvents.Change, data => actions.Change(data)),
+				// Double tap jumps back to full brightness, the slider's home level.
+				// The slider is relative, so taps move nothing and double-press arrives
+				// on its own with no tap latency held back.
+				UiEventHandler.On(UiComponentEvents.DoublePress, _ => actions.Preset(100)),
 			],
 			Fallback = new UiRangeBar
 			{
@@ -532,6 +536,9 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 			_cts.Dispose();
 			_view.Changed -= OnChanged;
 			_view.HandlerFaulted -= OnHandlerFaulted;
+			// UiView is disposable since SDK beta.11: disposing detaches it from the
+			// state it reads, so a closed session no longer leaks on every write.
+			_view.Dispose();
 		}
 
 		public ValueTask DisposeAsync()

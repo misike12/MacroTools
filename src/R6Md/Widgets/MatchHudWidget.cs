@@ -822,6 +822,9 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			_cts.Dispose();
 			_view.Changed -= OnChanged;
 			_view.HandlerFaulted -= OnHandlerFaulted;
+			// UiView is disposable since SDK beta.11: disposing detaches it from the
+			// state it reads, so a closed session no longer leaks on every write.
+			_view.Dispose();
 		}
 
 		public ValueTask DisposeAsync()

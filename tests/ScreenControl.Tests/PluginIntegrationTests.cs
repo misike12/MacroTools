@@ -4,6 +4,7 @@ using MacroDeck.Plugin.Testing.Fakes;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
+using MacroDeck.Ui.Components;
 using MacroDeck.Ui.Dsl;
 using MacroDeck.Ui.Model.Events;
 using MacroDeck.Ui.Model.Surfaces;
@@ -186,6 +187,45 @@ public sealed class PluginIntegrationTests
 				Data = JsonDocument.Parse("0.5").RootElement.Clone(),
 			});
 			Assert.That(monitors.Levels[0], Is.EqualTo(50));
+		}
+		finally
+		{
+			if (session is IAsyncDisposable asyncDisposable)
+			{
+				await asyncDisposable.DisposeAsync();
+			}
+		}
+	}
+
+	[Test]
+	public async Task Brightness_slider_double_press_restores_full_brightness()
+	{
+		var monitors = new FakeMonitorService();
+		monitors.Levels[0] = 30;
+		var widget = new BrightnessWidget(monitors, TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>(),
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+		Assert.That(session, Is.Not.Null);
+		try
+		{
+			var slider = SliderId(JsonSerializer.Serialize(session!.BuildTree()));
+
+			session!.Dispatch(new UiEvent
+			{
+				NodeId = slider,
+				Name = UiComponentEvents.DoublePress,
+			});
+			Assert.That(monitors.Levels[0], Is.EqualTo(100));
 		}
 		finally
 		{

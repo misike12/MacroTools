@@ -87,6 +87,8 @@ Control monitors and windows from the deck. Monitor control uses DDC/CI over `dx
 
 Besides the fixed variables, the plugin offers a browsable **Monitors** catalog: every monitor Windows sees appears as its own writable 0–100 brightness variable (`monitor-1-brightness`, `monitor-2-brightness`, ...). To put a slider for the second monitor on your deck, add a **Slider** widget, bind it to a variable, browse to Monitors and pick it. This is how non-primary monitors get sliders; the binding reads unavailable while that monitor is unplugged. The list refreshes live when monitors are plugged or unplugged (needs host beta.4 or newer).
 
+The **Monitor Brightness widget** uses a relative-drag slider (drag anywhere to nudge, taps move nothing). Double-tap the slider to jump straight back to full brightness.
+
 Brightness works on monitors without DDC/CI too (e.g. early-2000s panels that only speak VESA DDC 2B): when the backlight cannot be driven over VCP `0x10`, the plugin scales that display's GPU gamma ramp instead. Some GPU drivers (notably NVIDIA) reject gamma ramps darker than 50%, so below that a click-through black veil covers the display the rest of the way down to black; the veil never takes focus, passes input through, and hides at full brightness. Input and power switching genuinely need DDC and report honestly when the monitor has none; input cycling stays within the inputs the monitor advertises in its capabilities string.
 
 ## Timers
