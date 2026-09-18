@@ -487,10 +487,15 @@ public sealed class MatchHudWidgetTests
 			SessionMode = UiSessionModes.Shared,
 			Attributes = new Dictionary<string, JsonElement>(),
 		};
-		var state = new UiState<MatchHudContent>(MatchHudContent.SampleLive);
-		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+		var match = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(MatchHudContent.SampleLive))).Tree);
+		var player = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(
+				MatchHudContent.SampleLive with { Page = MatchHudContent.PagePlayer }))).Tree);
 
-		Assert.That(tree, Does.Contain("minSize"));
+		Assert.That(match, Does.Contain("minSize"));
+		Assert.That(player, Does.Contain("minSize"));
+		Assert.That(player, Does.Contain("gear"));
 	}
 
 	[Test]

@@ -1287,8 +1287,9 @@ internal static class MatchHudView
 			body.Add(EventsCard(content));
 		}
 
-		body.Add(MicroLine(content, "tracking", () => content.Value.TrackingLine));
-
+		// No tracking microline: whenever TrackingLine is non-empty the compass
+		// card above already shows the same coordinates, so a second row would
+		// only repeat them.
 		if (options.ShowSession && !options.Compact)
 		{
 			body.Add(new UiTextRun
@@ -1652,6 +1653,7 @@ internal static class MatchHudView
 			Key = key,
 			Text = UiText.From(() => text()),
 			Size = UiSize.Capped(0.075, 9),
+			MinSize = UiSize.Capped(0.055, 7),
 			Role = UiComponentTextRoles.Muted,
 			Align = UiComponentAlignments.Center,
 		},
