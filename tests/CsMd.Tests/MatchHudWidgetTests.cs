@@ -494,6 +494,43 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public async Task Widget_config_mentions_swipe_pages()
+	{
+		using var gsi = new GsiService(TestLogger());
+		var widget = new MatchHudWidget(gsi, new CsSettingsProvider(), TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Config,
+				SessionMode = UiSessionModes.Exclusive,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiConfigSurfaceAttributes.EntryPoint] = JsonDocument.Parse($"\"{UiConfigEntryPoints.WidgetConfig}\"").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+		Assert.That(session, Is.Not.Null);
+		try
+		{
+			var tree = JsonSerializer.Serialize(session!.BuildTree());
+
+			Assert.That(tree, Does.Contain("swipeHint"));
+			Assert.That(tree, Does.Contain("Widget.Config.SwipeHint"));
+		}
+		finally
+		{
+			if (session is IAsyncDisposable asyncDisposable)
+			{
+				await asyncDisposable.DisposeAsync();
+			}
+		}
+	}
+
+	[Test]
 	public void Match_point_detects_leader_overtime_and_open_play()
 	{
 		Assert.That(MatchHudWidget.MatchPoint(12, 9, "NAVI", "FAZE"), Is.EqualTo("NAVI"));

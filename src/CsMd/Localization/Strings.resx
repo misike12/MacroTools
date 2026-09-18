@@ -852,6 +852,9 @@
   <data name="Widget.Config.FeedCountDescription" xml:space="preserve">
     <value>How many event lines the feed keeps, from 1 to 5.</value>
   </data>
+  <data name="Widget.Config.SwipeHint" xml:space="preserve">
+    <value>Tip: swipe the scorebug or the tab bar to switch pages.</value>
+  </data>
   <data name="Widget.Streak.Label" xml:space="preserve">
     <value>STREAK ×{count}</value>
     <comment>[count:int] Kill streak pill.</comment>

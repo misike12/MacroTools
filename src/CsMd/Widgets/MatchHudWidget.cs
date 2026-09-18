@@ -1378,11 +1378,11 @@ internal static class MatchHudView
 								Condition = () => content.Value.HasPlace,
 								Content = () => new UiTextRun
 								{
-								Key = "compass-place",
-								Text = UiText.From(() => content.Value.PlaceText),
-								Size = UiSize.Capped(0.055, 13),
-								MinSize = UiSize.Capped(0.04, 10),
-								Weight = UiComponentTextWeights.SemiBold,
+									Key = "compass-place",
+									Text = UiText.From(() => content.Value.PlaceText),
+									Size = UiSize.Capped(0.055, 13),
+									MinSize = UiSize.Capped(0.04, 10),
+									Weight = UiComponentTextWeights.SemiBold,
 									Align = UiComponentAlignments.Start,
 								},
 							},
@@ -1393,11 +1393,11 @@ internal static class MatchHudView
 								Content = () => new UiTextRun
 								{
 									Key = "compass-coords",
-								Text = UiText.From(() => content.Value.TrackingLine),
-								Size = UiSize.Capped(0.04, 10),
-								Role = UiComponentTextRoles.Muted,
-								Align = UiComponentAlignments.Start,
-							},
+									Text = UiText.From(() => content.Value.TrackingLine),
+									Size = UiSize.Capped(0.04, 10),
+									Role = UiComponentTextRoles.Muted,
+									Align = UiComponentAlignments.Start,
+								},
 						},
 					],
 				},
@@ -2227,6 +2227,14 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 						Key = "compactMode",
 						Label = Strings.Widget.Config.CompactMode(),
 						Binding = Bind.To(compactMode),
+					},
+					new UiTextRun
+					{
+						Key = "swipeHint",
+						Text = UiText.FromLocalized(() => Strings.Widget.Config.SwipeHint()),
+						Size = UiSize.Capped(0.04, 10),
+						Role = UiComponentTextRoles.Muted,
+						Align = UiComponentAlignments.Center,
 					},
 				],
 			},
