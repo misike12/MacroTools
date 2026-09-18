@@ -847,23 +847,16 @@ internal static class MatchHudView
 	{
 		var body = new List<UiElement>
 		{
-			new UiStack
+			// Icon pinned left, text centered on the true tile axis: centering
+			// an icon+text row as one group pushes the text off-center, which
+			// reads as a mistake at broadcast sizes. Layer children each get
+			// the whole box, so the text stays centered and the icon docks.
+			new UiLayer
 			{
 				Key = "bomb-head",
-				Direction = UiComponentDirections.Horizontal,
-				Justify = UiComponentJustify.Center,
-				Align = UiComponentAlignments.Center,
-				Gap = 0.02,
+				MainSize = UiSize.Capped(0.075, 17),
 				Children =
 				[
-					new UiIcon
-					{
-						Key = "bomb-icon",
-						Icon = UiIcons.AlertTriangle,
-						Size = UiSize.Capped(0.075, 17),
-						MainSize = UiSize.Capped(0.075, 17),
-						Color = UiValue.Of(MatchHudColors.Bad),
-					},
 					new UiTextRun
 					{
 						Key = "bomb-state",
@@ -873,7 +866,33 @@ internal static class MatchHudView
 						Color = UiValue.Of(MatchHudColors.Bad),
 						Align = UiComponentAlignments.Center,
 					},
+					new UiStack
+					{
+						Key = "bomb-head-iconbox",
+						Direction = UiComponentDirections.Horizontal,
+						Align = UiComponentAlignments.Center,
+						Children =
+						[
+							new UiIcon
+							{
+								Key = "bomb-icon",
+								Icon = UiIcons.AlertTriangle,
+								Size = UiSize.Capped(0.075, 17),
+								MainSize = UiSize.Capped(0.075, 17),
+								Color = UiValue.Of(MatchHudColors.Bad),
+							},
+						],
+					},
 				],
+				Fallback = new UiTextRun
+				{
+					Key = "bomb-state-fb",
+					Text = UiText.From(() => content.Value.BombText),
+					Size = UiSize.Capped(0.075, 17),
+					Weight = UiComponentTextWeights.Bold,
+					Color = UiValue.Of(MatchHudColors.Bad),
+					Align = UiComponentAlignments.Center,
+				},
 			},
 			new UiWhen
 			{
@@ -946,6 +965,11 @@ internal static class MatchHudView
 	private static UiStack SideScore(UiState<MatchHudContent> content, UiSize big, bool ct) => new UiStack
 	{
 		Key = ct ? "ct-side" : "t-side",
+		// Fixed equal thirds: both sides always measure the same, so the middle
+		// column lands on the true tile center and both team bars span the same
+		// width no matter how long the team names are. Real scoreboard tags fit
+		// easily; longer names shrink into the slot instead of stretching it.
+		MainSize = 0.30,
 		Gap = 0.008,
 		Children =
 		[

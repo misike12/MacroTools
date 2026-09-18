@@ -721,6 +721,64 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Score_sides_measure_equal_thirds()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+
+		static double SideWidth(string treeJson, string side)
+		{
+			using var document = JsonDocument.Parse(treeJson);
+			var queue = new Queue<JsonElement>();
+			queue.Enqueue(document.RootElement.GetProperty("Root"));
+			while (queue.Count > 0)
+			{
+				var node = queue.Dequeue();
+				if (node.GetProperty("Id").GetString()!.EndsWith(side, StringComparison.Ordinal))
+				{
+					return node.GetProperty("Properties").GetProperty("mainSize").GetProperty("basis").GetDouble();
+				}
+
+				foreach (var child in node.GetProperty("Children").EnumerateArray())
+				{
+					queue.Enqueue(child);
+				}
+			}
+
+			throw new InvalidOperationException($"No {side} node in the tree.");
+		}
+
+		// Deliberately lopsided names: the columns must not follow the content.
+		var tree = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(
+				MatchHudContent.SampleLive with { CtName = "Natus Vincere", TName = "T" }))).Tree);
+
+		Assert.That(SideWidth(tree, ".ct-side"), Is.EqualTo(SideWidth(tree, ".t-side")));
+		Assert.That(SideWidth(tree, ".ct-side"), Is.EqualTo(0.3).Within(0.0001));
+	}
+
+	[Test]
+	public void Bomb_head_centers_text_with_docked_icon_and_fallback()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var tree = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(MatchHudContent.SampleBomb))).Tree);
+
+		Assert.That(tree, Does.Contain("bomb-head"));
+		Assert.That(tree, Does.Contain("bomb-state-fb"));
+		Assert.That(tree, Does.Contain("alert-triangle"));
+	}
+
+	[Test]
 	public void Match_point_detects_leader_overtime_and_open_play()
 	{
 		Assert.That(MatchHudWidget.MatchPoint(12, 9, "NAVI", "FAZE"), Is.EqualTo("NAVI"));
