@@ -612,6 +612,57 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Hostile_but_possible_content_builds_without_throwing()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var hostile = MatchHudContent.SampleLive with
+		{
+			CtName = new string('C', 32),
+			TName = new string('T', 32),
+			NameLine = new string('N', 32),
+			PlaceText = new string('P', 32),
+			CoordsLine = new string('9', 32),
+			MapLine = new string('M', 64),
+			GearLine = new string('G', 96),
+			HpFrac = 0,
+			HpText = "0",
+			ArmorFrac = 0,
+			FacingYaw = double.NaN,
+			Kills = 99,
+			SessionDamage = 99999,
+			EquipValue = 16000,
+			Mvps = 9,
+			FeedItems =
+			[
+				new FeedItem("h1", Strings.Widget.Feed.Kill(new string('A', 32), "AWP", new string('B', 32)), "#FFFFFF"),
+				new FeedItem("h2", Strings.Widget.Feed.Chat(new string('C', 32), new string('D', 64)), null),
+			],
+			HistoryDots = MatchHudHistory.BuildDots(new string('C', 24), "CT"),
+		};
+
+		foreach (var page in new[] { MatchHudContent.PageMatch, MatchHudContent.PagePlayer, MatchHudContent.PageIntel })
+		{
+			var state = new UiState<MatchHudContent>(hostile with { Page = page });
+			UiView? view = null;
+			try
+			{
+				view = new UiView(surface, MatchHudPreviews.FromState(state));
+				Assert.DoesNotThrow(() => JsonSerializer.Serialize(view!.Tree));
+				Assert.DoesNotThrow(() => JsonSerializer.Serialize(view!.DrainPatches()));
+			}
+			finally
+			{
+				view?.Dispose();
+			}
+		}
+	}
+
+	[Test]
 	public void Match_point_detects_leader_overtime_and_open_play()
 	{
 		Assert.That(MatchHudWidget.MatchPoint(12, 9, "NAVI", "FAZE"), Is.EqualTo("NAVI"));
