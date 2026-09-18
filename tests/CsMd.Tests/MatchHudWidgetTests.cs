@@ -536,6 +536,24 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Scorebug_frame_turns_red_while_the_bomb_is_live()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var calm = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(MatchHudContent.SampleLive))).Tree);
+		var live = JsonSerializer.Serialize(new UiView(surface,
+			MatchHudPreviews.FromState(new UiState<MatchHudContent>(MatchHudContent.SampleBomb))).Tree);
+
+		Assert.That(calm, Does.Contain("\"borderColor\":\"#39435A\""));
+		Assert.That(live, Does.Contain("\"borderColor\":\"#F87171\""));
+	}
+
+	[Test]
 	public void Match_point_detects_leader_overtime_and_open_play()
 	{
 		Assert.That(MatchHudWidget.MatchPoint(12, 9, "NAVI", "FAZE"), Is.EqualTo("NAVI"));

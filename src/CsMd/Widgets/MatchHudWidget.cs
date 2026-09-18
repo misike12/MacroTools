@@ -704,7 +704,7 @@ internal static class MatchHudView
 				new UiGradientStop { Offset = 1, Color = "#141A26" },
 			]),
 			Radius = 0.025,
-			BorderColor = UiValue.Of(ChromeEdge),
+			BorderColor = UiValue.From(() => content.Value.HasBombBar ? MatchHudColors.Bad : ChromeEdge),
 			BorderWidth = 0.004,
 			Child = new UiButton
 			{
