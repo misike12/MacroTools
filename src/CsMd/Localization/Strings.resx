@@ -469,7 +469,7 @@
     <value>Match elapsed</value>
   </data>
   <data name="Variables.MatchElapsed.Description" xml:space="preserve">
-    <value>Seconds since match data started flowing.</value>
+    <value>Seconds since the match started. Rounds finished before connecting are estimated at average round length.</value>
   </data>
   <data name="Variables.SessionMatchTime.DisplayName" xml:space="preserve">
     <value>Session match time</value>

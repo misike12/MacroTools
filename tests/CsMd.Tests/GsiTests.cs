@@ -732,6 +732,51 @@ public sealed class GsiTests
 	}
 
 	[Test]
+	public async Task Late_join_backfills_completed_rounds_into_match_clock()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		// First packet already shows 15 decided rounds: the clock must estimate
+		// those instead of starting near zero.
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "casual", name = "de_mirage", phase = "live", round = 16, team_ct = new { score = 8 }, team_t = new { score = 7 } },
+			round = new { phase = "live" },
+			player = new { steamid = "76561198000000000", name = "Me", team = "CT", state = new { health = 100 } },
+		}), ct);
+
+		var snapshot = await WaitForSnapshotAsync(gsi, ct);
+
+		Assert.That(snapshot.MatchElapsed, Is.GreaterThanOrEqualTo(1400.0));
+		Assert.That(snapshot.MatchElapsed, Is.LessThan(1800.0));
+	}
+
+	[Test]
+	public async Task Fresh_match_starts_clock_near_zero()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.Start(0, null);
+		using var http = new HttpClient();
+		var uri = $"http://127.0.0.1:{gsi.Port}/gsi";
+		var ct = TestContext.CurrentContext.CancellationToken;
+
+		await http.PostAsync(uri, JsonContent.Create(new
+		{
+			map = new { mode = "casual", name = "de_mirage", phase = "live", round = 0, team_ct = new { score = 0 }, team_t = new { score = 0 } },
+			round = new { phase = "live" },
+			player = new { steamid = "76561198000000000", name = "Me", team = "CT", state = new { health = 100 } },
+		}), ct);
+
+		var snapshot = await WaitForSnapshotAsync(gsi, ct);
+
+		Assert.That(snapshot.MatchElapsed, Is.LessThan(30.0));
+	}
+
+	[Test]
 	public async Task Kill_death_and_bomb_deltas_fire_events()
 	{
 		using var gsi = new GsiService(TestLogger());

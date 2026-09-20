@@ -120,6 +120,12 @@ public sealed class GsiService : IDisposable
 	private const int MaxBodyBytes = 4 * 1024 * 1024;
 	private const int MaxConnections = 8;
 
+	// The game sends no match-start timestamp, so a client that connects mid-match
+	// (late join, GOTV, plugin restart) would otherwise time only the observed tail.
+	// Each decided round awards exactly one team point, so already-played rounds are
+	// backfilled at this average length. Rough on purpose: round pace varies by mode.
+	private const double EstimatedRoundSeconds = 100;
+
 	private readonly ILogger _logger;
 	private readonly object _gate = new();
 	private readonly SemaphoreSlim _handlers = new(MaxConnections, MaxConnections);
@@ -261,6 +267,12 @@ public sealed class GsiService : IDisposable
 		}
 	}
 
+	private void AnchorMatchStartLocked(DateTimeOffset now, GsiMap? map)
+	{
+		var completed = Math.Max(0, (map?.TeamCt?.Score ?? 0) + (map?.TeamT?.Score ?? 0));
+		_matchStartUtc = now - TimeSpan.FromSeconds(completed * EstimatedRoundSeconds);
+	}
+
 	private static readonly int[] StreakMilestones = [3, 5, 10, 15, 20, 25, 30];
 
 	private void ResetSessionLocked()
@@ -300,7 +312,7 @@ public sealed class GsiService : IDisposable
 		// Update match timer: only runs when phase is "live"
 		if (isLive && _matchStartUtc is null)
 		{
-			_matchStartUtc = now;
+			AnchorMatchStartLocked(now, map);
 		}
 		else if (!isLive && _matchStartUtc is not null)
 		{
@@ -800,7 +812,7 @@ public sealed class GsiService : IDisposable
 			if ((_matchStartUtc is null && warmedUp)
 				|| (_lastReceivedAt is { } seen && now - seen > TimeSpan.FromMinutes(5)))
 			{
-				_matchStartUtc = now;
+				AnchorMatchStartLocked(now, payload.Map);
 			}
 
 			_lastReceivedAt = now;
