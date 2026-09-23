@@ -675,6 +675,35 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Picker_card_serves_a_sample_without_stored_data()
+	{
+		var widget = new BrightnessWidget(new FakeMonitorService(), TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Preview,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Sample] = JsonDocument.Parse("true").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(session, Is.Not.Null);
+		var tree = JsonSerializer.Serialize(session!.BuildTree());
+		Assert.That(tree, Does.Contain("brightness-g"));
+		if (session is IAsyncDisposable asyncDisposable)
+		{
+			await asyncDisposable.DisposeAsync();
+		}
+	}
+
+	[Test]
 	public void Message_topics_are_valid()
 	{
 		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(ScreenMessageTopics.MonitorsChanged), Is.True);

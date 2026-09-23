@@ -1,7 +1,11 @@
+using System.Text.Json;
 using MacroDeck.Plugin.Testing;
 using MacroDeck.Plugin.Testing.Fakes;
 using MacroDeck.Sdk.Actions;
+using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
+using MacroDeck.Ui.Model.Surfaces;
+using Timers.Widgets;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Serilog;
@@ -421,6 +425,35 @@ public sealed class PluginIntegrationTests
 		Assert.That(integration.GetWidgetTypes().Count, Is.EqualTo(1));
 		Assert.That(integration.GetWidgetTypes()[0].Id, Is.EqualTo("focus-timer"));
 		Assert.That(integration.Surfaces.Count, Is.EqualTo(3));
+	}
+
+	[Test]
+	public async Task Picker_card_serves_a_sample_without_stored_data()
+	{
+		var widget = new FocusTimerWidget(new TimerService(), new PomodoroService(), TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Preview,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Sample] = JsonDocument.Parse("true").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(session, Is.Not.Null);
+		var tree = JsonSerializer.Serialize(session!.BuildTree());
+		Assert.That(tree, Does.Contain("focus-timer"));
+		if (session is IAsyncDisposable asyncDisposable)
+		{
+			await asyncDisposable.DisposeAsync();
+		}
 	}
 
 	[Test]

@@ -273,6 +273,36 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Picker_card_serves_a_sample_without_stored_data()
+	{
+		using var replays = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("ranked-r1.json")));
+		var widget = new MatchHudWidget(replays, TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Preview,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Sample] = JsonDocument.Parse("true").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(session, Is.Not.Null);
+		var tree = JsonSerializer.Serialize(session!.BuildTree());
+		Assert.That(tree, Does.Contain("r6-hud-g"));
+		if (session is IAsyncDisposable asyncDisposable)
+		{
+			await asyncDisposable.DisposeAsync();
+		}
+	}
+
+	[Test]
 	public async Task Config_flow_collects_replay_settings()
 	{
 		var flow = new R6Md.Config.R6ConfigFlow();

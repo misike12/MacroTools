@@ -899,6 +899,35 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Picker_card_serves_a_sample_without_stored_data()
+	{
+		var widget = new NowPlayingWidget(new FakeMediaControlService(), TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Preview,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Sample] = JsonDocument.Parse("true").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(session, Is.Not.Null);
+		var tree = System.Text.Json.JsonSerializer.Serialize(session!.BuildTree());
+		Assert.That(tree, Does.Contain("now-playing"));
+		if (session is IAsyncDisposable asyncDisposable)
+		{
+			await asyncDisposable.DisposeAsync();
+		}
+	}
+
+	[Test]
 	public async Task Widget_serves_a_configuration_tree()
 	{
 		var widget = new NowPlayingWidget(new FakeMediaControlService(), TestLogger());

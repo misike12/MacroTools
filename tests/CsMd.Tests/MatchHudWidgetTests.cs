@@ -870,5 +870,37 @@ public sealed class MatchHudWidgetTests
 		return new MacroDeck.Localization.LocalizationResolver(registry).Resolve(text, "en");
 	}
 
+	[Test]
+	public async Task Picker_card_serves_a_sample_without_stored_data()
+	{
+		using var gsi = new GsiService(TestLogger());
+		var widget = new MatchHudWidget(gsi, new CsSettingsProvider(), TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Preview,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Sample] = JsonDocument.Parse("true").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(session, Is.Not.Null);
+		var tree = JsonSerializer.Serialize(session!.BuildTree());
+		Assert.That(tree, Does.Contain("match-hud-g"));
+		if (session is IAsyncDisposable asyncDisposable)
+		{
+			await asyncDisposable.DisposeAsync();
+		}
+
+		gsi.Dispose();
+	}
+
 	private static Serilog.Core.Logger TestLogger() => new LoggerConfiguration().CreateLogger();
 }
