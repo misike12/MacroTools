@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Serilog;
 using Timers.Actions;
+using Timers.Messaging;
 using Timers.Timing;
 
 namespace Timers.Tests;
@@ -285,6 +286,134 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Toggle_actions_report_button_states()
+	{
+		var timers = new TimerService();
+		var pomodoro = new PomodoroService();
+		await using var harness = PluginTestHarness.Create(builder =>
+		{
+			builder.Services.AddSingleton(timers);
+			builder.Services.AddSingleton(pomodoro);
+			builder.UseLocalization(Strings.LocalizationCatalog);
+			builder.RegisterIntegration<PluginIntegration>();
+		});
+		await harness.InitializeIntegrationsAsync();
+
+		var idle = (await harness.Actions.GetActionStateAsync(
+			"toggle-countdown", new Dictionary<string, object?>())).DataAs<ActionStateSnapshot>();
+		Assert.That(idle!.ActiveStateId, Is.EqualTo("paused"));
+
+		await harness.Actions.ExecuteAsync(
+			"start-countdown", new Dictionary<string, object?> { ["minutes"] = 5.0 });
+		var running = (await harness.Actions.GetActionStateAsync(
+			"toggle-countdown", new Dictionary<string, object?>())).DataAs<ActionStateSnapshot>();
+		Assert.That(running!.States.Select(s => s.Id), Is.EquivalentTo(["running", "paused"]));
+		Assert.That(running.ActiveStateId, Is.EqualTo("running"));
+
+		await harness.Actions.ExecuteAsync("start-stopwatch", new Dictionary<string, object?>());
+		var watch = (await harness.Actions.GetActionStateAsync(
+			"toggle-stopwatch", new Dictionary<string, object?>())).DataAs<ActionStateSnapshot>();
+		Assert.That(watch!.ActiveStateId, Is.EqualTo("running"));
+
+		pomodoro.Start(new PomodoroSettings(25, 5, 15, 4, true));
+		var focus = (await harness.Actions.GetActionStateAsync(
+			"toggle-pomodoro", new Dictionary<string, object?>())).DataAs<ActionStateSnapshot>();
+		Assert.That(focus!.States.Select(s => s.Id), Is.EquivalentTo(["focus", "short-break", "long-break", "idle"]));
+		Assert.That(focus.ActiveStateId, Is.EqualTo("focus"));
+
+		pomodoro.Stop();
+		var stopped = (await harness.Actions.GetActionStateAsync(
+			"toggle-pomodoro", new Dictionary<string, object?>())).DataAs<ActionStateSnapshot>();
+		Assert.That(stopped!.ActiveStateId, Is.EqualTo("idle"));
+
+		timers.CancelCountdown();
+		pomodoro.Dispose();
+	}
+
+	[Test]
+	public async Task Messaging_mirrors_countdown_finish()
+	{
+		var timers = new TimerService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(timers, new PomodoroService(), TestLogger());
+		await integration.InitializeAsync(context);
+
+		timers.StartCountdown(TimeSpan.FromMilliseconds(100), "quick");
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Messages.Published.Any(m => m.Topic == TimerMessageTopics.CountdownFinished))
+		{
+			await Task.Delay(50, TestContext.CurrentContext.CancellationToken);
+		}
+
+		var mirrored = context.Messages.Published.FirstOrDefault(m => m.Topic == TimerMessageTopics.CountdownFinished);
+		Assert.That(mirrored, Is.Not.Null);
+		await integration.ShutdownAsync();
+		timers.Dispose();
+	}
+
+	[Test]
+	public async Task Messaging_mirrors_pomodoro_phase_change()
+	{
+		var timers = new TimerService();
+		var pomodoro = new PomodoroService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(timers, pomodoro, TestLogger());
+		await integration.InitializeAsync(context);
+
+		pomodoro.Start(new PomodoroSettings(25, 5, 15, 4, true));
+		pomodoro.Skip();
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Messages.Published.Any(m => m.Topic == TimerMessageTopics.PomodoroPhaseChanged))
+		{
+			await Task.Delay(50, TestContext.CurrentContext.CancellationToken);
+		}
+
+		var mirrored = context.Messages.Published.FirstOrDefault(m => m.Topic == TimerMessageTopics.PomodoroPhaseChanged);
+		Assert.That(mirrored, Is.Not.Null);
+		await integration.ShutdownAsync();
+		pomodoro.Dispose();
+	}
+
+	[Test]
+	public async Task Messaging_answers_state_requests()
+	{
+		var timers = new TimerService();
+		var pomodoro = new PomodoroService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(timers, pomodoro, TestLogger());
+		await integration.InitializeAsync(context);
+
+		timers.StartCountdown(TimeSpan.FromMinutes(5), "tea");
+		timers.StartStopwatch();
+		pomodoro.Start(new PomodoroSettings(25, 5, 15, 4, true));
+
+		var reply = await context.Messages.DeliverRequestAsync(TimerMessageTopics.StateGet);
+
+		Assert.That(reply.HasValue, Is.True);
+		var snapshot = reply!.Value;
+		Assert.That(snapshot.GetProperty("countdownRunning").GetBoolean(), Is.True);
+		Assert.That(snapshot.GetProperty("countdownLabel").GetString(), Is.EqualTo("tea"));
+		Assert.That(snapshot.GetProperty("stopwatchRunning").GetBoolean(), Is.True);
+		Assert.That(snapshot.GetProperty("pomodoroPhase").GetString(), Is.EqualTo("focus"));
+		Assert.That(snapshot.GetProperty("pomodoroRound").GetDouble(), Is.EqualTo(1.0));
+		await integration.ShutdownAsync();
+		timers.Dispose();
+		pomodoro.Dispose();
+	}
+
+	[Test]
+	public void Message_topics_are_valid()
+	{
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(TimerMessageTopics.CountdownFinished), Is.True);
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(TimerMessageTopics.PomodoroPhaseChanged), Is.True);
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(TimerMessageTopics.StateGet), Is.True);
+	}
+
+	[Test]
 	public void The_widget_registers_one_focus_timer_type()
 	{
 		var integration = new PluginIntegration(new TimerService(), new PomodoroService(), TestLogger());
@@ -292,6 +421,23 @@ public sealed class PluginIntegrationTests
 		Assert.That(integration.GetWidgetTypes().Count, Is.EqualTo(1));
 		Assert.That(integration.GetWidgetTypes()[0].Id, Is.EqualTo("focus-timer"));
 		Assert.That(integration.Surfaces.Count, Is.EqualTo(3));
+	}
+
+	[Test]
+	public void Widget_supports_flows_and_standard_appearance()
+	{
+		var integration = new PluginIntegration(new TimerService(), new PomodoroService(), TestLogger());
+		var descriptor = integration.GetWidgetTypes()[0];
+
+		Assert.That(descriptor.SupportsFlows, Is.True);
+		Assert.That(
+			descriptor.AppearanceProperties,
+			Does.Contain(MacroDeck.Sdk.Widgets.WidgetAppearanceProperty.BackgroundColor));
+		Assert.That(
+			descriptor.AppearanceProperties,
+			Does.Contain(MacroDeck.Sdk.Widgets.WidgetAppearanceProperty.Label));
+		Assert.That(descriptor.DataSchema, Does.Contain("flows"));
+		Assert.That(descriptor.DataSchema, Does.Contain("backgroundColor"));
 	}
 
 	[Test]

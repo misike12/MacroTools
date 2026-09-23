@@ -1,8 +1,10 @@
+using System.Text.Json;
 using MacroDeck.Localization;
 using MacroDeck.Plugin.Hosting.Integrations.HostApis;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.Events;
+using MacroDeck.Sdk.Messaging;
 using MacroDeck.Sdk.MusicPlayer;
 using MacroDeck.Sdk.ConfigFlow;
 using MacroDeck.Sdk.Identity;
@@ -14,6 +16,7 @@ using Serilog;
 using WindowsMediaControl.Actions;
 using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
+using WindowsMediaControl.Messaging;
 using WindowsMediaControl.Widgets;
 
 namespace WindowsMediaControl;
@@ -27,7 +30,12 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private readonly NowPlayingWidget _widget;
 	private readonly object _loopGate = new();
 	private readonly object _snapshotGate = new();
+	// A poll tick wedged in driver calls must not hold shutdown past the
+	// supervisor's grace period, or a SupervisorShutdown close (MDC0604) sees
+	// a live process. The cancelled loop ends on its own; shutdown moves on.
+	private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
 	private IIntegrationContext? _context;
+	private IMessageChannel? _messages;
 	private CancellationTokenSource? _loopCts;
 	private Task? _loopTask;
 	private MediaSnapshot _last = MediaSnapshot.Empty;
@@ -43,7 +51,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_settings = settings;
 		_logger = logger.ForContext<PluginIntegration>();
 		_catalogs = catalogs;
-		_widget = new NowPlayingWidget(media, logger, () => _last);
+		_widget = new NowPlayingWidget(media, logger, () => _last, () => _context?.UiResources);
 		Actions =
 		[
 			new PlayAction(media, settings),
@@ -62,7 +70,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new SetVolumeAction(media),
 			new MuteAction(media),
 			new UnmuteAction(media),
-			new ToggleMuteAction(media),
+			new ToggleMuteAction(media, settings),
 			new ToggleShuffleAction(media, settings),
 			new SetShuffleAction(media, settings),
 			new CycleRepeatAction(media, settings),
@@ -71,7 +79,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new AdjustAppVolumeAction(media),
 			new MuteAppAction(media),
 			new UnmuteAppAction(media),
-			new ToggleAppMuteAction(media),
+			new ToggleAppMuteAction(media, settings),
 			new SetOutputDeviceAction(media),
 			new CycleOutputDeviceAction(media),
 			new SetInputDeviceAction(media),
@@ -79,7 +87,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			new SetMicVolumeAction(media),
 			new MuteMicAction(media),
 			new UnmuteMicAction(media),
-			new ToggleMicMuteAction(media),
+			new ToggleMicMuteAction(media, settings),
 			new FocusAppAction(media),
 			new MuteSystemSoundsAction(media),
 			new UnmuteSystemSoundsAction(media),
@@ -165,8 +173,10 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public async Task InitializeAsync(IIntegrationContext context)
 	{
 		_context = context;
+		_messages = context.Messages;
 		_media.MediaChanged -= OnMediaChanged;
 		_media.MediaChanged += OnMediaChanged;
+		await RegisterMessagingAsync(context.Messages).ConfigureAwait(false);
 		try
 		{
 			_settings.Update(await MediaSettingsReader.ReadAsync(context.Config));
@@ -191,6 +201,69 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		}
 	}
 
+	private async Task RegisterMessagingAsync(IMessageChannel messages)
+	{
+		try
+		{
+			await messages.HandleRequestsAsync(
+				MediaMessageTopics.StateGet,
+				(_, _) => Task.FromResult<JsonElement?>(JsonSerializer.SerializeToElement(BuildStateSnapshot(), MediaMessageJson.Options)),
+				default).ConfigureAwait(false);
+		}
+		catch (MessageChannelException ex)
+		{
+			_logger.Debug(ex, "Message channel unavailable, skipping messaging registration.");
+		}
+	}
+
+	private Task PublishMessageAsync(string topic, object payload)
+	{
+		var channel = _messages;
+		if (channel is null)
+		{
+			return Task.CompletedTask;
+		}
+
+		return PublishMessageCoreAsync(channel, topic, payload);
+	}
+
+	private async Task PublishMessageCoreAsync(IMessageChannel channel, string topic, object payload)
+	{
+		try
+		{
+			await channel.PublishAsync(topic, JsonSerializer.SerializeToElement(payload, MediaMessageJson.Options), CancellationToken.None).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Message publish on {Topic} failed.", topic);
+		}
+	}
+
+	private MediaStateMessage BuildStateSnapshot()
+	{
+		MediaSnapshot snapshot;
+		lock (_snapshotGate)
+		{
+			snapshot = _last;
+		}
+
+		return new MediaStateMessage(
+			snapshot.HasSession,
+			OrNull(snapshot.Title),
+			OrNull(snapshot.Artist),
+			OrNull(snapshot.Album),
+			OrNull(snapshot.AppId),
+			StatusToken(snapshot),
+			snapshot is { HasSession: true, Status: PlaybackStatus.Playing },
+			snapshot.VolumePercent is int volume ? volume : null,
+			snapshot.IsMuted,
+			snapshot.Position.TotalSeconds,
+			snapshot.Duration.TotalSeconds,
+			snapshot.ProgressPercent);
+	}
+
+	private static string? OrNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
 	public async Task ShutdownAsync()
 	{
 		_media.MediaChanged -= OnMediaChanged;
@@ -199,14 +272,17 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			action.CancelPendingTimer();
 		}
 
+		Task? loop;
 		lock (_loopGate)
 		{
 			_loopCts?.Cancel();
+			loop = _loopTask;
+			_loopTask = null;
 		}
 
-		if (_loopTask != null)
+		if (loop != null)
 		{
-			await _loopTask;
+			await Task.WhenAny(loop, Task.Delay(ShutdownDrainTimeout, CancellationToken.None)).ConfigureAwait(false);
 		}
 	}
 
@@ -723,6 +799,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 	public void Dispose()
 	{
+		Task? loop;
 		lock (_loopGate)
 		{
 			if (_disposed)
@@ -738,11 +815,24 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			}
 
 			_loopCts?.Cancel();
-			if (_loopTask != null)
-			{
-				_loopTask.GetAwaiter().GetResult();
-			}
+			loop = _loopTask;
+			_loopTask = null;
 			_loopCts?.Dispose();
+		}
+
+		if (loop != null)
+		{
+			try
+			{
+				if (!loop.Wait(ShutdownDrainTimeout))
+				{
+					_logger.Debug("Poll loop drain timed out; the cancelled loop ends on its own.");
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.Debug(ex, "Poll loop drain failed.");
+			}
 		}
 	}
 
@@ -881,6 +971,9 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 					["album"] = current.Album,
 					["app"] = current.AppId,
 				});
+				_ = PublishMessageAsync(
+					MediaMessageTopics.TrackChanged,
+					new TrackChangedMessage(current.Title, current.Artist, current.Album, current.AppId));
 			}
 
 			if (_settings.Current.TrackToast && !string.IsNullOrWhiteSpace(current.Title))
@@ -908,6 +1001,9 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 					["status"] = StatusToken(current),
 					["isPlaying"] = current is { HasSession: true, Status: PlaybackStatus.Playing },
 				});
+				_ = PublishMessageAsync(
+					MediaMessageTopics.PlaybackChanged,
+					new PlaybackChangedMessage(StatusToken(current), current is { HasSession: true, Status: PlaybackStatus.Playing }));
 			}
 		}
 
@@ -920,6 +1016,9 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 					["volume"] = (double)volume,
 					["muted"] = current.IsMuted,
 				});
+				_ = PublishMessageAsync(
+					MediaMessageTopics.VolumeChanged,
+					new VolumeChangedMessage(volume, current.IsMuted));
 			}
 		}
 
@@ -931,6 +1030,7 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 				{
 					["muted"] = current.IsMuted,
 				});
+				_ = PublishMessageAsync(MediaMessageTopics.MuteChanged, new MuteChangedMessage(current.IsMuted));
 			}
 		}
 	}

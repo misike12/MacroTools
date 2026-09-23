@@ -17,6 +17,7 @@ using Serilog;
 using WindowsMediaControl.Actions;
 using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
+using WindowsMediaControl.Messaging;
 using WindowsMediaControl.Widgets;
 
 namespace WindowsMediaControl.Tests;
@@ -315,6 +316,146 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Messaging_mirrors_track_changes()
+	{
+		var fake = new FakeMediaControlService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(context);
+
+		fake.Snapshot = fake.Snapshot with { Title = "Something else" };
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !context.Messages.Published.Any(m => m.Topic == MediaMessageTopics.TrackChanged))
+		{
+			await Task.Delay(100);
+		}
+
+		Assert.That(context.Messages.Published.Any(m => m.Topic == MediaMessageTopics.TrackChanged), Is.True);
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Messaging_answers_state_requests()
+	{
+		var fake = new FakeMediaControlService();
+		var context = new FakeIntegrationContext();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(context);
+
+		fake.Snapshot = fake.Snapshot with
+		{
+			Title = "Song",
+			Artist = "Band",
+			Status = WindowsMediaControl.Media.PlaybackStatus.Playing,
+			HasSession = true,
+		};
+
+		var reply = await context.Messages.DeliverRequestAsync(MediaMessageTopics.StateGet);
+
+		Assert.That(reply.HasValue, Is.True);
+		var snapshot = reply!.Value;
+		Assert.That(snapshot.GetProperty("hasSession").GetBoolean(), Is.True);
+		Assert.That(snapshot.GetProperty("status").GetString(), Is.EqualTo("playing"));
+		Assert.That(snapshot.GetProperty("isPlaying").GetBoolean(), Is.True);
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Mute_toggles_report_button_states()
+	{
+		var fake = new FakeMediaControlService();
+		await using var harness = CreateHarness(fake);
+		await harness.InitializeIntegrationsAsync();
+
+		var unmuted = (await harness.Actions.GetActionStateAsync(
+			"toggle-mute", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		var micUnmuted = (await harness.Actions.GetActionStateAsync(
+			"toggle-mic-mute", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(unmuted!.States.Select(s => s.Id), Is.EquivalentTo(["muted", "unmuted"]));
+		Assert.That(unmuted.ActiveStateId, Is.EqualTo("unmuted"));
+		Assert.That(micUnmuted!.ActiveStateId, Is.EqualTo("unmuted"));
+
+		await harness.Actions.ExecuteAsync("toggle-mute", new Dictionary<string, object?>());
+		await harness.Actions.ExecuteAsync("toggle-mic-mute", new Dictionary<string, object?>());
+
+		var muted = (await harness.Actions.GetActionStateAsync(
+			"toggle-mute", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		var micMuted = (await harness.Actions.GetActionStateAsync(
+			"toggle-mic-mute", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(muted!.ActiveStateId, Is.EqualTo("muted"));
+		Assert.That(micMuted!.ActiveStateId, Is.EqualTo("muted"));
+	}
+
+	[Test]
+	public void Message_topics_are_valid()
+	{
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(MediaMessageTopics.TrackChanged), Is.True);
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(MediaMessageTopics.PlaybackChanged), Is.True);
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(MediaMessageTopics.VolumeChanged), Is.True);
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(MediaMessageTopics.MuteChanged), Is.True);
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(MediaMessageTopics.StateGet), Is.True);
+	}
+
+	[Test]
+	public async Task App_mute_toggle_reports_per_app_states()
+	{
+		var fake = new FakeMediaControlService();
+		await using var harness = CreateHarness(fake);
+		await harness.InitializeIntegrationsAsync();
+
+		var unmuted = (await harness.Actions.GetActionStateAsync(
+			"toggle-app-mute", new Dictionary<string, object?> { ["app"] = "Spot" })).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(unmuted!.States.Select(s => s.Id), Is.EquivalentTo(["muted", "unmuted"]));
+		Assert.That(unmuted.ActiveStateId, Is.EqualTo("unmuted"));
+
+		var missing = (await harness.Actions.GetActionStateAsync(
+			"toggle-app-mute", new Dictionary<string, object?> { ["app"] = "NoSuchApp" })).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(missing!.ActiveStateId, Is.Null);
+
+		var blank = (await harness.Actions.GetActionStateAsync(
+			"toggle-app-mute", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(blank!.ActiveStateId, Is.Null);
+
+		await harness.Actions.ExecuteAsync("toggle-app-mute", new Dictionary<string, object?> { ["app"] = "Spotify" });
+		var muted = (await harness.Actions.GetActionStateAsync(
+			"toggle-app-mute", new Dictionary<string, object?> { ["app"] = "Spotify" })).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(muted!.ActiveStateId, Is.EqualTo("muted"));
+	}
+
+	[Test]
+	public async Task Shutdown_returns_while_a_poll_tick_is_wedged()
+	{
+		var fake = new FakeMediaControlService();
+		var integration = new PluginIntegration(fake, new MediaSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var calls = System.Threading.Volatile.Read(ref fake.SnapshotCalls);
+		fake.SnapshotGate = new TaskCompletionSource<bool>();
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(15);
+		while (System.Threading.Volatile.Read(ref fake.SnapshotCalls) == calls
+			&& DateTimeOffset.UtcNow < deadline)
+		{
+			await Task.Delay(100, TestContext.CurrentContext.CancellationToken);
+		}
+
+		Assert.That(
+			System.Threading.Volatile.Read(ref fake.SnapshotCalls),
+			Is.GreaterThan(calls),
+			"No poll tick entered the wedged snapshot call.");
+
+		var watch = System.Diagnostics.Stopwatch.StartNew();
+		await integration.ShutdownAsync();
+		watch.Stop();
+
+		Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(20)));
+
+		fake.SnapshotGate.TrySetResult(true);
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
 	public async Task Music_player_state_carries_the_artwork_id()
 	{
 		var fake = new FakeMediaControlService
@@ -588,6 +729,11 @@ public sealed class PluginIntegrationTests
 		var types = widget.GetWidgetTypes();
 		Assert.That(types.Count, Is.EqualTo(1));
 		Assert.That(types[0].Id, Is.EqualTo("now-playing"));
+		Assert.That(types[0].SupportsFlows, Is.True);
+		Assert.That(
+			types[0].AppearanceProperties,
+			Does.Contain(MacroDeck.Sdk.Widgets.WidgetAppearanceProperty.BackgroundColor));
+		Assert.That(types[0].DataSchema, Does.Contain("flows"));
 	}
 
 	[Test]
@@ -662,6 +808,90 @@ public sealed class PluginIntegrationTests
 		Assert.That(json, Does.Contain("now-playing.times.duration"));
 		Assert.That(json, Does.Contain("semibold"));
 		Assert.That(json, Does.Not.Contain("borderStyle"));
+		if (session is IAsyncDisposable asyncDisposable)
+		{
+			await asyncDisposable.DisposeAsync();
+		}
+	}
+
+	[Test]
+	public async Task Widget_registers_cover_artwork()
+	{
+		var fake = new FakeMediaControlService
+		{
+			Snapshot = new FakeMediaControlService().Snapshot with { ArtworkId = "art-1" },
+			ArtworkBytes = [0x89, 0x50, 0x4E, 0x47],
+		};
+		var context = new FakeIntegrationContext();
+		var widget = new NowPlayingWidget(fake, TestLogger(), null, () => context.UiResources);
+		await widget.InitializeAsync(new FakeWidgetTypeProviderContext(), TestContext.CurrentContext.CancellationToken);
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.WidgetType] = JsonDocument.Parse($"\"{widget.GetWidgetTypes()[0].Id}\"").RootElement.Clone(),
+					[UiWidgetSurfaceAttributes.Data] = JsonDocument.Parse("""{}""").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+		Assert.That(session, Is.Not.Null);
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		var json = string.Empty;
+		while (DateTimeOffset.UtcNow < deadline && !json.Contains("now-playing.cover"))
+		{
+			await Task.Delay(250, TestContext.CurrentContext.CancellationToken);
+			json = System.Text.Json.JsonSerializer.Serialize(session!.BuildTree());
+		}
+
+		Assert.That(json, Does.Contain("now-playing.cover"));
+		Assert.That(json, Does.Contain("\"mediaType\":\"image/png\""));
+		Assert.That(json, Does.Contain("contentHash"));
+		if (session is IAsyncDisposable asyncDisposable)
+		{
+			await asyncDisposable.DisposeAsync();
+		}
+	}
+
+	[Test]
+	public async Task Widget_skips_cover_without_resources()
+	{
+		var fake = new FakeMediaControlService
+		{
+			Snapshot = new FakeMediaControlService().Snapshot with { ArtworkId = "art-1" },
+			ArtworkBytes = [0x89, 0x50, 0x4E, 0x47],
+		};
+		var widget = new NowPlayingWidget(fake, TestLogger());
+		await widget.InitializeAsync(new FakeWidgetTypeProviderContext(), TestContext.CurrentContext.CancellationToken);
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.WidgetType] = JsonDocument.Parse($"\"{widget.GetWidgetTypes()[0].Id}\"").RootElement.Clone(),
+					[UiWidgetSurfaceAttributes.Data] = JsonDocument.Parse("""{}""").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+		Assert.That(session, Is.Not.Null);
+
+		await Task.Delay(3000, TestContext.CurrentContext.CancellationToken);
+		var json = System.Text.Json.JsonSerializer.Serialize(session!.BuildTree());
+
+		Assert.That(json, Does.Not.Contain("now-playing.cover"));
 		if (session is IAsyncDisposable asyncDisposable)
 		{
 			await asyncDisposable.DisposeAsync();
@@ -884,7 +1114,7 @@ public sealed class PluginIntegrationTests
 			Parameters = new Dictionary<string, object> { ["app"] = "spotify" },
 			CancellationToken = ct,
 		});
-		var toggle = await new ToggleAppMuteAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		var toggle = await new ToggleAppMuteAction(fake, new MediaSettingsProvider()).CreateExecutor().ExecuteAsync(new ActionExecutionContext
 		{
 			Parameters = new Dictionary<string, object> { ["app"] = "spotify" },
 			CancellationToken = ct,
@@ -1322,7 +1552,7 @@ public sealed class PluginIntegrationTests
 			Parameters = new Dictionary<string, object>(),
 			CancellationToken = ct,
 		});
-		var toggle = await new ToggleMicMuteAction(fake).CreateExecutor().ExecuteAsync(new ActionExecutionContext
+		var toggle = await new ToggleMicMuteAction(fake, new MediaSettingsProvider()).CreateExecutor().ExecuteAsync(new ActionExecutionContext
 		{
 			Parameters = new Dictionary<string, object>(),
 			CancellationToken = ct,

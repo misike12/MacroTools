@@ -1,11 +1,12 @@
 # Macro Deck 3 plugins
 
-Four independent Windows plugins for Macro Deck 3, built from one solution:
+Five independent Windows plugins for Macro Deck 3, built from one solution:
 
 - **Windows Media Control** (`com.misu.windows-media`) — SMTC media playback, CoreAudio volume, devices, artwork, Now Playing widget.
 - **Screen Control** (`com.misu.screen-control`) — DDC monitor brightness/input/power plus window and virtual-desktop control.
 - **Timers** (`com.misu.timers`) — countdowns, stopwatch, Pomodoro cycles and a Focus Timer widget.
 - **CS:MD** (`com.misu.csmd`) — Counter-Strike 2 live match state over Game State Integration.
+- **R6MD** (`com.misu.r6md`) — Rainbow Six Siege match tracking over replay files, with an optional live bridge.
 
 ## Windows Media Control
 
@@ -57,9 +58,10 @@ Besides the fixed variables above, the plugin offers a browsable **App volumes**
 ### Extras
 
 - **Configuration page** — open the integration to find Playback, Volume, Live updates, Events and Advanced sections: preferred app, default seek/volume steps, a maximum-volume safety clamp, poll intervals, per-event toggles, SMTC timeouts, artwork cache size and button cover art. Advanced fields live under their own section, including a reset-to-defaults switch.
-- **Now Playing widget** — title/artist/album, live animated progress bar and prev/play/next buttons, with a configuration view (toggle album, progress and controls).
+- **Now Playing widget** — cover art, title/artist/album, live animated progress bar and prev/play/next buttons, with a configuration view (toggle album, progress and controls). Pressing the tile can run your own flows, and the standard background/label appearance applies.
 - **Music player provider** (`system` instance) with real album artwork for the native Music widget.
 - **Album art on buttons** — the Play/Pause action supplies the current cover as its button icon, falling back to the configured icon.
+- **Button states** — Play/Pause reports playing/paused/stopped, the system/mic mute toggles report muted/unmuted, and the per-app mute toggle reports the configured app's own mute state, so buttons follow the real state with per-state styling.
 
 ## Screen Control
 
@@ -87,7 +89,9 @@ Control monitors and windows from the deck. Monitor control uses DDC/CI over `dx
 
 Besides the fixed variables, the plugin offers a browsable **Monitors** catalog: every monitor Windows sees appears as its own writable 0–100 brightness variable (`monitor-1-brightness`, `monitor-2-brightness`, ...). To put a slider for the second monitor on your deck, add a **Slider** widget, bind it to a variable, browse to Monitors and pick it. This is how non-primary monitors get sliders; the binding reads unavailable while that monitor is unplugged. The list refreshes live when monitors are plugged or unplugged (needs host beta.4 or newer).
 
-The **Monitor Brightness widget** uses a relative-drag slider (drag anywhere to nudge, taps move nothing). Double-tap the slider to jump straight back to full brightness.
+The **Monitor Brightness widget** uses a relative-drag slider (drag anywhere to nudge, taps move nothing). Double-tap the slider to jump straight back to full brightness. Pressing the tile can run your own flows, and the standard background/label appearance applies.
+
+Power, input and always-on-top actions report button states (on/standby/off, the current input, pinned/unpinned). When Windows reports no monitors at all, the integration raises a resolvable warning instead of failing silently.
 
 Brightness works on monitors without DDC/CI too (e.g. early-2000s panels that only speak VESA DDC 2B): when the backlight cannot be driven over VCP `0x10`, the plugin scales that display's GPU gamma ramp instead. Some GPU drivers (notably NVIDIA) reject gamma ramps darker than 50%, so below that a click-through black veil covers the display the rest of the way down to black; the veil never takes focus, passes input through, and hides at full brightness. Input and power switching genuinely need DDC and report honestly when the monitor has none; input cycling stays within the inputs the monitor advertises in its capabilities string.
 
@@ -109,9 +113,11 @@ Leaving a number field blank keeps its default (blank minutes means 5, not 0): t
 
 `countdown-finished` (label/seconds), `pomodoro-phase-changed` (phase/round/label).
 
+The toggle actions report button states: countdown and stopwatch show running/paused, Pomodoro shows its live phase (focus/short-break/long-break/idle), so buttons follow the timers with per-state styling.
+
 ### Focus timer widget
 
-A deck widget with a big remaining-time hero, phase caption, round dots, a live progress bar and start/pause/resume/skip/reset controls. Its configuration page picks the mode (countdown, stopwatch or Pomodoro), the Pomodoro lengths/rounds/auto-advance, which parts show, compact mode and the accent color. The widget buttons drive the timers directly, so it works standalone with no extra buttons.
+A deck widget with a big remaining-time hero, phase caption, round dots, a live progress bar and start/pause/resume/skip/reset controls. Its configuration page picks the mode (countdown, stopwatch or Pomodoro), the Pomodoro lengths/rounds/auto-advance, which parts show, compact mode and the accent color. The widget buttons drive the timers directly, so it works standalone with no extra buttons. Pressing the tile can run your own flows, and the standard background/label/accent appearance applies.
 
 ### Pomodoro mode
 
@@ -129,7 +135,7 @@ Live Counter-Strike 2 match state on your deck via Game State Integration: the g
 
 ### Actions (4)
 
-Install GSI config / Reset session stats / Simulate a match (injects fake live data so the deck can be arranged without running the game) / Simulate an event (fires one match event with the current state so automations can be tested).
+Install GSI config / Reset session stats / Simulate a match (injects fake live data so the deck can be arranged without running the game) / Simulate an event (fires one match event with the current state so automations can be tested). Simulate reports a live/idle button state, and Install reports ready/missing; a GSI port conflict raises a resolvable error instead of failing silently.
 
 ### Variables (68)
 
@@ -145,14 +151,41 @@ One Valve rule shapes the position variables: the game only sends coordinates an
 
 ### Widget (1)
 
-Match HUD: a broadcast-style scorebug (team scores with team colors, round, phase, live clock and round-history dots), a player plate (name with clan tag, health number with state-colored bar and armor bar, loadout, money, KDA, round and top-weapon lines), health-trend, per-round-damage and economy graphs, a bomb panel with a live-ticking countdown bar, status pills (alive state, streak, place, bomb, smoke, fire, flash, helmet, kit), a tracking line (place, coordinates, facing) and a configurable event feed. Swipe the scorebug or the tab bar to flip between the Match, Player and Intel pages (tapping the scorebug advances one page, for readers without touch). Sections, graphs, feed length and compact mode are configurable per widget; sized for a 2 by 2 tile.
+Match HUD: a broadcast-style scorebug (team scores with team colors, round, phase, live clock and round-history dots), a player plate (name with clan tag, health number with state-colored bar and armor bar, loadout, money, KDA, round and top-weapon lines), health-trend, per-round-damage and economy graphs, a bomb panel with a live-ticking countdown bar, status pills (alive state, streak, place, bomb, smoke, fire, flash, helmet, kit), a tracking line (place, coordinates, facing) and a configurable event feed. Swipe the scorebug or the tab bar to flip between the Match, Player and Intel pages (tapping the scorebug advances one page, for readers without touch). Sections, graphs, feed length and compact mode are configurable per widget; sized for a 2 by 2 tile. Pressing the tile can run your own flows, and the standard background/label appearance applies.
 
 Deliberately out of scope: Steam Web API history (needs an API key and offers no live data; GSI is the live API) and sending commands into the game (CS2 exposes no such channel).
+
+## R6MD
+
+Rainbow Six Siege match tracking on your deck from the game's own MatchReplay `.rec` files (parsed by a vendored `r6-dissect` build), plus an optional Overwolf bridge receiver for live scores, rosters, HP and phases. Round-granular by nature since replays land per round. No memory reading (BattlEye cannot tell HUD-only intent from cheats), no Overwolf dependency and no Ubisoft credentials.
+
+### Setup
+
+1. Open the R6MD integration and walk through its setup (replay folder discovery across Steam/Ubisoft installs, optional Overwolf bridge port/token, event toggles).
+2. Play. New replay files are picked up as rounds complete; the Simulate action injects a sample round for arranging tiles.
+
+### Actions (4) / Variables (44) / Events (11)
+
+Simulate a match / Reset session stats / Rescan replays / Open replay folder. Simulate reports a tracking/idle button state. Variables cover connection, map/mode/site, round and scores, rosters, kill feed, session stats, streaks and Overwolf live state. Events: `kill`, `headshot`, `your-kill`, `your-death`, `round-won`, `round-lost`, `match-won`, `match-lost`, `ace`, `clutch`, `streak-milestone`. A missing MatchReplay folder raises a resolvable warning instead of failing silently.
+
+### Widget (1)
+
+Match HUD: scorebug with round history, team rosters, kill feed and session line, with Simulate/Open-folder idle actions. Pressing the tile can run your own flows, and the standard background/label appearance applies.
+
+## Plugin messaging (needs host beta.12 or newer)
+
+Every plugin also publishes on Macro Deck's message bus (`host:messaging` permission), so other plugins and automations can react without touching the deck:
+
+- **Timers** — `timers.countdown.finished` (label/seconds), `timers.pomodoro.phase-changed` (phase/round/label); ask `timers.state.get` for the full snapshot.
+- **R6MD** — `r6md.<event-id>` mirrors all 11 match events; ask `r6md.state.get` for scores, rosters and session.
+- **Windows Media Control** — `windows-media.track-changed`, `playback-changed`, `volume-changed`, `mute-changed`; ask `windows-media.state.get` for the now-playing snapshot.
+- **Screen Control** — `screen.monitors.changed` when the monitor set changes; ask `screen.state.get` for count, brightness, input and focused window.
+- **CS:MD** — `csmd.<event-id>` mirrors all 14 match events; ask `csmd.score.get` for map, scores and phase.
 
 ## Requirements
 
 - Windows x64.
-- Macro Deck `>=3.0.0-beta.4` (host).
+- Macro Deck `>=3.0.0-beta.12` (host).
 - .NET 10 SDK (to build).
 
 ## Install
@@ -164,6 +197,7 @@ macrodeck-plugin build --source src/WindowsMediaControl --output ./artifacts
 macrodeck-plugin build --source src/ScreenControl --output ./artifacts
 macrodeck-plugin build --source src/Timers --output ./artifacts
 macrodeck-plugin build --source src/CsMd --output ./artifacts
+macrodeck-plugin build --source src/R6Md --output ./artifacts
 ```
 
 `scripts/install-plugin.ps1` installs packed artifacts into the running host over
@@ -222,8 +256,8 @@ Bump `"version"` in one of `src/*/manifest.json` and push to `master`.
 `.github/workflows/release.yml` notices the version has no release yet, runs the
 tests once, then packs and attaches each missing artifact to its own GitHub
 release. Tags are namespaced per plugin (`v<version>` for Windows Media Control,
-`screen-control-v<version>` and `timers-v<version>` for the others), so the
-three plugins version independently.
+`<slug>-v<version>` for the others, e.g. `csmd-v1.15.0`), so the
+five plugins version independently.
 Pushes without a version bump are no-ops. Versions containing `-`
 (e.g. `1.11.0-beta.1`) are published as pre-releases.
 
@@ -232,7 +266,9 @@ Pushes without a version bump are no-ops. Versions containing `-`
 ```
 src/WindowsMediaControl/   com.misu.windows-media (SMTC + CoreAudio, widget, config flow)
 src/ScreenControl/         com.misu.screen-control (DDC monitors, Win32 windows/desktops)
-src/Timers/                com.misu.timers (countdowns, stopwatch, events)
+src/Timers/                com.misu.timers (countdowns, stopwatch, Pomodoro, widget)
+src/CsMd/                  com.misu.csmd (CS2 GSI listener, Match HUD widget, config flow)
+src/R6Md/                  com.misu.r6md (Siege replay watcher, Match HUD widget, config flow)
 tests/                     one test project per plugin (fakes, no hardware)
 ```
 

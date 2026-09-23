@@ -7,6 +7,7 @@ using NUnit.Framework;
 using Serilog;
 using CsMd.Config;
 using CsMd.Gsi;
+using CsMd.Messaging;
 
 namespace CsMd.Tests;
 
@@ -93,6 +94,125 @@ public sealed class PluginIntegrationTests
 
 		Assert.That(bogus.Succeeded, Is.False);
 		await integration.ShutdownAsync();
+		gsi.Dispose();
+	}
+
+	[Test]
+	public async Task Messaging_mirrors_match_events()
+	{
+		var gsi = new GsiService(TestLogger());
+		await using var harness = CreateHarness(gsi);
+		await harness.InitializeIntegrationsAsync();
+
+		var kill = await harness.Actions.ExecuteAsync(
+			"simulate-event",
+			new Dictionary<string, object?> { ["event"] = "player-kill" });
+
+		Assert.That(kill.Succeeded, Is.True);
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !harness.Context.Messages.Published.Any(m => m.Topic == CsMessageTopics.ForEvent(GsiEventIds.PlayerKill)))
+		{
+			await Task.Delay(50, TestContext.CurrentContext.CancellationToken);
+		}
+
+		Assert.That(
+			harness.Context.Messages.Published.Select(m => m.Topic),
+			Does.Contain(CsMessageTopics.ForEvent(GsiEventIds.PlayerKill)));
+		gsi.Dispose();
+	}
+
+	[Test]
+	public async Task Messaging_answers_score_requests()
+	{
+		var gsi = new GsiService(TestLogger());
+		await using var harness = CreateHarness(gsi);
+		await harness.InitializeIntegrationsAsync();
+		gsi.InjectTestState();
+
+		var reply = await harness.Context.Messages.DeliverRequestAsync(CsMessageTopics.ScoreGet);
+
+		Assert.That(reply.HasValue, Is.True);
+		var snapshot = reply!.Value;
+		Assert.That(snapshot.GetProperty("connected").GetBoolean(), Is.True);
+		Assert.That(snapshot.GetProperty("mapName").GetString(), Is.EqualTo("de_mirage"));
+		gsi.Dispose();
+	}
+
+	[Test]
+	public void Message_topics_are_valid()
+	{
+		foreach (var eventId in new[]
+		{
+			GsiEventIds.RoundStarted, GsiEventIds.RoundEnded, GsiEventIds.RoundWon, GsiEventIds.RoundLost,
+			GsiEventIds.BombPlanted, GsiEventIds.BombDefused, GsiEventIds.BombExploded,
+			GsiEventIds.PlayerDied, GsiEventIds.PlayerKill,
+			GsiEventIds.MatchStarted, GsiEventIds.MatchEnded,
+			GsiEventIds.StreakMilestone, GsiEventIds.PlaceChanged, GsiEventIds.ChatMessage,
+		})
+		{
+			Assert.That(
+				MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(CsMessageTopics.ForEvent(eventId)),
+				Is.True,
+				eventId);
+		}
+
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(CsMessageTopics.ScoreGet), Is.True);
+	}
+
+	[Test]
+	public async Task Port_conflict_reports_an_issue_until_rebind()
+	{
+		using var blocker = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+		blocker.Start();
+		var port = ((System.Net.IPEndPoint)blocker.Server.LocalEndPoint!).Port;
+
+		using var gsi = new GsiService(TestLogger());
+		var context = new FakeIntegrationContext();
+		var entry = context.Config.AddEntry("csmd");
+		context.Config.SeedString(entry, CsMd.Config.CsKeys.Port, port.ToString(System.Globalization.CultureInfo.InvariantCulture));
+		var integration = new PluginIntegration(gsi, new CsSettingsProvider(), TestLogger());
+		await integration.InitializeAsync(context);
+
+		var issues = await integration.GetIssuesAsync(TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(issues.Count, Is.EqualTo(1));
+		Assert.That(issues[0].Id, Is.EqualTo("gsi-port-unavailable"));
+		Assert.That(issues[0].Severity, Is.EqualTo(MacroDeck.Sdk.Issues.IntegrationIssueSeverity.Error));
+
+		blocker.Stop();
+		var resolution = await integration.ResolveIssueAsync(
+			"gsi-port-unavailable", TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(resolution.Success, Is.True);
+		Assert.That(
+			await integration.GetIssuesAsync(TestContext.CurrentContext.CancellationToken),
+			Is.Empty);
+
+		var unknown = await integration.ResolveIssueAsync("nope", TestContext.CurrentContext.CancellationToken);
+		Assert.That(unknown.Success, Is.False);
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Simulate_action_reports_connection_states()
+	{
+		var gsi = new GsiService(TestLogger());
+		await using var harness = CreateHarness(gsi);
+		await harness.InitializeIntegrationsAsync();
+
+		var idle = (await harness.Actions.GetActionStateAsync(
+			"simulate-match", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(idle!.States.Select(s => s.Id), Is.EquivalentTo(["live", "idle"]));
+		Assert.That(idle.ActiveStateId, Is.EqualTo("idle"));
+
+		var simulate = await harness.Actions.ExecuteAsync("simulate-match", new Dictionary<string, object?>());
+		Assert.That(simulate.Succeeded, Is.True);
+
+		var live = (await harness.Actions.GetActionStateAsync(
+			"simulate-match", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(live!.ActiveStateId, Is.EqualTo("live"));
 		gsi.Dispose();
 	}
 
@@ -198,6 +318,11 @@ public sealed class PluginIntegrationTests
 		Assert.That(integration.Variables.Count, Is.EqualTo(69));
 		Assert.That(integration.GetWidgetTypes().Count, Is.EqualTo(1));
 		Assert.That(integration.GetWidgetTypes()[0].Id, Is.EqualTo("match-hud"));
+		Assert.That(integration.GetWidgetTypes()[0].SupportsFlows, Is.True);
+		Assert.That(
+			integration.GetWidgetTypes()[0].AppearanceProperties,
+			Does.Contain(MacroDeck.Sdk.Widgets.WidgetAppearanceProperty.BackgroundColor));
+		Assert.That(integration.GetWidgetTypes()[0].DataSchema, Does.Contain("flows"));
 	}
 
 	[Test]

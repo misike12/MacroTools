@@ -1,8 +1,11 @@
+using System.Text.Json;
 using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.ConfigFlow;
 using MacroDeck.Sdk.Events;
+using MacroDeck.Sdk.Issues;
+using MacroDeck.Sdk.Messaging;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
@@ -10,17 +13,20 @@ using Serilog;
 using CsMd.Actions;
 using CsMd.Config;
 using CsMd.Gsi;
+using CsMd.Messaging;
 using CsMd.Widgets;
 
 namespace CsMd;
 
-public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IEventProvider, IConfigFlowProvider, IWidgetTypeProvider, IUiProvider, IDisposable
+public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IEventProvider, IConfigFlowProvider, IWidgetTypeProvider, IUiProvider, IIntegrationIssueProvider, IDisposable
 {
 	private readonly GsiService _gsi;
 	private readonly CsSettingsProvider _settings;
 	private readonly MatchHudWidget _widget;
 	private readonly ILogger _logger;
 	private IIntegrationContext? _context;
+	private IMessageChannel? _messages;
+	private bool _gsiBindFailed;
 	private bool _disposed;
 
 	public PluginIntegration(GsiService gsi, CsSettingsProvider settings, ILogger logger)
@@ -128,9 +134,26 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public async Task InitializeAsync(IIntegrationContext context)
 	{
 		_context = context;
+		_messages = context.Messages;
 		_gsi.MatchEvent -= OnMatchEvent;
 		_gsi.MatchEvent += OnMatchEvent;
 		await ApplySettingsAsync();
+		await RegisterMessagingAsync(context.Messages).ConfigureAwait(false);
+	}
+
+	private async Task RegisterMessagingAsync(IMessageChannel messages)
+	{
+		try
+		{
+			await messages.HandleRequestsAsync(
+				CsMessageTopics.ScoreGet,
+				(_, _) => Task.FromResult<JsonElement?>(JsonSerializer.SerializeToElement(BuildScoreSnapshot(), CsMessageJson.Options)),
+				default).ConfigureAwait(false);
+		}
+		catch (MessageChannelException ex)
+		{
+			_logger.Debug(ex, "Message channel unavailable, skipping messaging registration.");
+		}
 	}
 
 	public Task ShutdownAsync()
@@ -179,9 +202,57 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_settings.Update(settings);
 		_gsi.SetSteamIdFilter(settings.PlayerSteamId);
 		_gsi.UpdatePositionOptions(settings.PositionTracking, settings.PositionIntervalSeconds, settings.PositionKeyCode);
-		if (!_gsi.Start(settings.Port, settings.AuthToken))
+		_gsiBindFailed = !_gsi.Start(settings.Port, settings.AuthToken);
+		if (_gsiBindFailed)
 		{
 			_logger.Warning("GSI listener could not bind port {Port}; match data stays unavailable.", settings.Port);
+		}
+	}
+
+	public Task<IReadOnlyList<IntegrationIssue>> GetIssuesAsync(CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		IReadOnlyList<IntegrationIssue> issues = !_gsiBindFailed
+			? []
+			:
+			[
+				new IntegrationIssue
+				{
+					Id = "gsi-port-unavailable",
+					Title = Strings.Issues.GsiPort.Title(),
+					Description = Strings.Issues.GsiPort.Description(_settings.Current.Port),
+					Severity = IntegrationIssueSeverity.Error,
+					ActionLabel = Strings.Issues.GsiPort.Action(),
+				},
+			];
+		return Task.FromResult(issues);
+	}
+
+	public Task<IssueResolution> ResolveIssueAsync(string issueId, CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		if (!string.Equals(issueId, "gsi-port-unavailable", StringComparison.Ordinal))
+		{
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.Unknown.Text()));
+		}
+
+		try
+		{
+			var settings = _settings.Current;
+			if (_gsi.Start(settings.Port, settings.AuthToken))
+			{
+				_gsiBindFailed = false;
+				return Task.FromResult(IssueResolution.Ok(
+					Strings.Issues.GsiPort.RetryOk(settings.Port),
+					IssueResolutionFollowUp.None));
+			}
+
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.GsiPort.RetryFailed(settings.Port)));
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "GSI rebind failed.");
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.GsiPort.RetryFailed(_settings.Current.Port)));
 		}
 	}
 
@@ -200,7 +271,61 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		{
 			_logger.Debug(ex, "Match event publish failed.");
 		}
+
+		_ = PublishMessageAsync(CsMessageTopics.ForEvent(matchEvent.EventId), matchEvent.Payload);
 	}
+
+	private Task PublishMessageAsync(string topic, object payload)
+	{
+		var channel = _messages;
+		if (channel is null)
+		{
+			return Task.CompletedTask;
+		}
+
+		return PublishMessageCoreAsync(channel, topic, payload);
+	}
+
+	private async Task PublishMessageCoreAsync(IMessageChannel channel, string topic, object payload)
+	{
+		try
+		{
+			await channel.PublishAsync(topic, JsonSerializer.SerializeToElement(payload, CsMessageJson.Options), CancellationToken.None).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Message publish on {Topic} failed.", topic);
+		}
+	}
+
+	private CsScoreMessage BuildScoreSnapshot()
+	{
+		GsiSnapshot snapshot;
+		try
+		{
+			snapshot = _gsi.Snapshot();
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Match state read failed.");
+			return new CsScoreMessage(false, null, null, null, 0, 0, 0, null, null, null, null);
+		}
+
+		return new CsScoreMessage(
+			snapshot.Connected,
+			OrNull(snapshot.MapName),
+			OrNull(snapshot.MapMode),
+			OrNull(snapshot.MapPhase),
+			snapshot.MapRound,
+			snapshot.CtScore,
+			snapshot.TScore,
+			OrNull(snapshot.CtName),
+			OrNull(snapshot.TName),
+			OrNull(snapshot.RoundPhase),
+			OrNull(snapshot.BombState));
+	}
+
+	private static string? OrNull(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
 	private Task PublishTestEvent(string eventId)
 	{

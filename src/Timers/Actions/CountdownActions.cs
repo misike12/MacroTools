@@ -231,14 +231,45 @@ public sealed class CancelCountdownAction(TimerService timers) : IActionDefiniti
 	}
 }
 
-public sealed class ToggleCountdownAction(TimerService timers) : IActionDefinition
+public sealed class ToggleCountdownAction(TimerService timers) : IActionDefinition, IStateProviderActionDefinition
 {
+	private static readonly IReadOnlyList<ActionStateDefinition> s_states =
+	[
+		new("running", MacroDeckStrings.States.On())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#2f855a" },
+		},
+		new("paused", MacroDeckStrings.States.Off())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#4a5568", LabelColor = "#cbd5e0" },
+		},
+	];
+
 	public string Id => "toggle-countdown";
 	public LocalizedText Name => Strings.Actions.ToggleCountdown.Name();
 	public LocalizedText Description => Strings.Actions.ToggleCountdown.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.All;
 	public IActionExecutor CreateExecutor() => new Executor(timers);
+
+	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(1);
+
+	public Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		try
+		{
+			return Task.FromResult<ActionStateSnapshot?>(new ActionStateSnapshot(
+				s_states,
+				timers.CountdownRunning ? "running" : "paused"));
+		}
+		catch (Exception)
+		{
+			return Task.FromResult<ActionStateSnapshot?>(null);
+		}
+	}
 
 	private sealed class Executor(TimerService timers) : IActionExecutor
 	{
@@ -247,7 +278,7 @@ public sealed class ToggleCountdownAction(TimerService timers) : IActionDefiniti
 			try
 			{
 				timers.ToggleCountdown();
-				return ActionResult.SucceededTask;
+				return Task.FromResult(ActionResult.Success(timers.CountdownRunning ? "running" : "paused"));
 			}
 			catch (Exception)
 			{

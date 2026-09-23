@@ -1,6 +1,7 @@
 using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
+using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
 
 namespace WindowsMediaControl.Actions;
@@ -106,14 +107,42 @@ public sealed class UnmuteMicAction(IMediaControlService media) : IActionDefinit
 	}
 }
 
-public sealed class ToggleMicMuteAction(IMediaControlService media) : IActionDefinition
+public sealed class ToggleMicMuteAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition, IStateProviderActionDefinition
 {
+	private static readonly IReadOnlyList<ActionStateDefinition> s_states =
+	[
+		new("muted", Strings.States.Muted())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#c53030" },
+		},
+		new("unmuted", Strings.States.Unmuted())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#2f855a" },
+		},
+	];
+
 	public string Id => "toggle-mic-mute";
 	public LocalizedText Name => Strings.Actions.ToggleMicMute.Name();
 	public LocalizedText Description => Strings.Actions.ToggleMicMute.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
+	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(Math.Clamp(settings.Current.StatePollSeconds, 1, 120));
 	public IActionExecutor CreateExecutor() => new Executor(media);
+
+	public async Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken)
+	{
+		try
+		{
+			var snapshot = await media.GetSnapshotAsync(cancellationToken);
+			return new ActionStateSnapshot(s_states, snapshot.IsMicMuted ? "muted" : "unmuted");
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
 
 	private sealed class Executor(IMediaControlService media) : IActionExecutor
 	{

@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.r6md",
   "name": "R6MD",
-  "version": "1.2.2",
+  "version": "1.4.0",
   "description": "Rainbow Six Siege match tracking over replay files: scores, operators, rounds, kill feed and session stats.",
   "icon": "Assets/icon.svg",
   "entrypoints": {
@@ -16,8 +16,12 @@
     "name": "Misu"
   },
   "license": "MIT",
+  "permissions": ["host:messaging"],
   "compatibility": {
-    "macroDeck": ">=3.0.0-beta.7"
+    "macroDeck": ">=3.0.0-beta.12"
   },
-  "repository": "https://github.com/misike12/MacroTools"
+  "repository": "https://github.com/misike12/MacroTools",
+  "additionalLinks": [
+    { "type": "issues", "url": "https://github.com/misike12/MacroTools/issues" }
+  ]
 }

@@ -1,20 +1,24 @@
+using System.Text.Json;
 using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.ConfigFlow;
 using MacroDeck.Sdk.Events;
+using MacroDeck.Sdk.Issues;
+using MacroDeck.Sdk.Messaging;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
 using Serilog;
 using R6Md.Actions;
 using R6Md.Config;
+using R6Md.Messaging;
 using R6Md.Replays;
 using R6Md.Widgets;
 
 namespace R6Md;
 
-public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IEventProvider, IConfigFlowProvider, IWidgetTypeProvider, IUiProvider, IDisposable
+public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IEventProvider, IConfigFlowProvider, IWidgetTypeProvider, IUiProvider, IIntegrationIssueProvider, IDisposable
 {
 	private readonly ReplayService _replays;
 	private readonly R6SettingsProvider _settings;
@@ -22,6 +26,8 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private readonly MatchHudWidget _widget;
 	private readonly ILogger _logger;
 	private IIntegrationContext? _context;
+	private IMessageChannel? _messages;
+	private bool _noReplayFolder;
 	private bool _disposed;
 
 	public PluginIntegration(ReplayService replays, R6SettingsProvider settings, OverwolfBridge bridge, ILogger logger)
@@ -111,9 +117,26 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	public async Task InitializeAsync(IIntegrationContext context)
 	{
 		_context = context;
+		_messages = context.Messages;
 		_replays.MatchEvent -= OnMatchEvent;
 		_replays.MatchEvent += OnMatchEvent;
 		await ApplySettingsAsync();
+		await RegisterMessagingAsync(context.Messages).ConfigureAwait(false);
+	}
+
+	private async Task RegisterMessagingAsync(IMessageChannel messages)
+	{
+		try
+		{
+			await messages.HandleRequestsAsync(
+				R6MessageTopics.StateGet,
+				(_, _) => Task.FromResult<JsonElement?>(JsonSerializer.SerializeToElement(BuildStateSnapshot(), R6MessageJson.Options)),
+				default).ConfigureAwait(false);
+		}
+		catch (MessageChannelException ex)
+		{
+			_logger.Debug(ex, "Message channel unavailable, skipping messaging registration.");
+		}
 	}
 
 	public Task ShutdownAsync()
@@ -185,6 +208,62 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		{
 			_bridge.Stop();
 		}
+
+		_noReplayFolder = settings.WatchEnabled && _replays.ReplayRoot is null;
+		if (_noReplayFolder)
+		{
+			_logger.Warning("No MatchReplay folder was found; rounds stay untracked until one appears.");
+		}
+	}
+
+	public Task<IReadOnlyList<IntegrationIssue>> GetIssuesAsync(CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		IReadOnlyList<IntegrationIssue> issues = !_noReplayFolder
+			? []
+			:
+			[
+				new IntegrationIssue
+				{
+					Id = "no-replay-folder",
+					Title = Strings.Issues.NoReplayFolder.Title(),
+					Description = Strings.Issues.NoReplayFolder.Description(),
+					Severity = IntegrationIssueSeverity.Warning,
+					ActionLabel = Strings.Issues.NoReplayFolder.Action(),
+				},
+			];
+		return Task.FromResult(issues);
+	}
+
+	public Task<IssueResolution> ResolveIssueAsync(string issueId, CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		if (!string.Equals(issueId, "no-replay-folder", StringComparison.Ordinal))
+		{
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.Unknown.Text()));
+		}
+
+		try
+		{
+			var settings = _settings.Current;
+			_replays.Stop();
+			_replays.Start(string.IsNullOrWhiteSpace(settings.ReplayRoot) ? null : settings.ReplayRoot);
+			if (_replays.ReplayRoot is string root)
+			{
+				_noReplayFolder = false;
+				return Task.FromResult(IssueResolution.Ok(
+					Strings.Issues.NoReplayFolder.RetryOk(root),
+					IssueResolutionFollowUp.None));
+			}
+
+			_noReplayFolder = settings.WatchEnabled;
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.NoReplayFolder.RetryFailed()));
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Replay folder rescan failed.");
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.NoReplayFolder.RetryFailed()));
+		}
 	}
 
 	private void OnMatchEvent(object? sender, R6MatchEvent matchEvent)
@@ -202,7 +281,68 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		{
 			_logger.Debug(ex, "Match event publish failed.");
 		}
+
+		_ = PublishMessageAsync(R6MessageTopics.ForEvent(matchEvent.EventId), matchEvent.Payload);
 	}
+
+	private Task PublishMessageAsync(string topic, object payload)
+	{
+		var channel = _messages;
+		if (channel is null)
+		{
+			return Task.CompletedTask;
+		}
+
+		return PublishMessageCoreAsync(channel, topic, payload);
+	}
+
+	private async Task PublishMessageCoreAsync(IMessageChannel channel, string topic, object payload)
+	{
+		try
+		{
+			await channel.PublishAsync(topic, JsonSerializer.SerializeToElement(payload, R6MessageJson.Options), CancellationToken.None).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Message publish on {Topic} failed.", topic);
+		}
+	}
+
+	private R6StateMessage BuildStateSnapshot()
+	{
+		R6Snapshot snapshot;
+		try
+		{
+			snapshot = _replays.Snapshot();
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Match state read failed.");
+			snapshot = R6Snapshot.Empty;
+		}
+
+		return new R6StateMessage(
+			snapshot.Connected,
+			snapshot.HasMatch,
+			OrNull(snapshot.MapName),
+			OrNull(snapshot.MapMode),
+			snapshot.RoundNumber,
+			snapshot.YourScore,
+			snapshot.OppScore,
+			OrNull(snapshot.RoundHistory),
+			OrNull(snapshot.LastKiller),
+			OrNull(snapshot.LastVictim),
+			snapshot.SessionKills,
+			snapshot.SessionDeaths,
+			snapshot.SessionAssists,
+			snapshot.Streak,
+			snapshot.BestStreak,
+			OrNull(snapshot.MatchOutcome),
+			OrNull(snapshot.OwPhase),
+			snapshot.YourHp);
+	}
+
+	private static string? OrNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
 	private bool EventEnabled(string eventId)
 	{

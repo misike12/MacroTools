@@ -1,6 +1,7 @@
 using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
+using WindowsMediaControl.Config;
 using WindowsMediaControl.Media;
 
 namespace WindowsMediaControl.Actions;
@@ -228,8 +229,20 @@ public sealed class UnmuteAppAction(IMediaControlService media) : IActionDefinit
 	}
 }
 
-public sealed class ToggleAppMuteAction(IMediaControlService media) : IActionDefinition
+public sealed class ToggleAppMuteAction(IMediaControlService media, MediaSettingsProvider settings) : IActionDefinition, IStateProviderActionDefinition
 {
+	private static readonly IReadOnlyList<ActionStateDefinition> s_states =
+	[
+		new("muted", Strings.States.Muted())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#c53030" },
+		},
+		new("unmuted", Strings.States.Unmuted())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#2f855a" },
+		},
+	];
+
 	public string Id => "toggle-app-mute";
 	public LocalizedText Name => Strings.Actions.ToggleAppMute.Name();
 	public LocalizedText Description => Strings.Actions.ToggleAppMute.Description();
@@ -245,7 +258,37 @@ public sealed class ToggleAppMuteAction(IMediaControlService media) : IActionDef
 		},
 	];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.Windows;
+	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(Math.Clamp(settings.Current.StatePollSeconds, 1, 120));
 	public IActionExecutor CreateExecutor() => new Executor(media);
+
+	public async Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken)
+	{
+		var app = parameters.TryGetValue(MediaParameters.AppParameter, out var raw) ? raw?.ToString() : null;
+		if (string.IsNullOrWhiteSpace(app))
+		{
+			return null;
+		}
+
+		try
+		{
+			var apps = await media.GetAudioAppsAsync(cancellationToken);
+			var match = apps.FirstOrDefault(a =>
+				a.ProcessName.Contains(app, StringComparison.OrdinalIgnoreCase)
+				|| a.DisplayName.Contains(app, StringComparison.OrdinalIgnoreCase));
+			if (match is null)
+			{
+				return null;
+			}
+
+			return new ActionStateSnapshot(s_states, match.IsMuted ? "muted" : "unmuted");
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
 
 	private sealed class Executor(IMediaControlService media) : IActionExecutor
 	{

@@ -1,11 +1,15 @@
+using System.Text.Json;
 using MacroDeck.Localization;
 using MacroDeck.Plugin.Hosting.Integrations.HostApis;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
+using MacroDeck.Sdk.Issues;
+using MacroDeck.Sdk.Messaging;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
 using ScreenControl.Actions;
+using ScreenControl.Messaging;
 using ScreenControl.Monitors;
 using ScreenControl.Widgets;
 using ScreenControl.Windows;
@@ -13,9 +17,13 @@ using Serilog;
 
 namespace ScreenControl;
 
-public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IWidgetTypeProvider, IUiProvider, IDisposable
+public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, IWidgetTypeProvider, IUiProvider, IIntegrationIssueProvider, IDisposable
 {
 	private static readonly TimeSpan CatalogWatchInterval = TimeSpan.FromSeconds(30);
+	// A watch tick wedged in driver calls must not hold shutdown past the
+	// supervisor's grace period, or a SupervisorShutdown close (MDC0604) sees
+	// a live process. The cancelled loop ends on its own; shutdown moves on.
+	private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
 
 	private readonly IMonitorService _monitors;
 	private readonly IWindowService _windows;
@@ -26,6 +34,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private readonly object _loopGate = new();
 	private CancellationTokenSource? _loopCts;
 	private Task? _loopTask;
+	private IMessageChannel? _messages;
 	private bool _disposed;
 
 	public PluginIntegration(IMonitorService monitors, IWindowService windows, ILogger logger, IPluginCatalogNotifier? catalogs = null)
@@ -74,13 +83,14 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 	public int? CatalogEntryCount => null;
 
-	public Task InitializeAsync(IIntegrationContext context)
+	public async Task InitializeAsync(IIntegrationContext context)
 	{
+		_messages = context.Messages;
 		lock (_loopGate)
 		{
 			if (_disposed)
 			{
-				return Task.CompletedTask;
+				return;
 			}
 
 			_watcher.Reset();
@@ -90,7 +100,77 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			_loopTask = RunCatalogWatchAsync(_loopCts.Token);
 		}
 
-		return Task.CompletedTask;
+		await RegisterMessagingAsync(context.Messages).ConfigureAwait(false);
+	}
+
+	private async Task RegisterMessagingAsync(IMessageChannel messages)
+	{
+		try
+		{
+			await messages.HandleRequestsAsync(
+				ScreenMessageTopics.StateGet,
+				(_, _) => Task.FromResult<JsonElement?>(JsonSerializer.SerializeToElement(BuildStateSnapshot(), ScreenMessageJson.Options)),
+				default).ConfigureAwait(false);
+		}
+		catch (MessageChannelException ex)
+		{
+			_logger.Debug(ex, "Message channel unavailable, skipping messaging registration.");
+		}
+	}
+
+	public Task<IReadOnlyList<IntegrationIssue>> GetIssuesAsync(CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		try
+		{
+			if (_monitors.GetMonitors().Count > 0)
+			{
+				return Task.FromResult<IReadOnlyList<IntegrationIssue>>([]);
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Monitor list read failed.");
+			return Task.FromResult<IReadOnlyList<IntegrationIssue>>([]);
+		}
+
+		return Task.FromResult<IReadOnlyList<IntegrationIssue>>(
+		[
+			new IntegrationIssue
+			{
+				Id = "no-monitors",
+				Title = Strings.Issues.NoMonitors.Title(),
+				Description = Strings.Issues.NoMonitors.Description(),
+				Severity = IntegrationIssueSeverity.Warning,
+				ActionLabel = Strings.Issues.NoMonitors.Action(),
+			},
+		]);
+	}
+
+	public Task<IssueResolution> ResolveIssueAsync(string issueId, CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		if (!string.Equals(issueId, "no-monitors", StringComparison.Ordinal))
+		{
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.Unknown.Text()));
+		}
+
+		try
+		{
+			if (_monitors.GetMonitors().Count > 0)
+			{
+				return Task.FromResult(IssueResolution.Ok(
+					Strings.Issues.NoMonitors.RetryOk(),
+					IssueResolutionFollowUp.None));
+			}
+
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.NoMonitors.RetryFailed()));
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Monitor rescan failed.");
+			return Task.FromResult(IssueResolution.Failed(Strings.Issues.NoMonitors.RetryFailed()));
+		}
 	}
 
 	public Task InitializeAsync(IWidgetTypeProviderContext context, CancellationToken cancellationToken) =>
@@ -114,19 +194,23 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			_logger.Debug(ex, "Overlay hide failed.");
 		}
 
+		Task? loop;
 		lock (_loopGate)
 		{
 			_loopCts?.Cancel();
+			loop = _loopTask;
+			_loopTask = null;
 		}
 
-		if (_loopTask != null)
+		if (loop != null)
 		{
-			await _loopTask;
+			await Task.WhenAny(loop, Task.Delay(ShutdownDrainTimeout, CancellationToken.None)).ConfigureAwait(false);
 		}
 	}
 
 	public void Dispose()
 	{
+		Task? loop;
 		lock (_loopGate)
 		{
 			if (_disposed)
@@ -136,11 +220,24 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 			_disposed = true;
 			_loopCts?.Cancel();
-			if (_loopTask != null)
-			{
-				_loopTask.GetAwaiter().GetResult();
-			}
+			loop = _loopTask;
+			_loopTask = null;
 			_loopCts?.Dispose();
+		}
+
+		if (loop != null)
+		{
+			try
+			{
+				if (!loop.Wait(ShutdownDrainTimeout))
+				{
+					_logger.Debug("Watch loop drain timed out; the cancelled loop ends on its own.");
+				}
+			}
+			catch (Exception ex)
+			{
+				_logger.Debug(ex, "Watch loop drain failed.");
+			}
 		}
 	}
 
@@ -163,6 +260,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				if (_watcher.CheckForChanges(_monitors.GetMonitors()))
 				{
 					_catalogs?.CatalogChanged("variables", reason: "monitors-changed");
+					_ = PublishMessageAsync(ScreenMessageTopics.MonitorsChanged, BuildMonitorsChangedMessage());
 				}
 			}
 			catch (OperationCanceledException)
@@ -369,15 +467,76 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			return VariableReading.Unavailable;
 		}
 
-		return VariableReading.Of(input.Value switch
+		return VariableReading.Of(InputToken(input.Value));
+	}
+
+	private static string InputToken(int vcpValue) => vcpValue switch
+	{
+		0x11 => "hdmi1",
+		0x12 => "hdmi2",
+		0x0F => "dp1",
+		0x10 => "dp2",
+		0x03 => "dvi",
+		_ => "unknown",
+	};
+
+	private Task PublishMessageAsync(string topic, object payload)
+	{
+		var channel = _messages;
+		if (channel is null)
 		{
-			0x11 => "hdmi1",
-			0x12 => "hdmi2",
-			0x0F => "dp1",
-			0x10 => "dp2",
-			0x03 => "dvi",
-			_ => "unknown",
-		});
+			return Task.CompletedTask;
+		}
+
+		return PublishMessageCoreAsync(channel, topic, payload);
+	}
+
+	private async Task PublishMessageCoreAsync(IMessageChannel channel, string topic, object payload)
+	{
+		try
+		{
+			await channel.PublishAsync(topic, JsonSerializer.SerializeToElement(payload, ScreenMessageJson.Options), CancellationToken.None).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Message publish on {Topic} failed.", topic);
+		}
+	}
+
+	private MonitorsChangedMessage BuildMonitorsChangedMessage()
+	{
+		try
+		{
+			var monitors = _monitors.GetMonitors();
+			return new MonitorsChangedMessage(monitors.Count, monitors.Select(m => m.Name).ToArray());
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Monitor list read failed.");
+			return new MonitorsChangedMessage(0, []);
+		}
+	}
+
+	private ScreenStateMessage BuildStateSnapshot()
+	{
+		try
+		{
+			var monitors = _monitors.GetMonitors();
+			var primary = PrimaryMonitor(monitors);
+			var focused = _windows.GetForeground();
+			var input = primary is null ? null : _monitors.TryGetInput(primary.Index);
+			return new ScreenStateMessage(
+				monitors.Count,
+				primary is not null && primary.SupportsBrightness ? primary.BrightnessPercent : null,
+				input is null ? null : InputToken(input.Value),
+				string.IsNullOrWhiteSpace(focused?.Title) ? null : focused.Title,
+				string.IsNullOrWhiteSpace(focused?.ProcessName) ? null : focused.ProcessName);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Screen state read failed.");
+			return new ScreenStateMessage(0, null, null, null, null);
+		}
 	}
 
 	private VariableReading ReadFocusedTopmost()

@@ -387,6 +387,12 @@
   <data name="States.Stopped" xml:space="preserve">
     <value>Stopped</value>
   </data>
+  <data name="States.Muted" xml:space="preserve">
+    <value>Muted</value>
+  </data>
+  <data name="States.Unmuted" xml:space="preserve">
+    <value>Unmuted</value>
+  </data>
   <data name="Errors.NoMediaSession" xml:space="preserve">
     <value>No media is currently playing.</value>
   </data>

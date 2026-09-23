@@ -8,6 +8,7 @@ using MacroDeck.Ui.Model.Events;
 using MacroDeck.Ui.Model.Nodes;
 using MacroDeck.Ui.Model.Patches;
 using MacroDeck.Ui.Model.References;
+using MacroDeck.Ui.Model.Resources;
 using MacroDeck.Ui.Model.Surfaces;
 using MacroDeck.Ui.Previews;
 using MacroDeck.Ui.Runtime;
@@ -48,7 +49,8 @@ public sealed record WidgetContent(
 	bool HasMedia,
 	WidgetOptions Options,
 	string Accent,
-	string AccentDark)
+	string AccentDark,
+	UiResource? Cover = null)
 {
 	public static WidgetContent Empty { get; } = new(
 		string.Empty, string.Empty, string.Empty,
@@ -81,35 +83,66 @@ internal static class NowPlayingView
 {
 	public static UiElement Build(
 		UiState<WidgetContent> content,
-		Func<string, CancellationToken, Task>? command)
+		Func<string, CancellationToken, Task>? command,
+		UiWidgetAppearanceValues? appearance = null)
 	{
 		var options = content.Peek().Options;
-		var media = new List<UiElement>
+		var media = new List<UiElement>();
+
+		var appearanceLabel = appearance?.Label;
+		if (!string.IsNullOrWhiteSpace(appearanceLabel))
 		{
-			new UiTextRun
+			var appearanceLabelColor = appearance?.LabelColor;
+			media.Add(new UiTextRun
 			{
-				Key = "title",
-				Text = UiText.From(() => content.Value.Title),
-				Size = options.Compact ? UiSize.Capped(0.1, 12) : UiSize.Capped(0.125, 15),
-				Weight = UiComponentTextWeights.SemiBold,
+				Key = "appearance-label",
+				Text = UiText.From(() => appearanceLabel),
+				Size = UiSize.Capped(0.09, 11),
+				Weight = UiComponentTextWeights.Medium,
+				Color = string.IsNullOrWhiteSpace(appearanceLabelColor) ? UiValue.None<string>() : UiValue.Of(appearanceLabelColor),
 				Align = UiComponentAlignments.Center,
-				Wrap = true,
-				MaxLines = 2,
-			},
-			new UiWhen
+			});
+		}
+
+		if (options.ShowAlbum && !options.Compact)
+		{
+			media.Add(new UiWhen
 			{
-				Key = "artist-when",
-				Condition = () => !string.IsNullOrWhiteSpace(content.Value.Artist),
-				Content = () => new UiTextRun
+				Key = "cover-when",
+				Condition = () => content.Value.Cover is not null,
+				Content = () => new UiImage
 				{
-					Key = "artist",
-					Text = UiText.From(() => content.Value.Artist),
-					Size = options.Compact ? UiSize.Capped(0.09, 10) : UiSize.Capped(0.1, 12),
-					Role = UiComponentTextRoles.Muted,
-					Align = UiComponentAlignments.Center,
+					Key = "cover",
+					Source = UiValue.From(() => content.Value.Cover!),
+					Size = 0.3,
 				},
+			});
+		}
+
+		media.Add(new UiTextRun
+		{
+			Key = "title",
+			Text = UiText.From(() => content.Value.Title),
+			Size = options.Compact ? UiSize.Capped(0.1, 12) : UiSize.Capped(0.125, 15),
+			Weight = UiComponentTextWeights.SemiBold,
+			Align = UiComponentAlignments.Center,
+			Wrap = true,
+			MaxLines = 2,
+		});
+
+		media.Add(new UiWhen
+		{
+			Key = "artist-when",
+			Condition = () => !string.IsNullOrWhiteSpace(content.Value.Artist),
+			Content = () => new UiTextRun
+			{
+				Key = "artist",
+				Text = UiText.From(() => content.Value.Artist),
+				Size = options.Compact ? UiSize.Capped(0.09, 10) : UiSize.Capped(0.1, 12),
+				Role = UiComponentTextRoles.Muted,
+				Align = UiComponentAlignments.Center,
 			},
-		};
+		});
 
 		if (options.ShowAlbum && !options.Compact)
 		{
@@ -218,14 +251,17 @@ internal static class NowPlayingView
 			},
 		};
 
+		var background = appearance?.BackgroundColor;
 		return new UiStack
 		{
 			Key = "now-playing",
 			Padding = 0.07,
 			Gap = 0.045,
-			Background = UiValue.Optional(() => string.IsNullOrEmpty(content.Value.AccentDark)
-				? UiValue.None<string>()
-				: UiValue.Of(content.Value.AccentDark)),
+			Background = UiValue.Optional(() => !string.IsNullOrWhiteSpace(background)
+				? UiValue.Of(background)
+				: string.IsNullOrEmpty(content.Value.AccentDark)
+					? UiValue.None<string>()
+					: UiValue.Of(content.Value.AccentDark)),
 			Children = children,
 		};
 	}
@@ -273,7 +309,7 @@ internal static class NowPlayingView
 		MacroDeck.Localization.LocalizedString fallback) =>
 		key == "play" && content.IsPlaying ? Strings.Widget.Symbols.Pause() : fallback;
 
-	private static double FallbackFrac(UiProgressReference progress)
+		private static double FallbackFrac(UiProgressReference progress)
 	{
 		if (progress.DurationMs is not { } total || total <= 0)
 		{
@@ -310,23 +346,34 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 	private readonly IMediaControlService _media;
 	private readonly Serilog.ILogger _logger;
 	private readonly Func<MediaSnapshot>? _snapshots;
+	private readonly Func<IUiResourceRegistry?>? _resources;
 	private static readonly object s_registrationGate = new();
 	private static readonly WidgetTypeDescriptor s_descriptor = new(
 		"now-playing",
 		Strings.Widget.NowPlaying.Name(),
 		Strings.Widget.NowPlaying.Description(),
-		"""{"showAlbum":true,"showProgress":true,"showControls":true,"compactMode":false}""",
-		"""{"type":"object","properties":{"showAlbum":{"type":"boolean"},"showProgress":{"type":"boolean"},"showControls":{"type":"boolean"},"compactMode":{"type":"boolean"}}}""",
+		"""{"showAlbum":true,"showProgress":true,"showControls":true,"compactMode":false,"backgroundColor":"","label":"","labelColor":"","flows":[]}""",
+		"""{"type":"object","properties":{"showAlbum":{"type":"boolean"},"showProgress":{"type":"boolean"},"showControls":{"type":"boolean"},"compactMode":{"type":"boolean"},"backgroundColor":{"type":"string"},"label":{"type":"string"},"labelColor":{"type":"string"},"flows":{"type":"array"}}}""",
 		true,
-		new Dictionary<string, string>());
+		new Dictionary<string, string>())
+	{
+		SupportsFlows = true,
+		AppearanceProperties =
+		[
+			WidgetAppearanceProperty.BackgroundColor,
+			WidgetAppearanceProperty.Label,
+			WidgetAppearanceProperty.LabelColor,
+		],
+	};
 	private static string? s_widgetTypeId;
 	private static bool s_registered;
 
-	public NowPlayingWidget(IMediaControlService media, Serilog.ILogger logger, Func<MediaSnapshot>? snapshots = null)
+	public NowPlayingWidget(IMediaControlService media, Serilog.ILogger logger, Func<MediaSnapshot>? snapshots = null, Func<IUiResourceRegistry?>? resources = null)
 	{
 		_media = media;
 		_logger = logger.ForContext<NowPlayingWidget>();
 		_snapshots = snapshots;
+		_resources = resources;
 	}
 
 	public string ProviderName => "Windows media";
@@ -388,7 +435,9 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 				return null;
 			}
 
-			var options = WidgetOptions.FromData(ReadElement(surface, UiWidgetSurfaceAttributes.Data));
+			var data = ReadElement(surface, UiWidgetSurfaceAttributes.Data);
+			var options = WidgetOptions.FromData(data);
+			var appearance = UiWidgetAppearance.Read(data);
 			if (ReadBool(surface, UiWidgetSurfaceAttributes.Sample) == true)
 			{
 				return new NowPlayingSession(
@@ -400,7 +449,9 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 					_media,
 					snapshots: null,
 					_logger,
-					live: false);
+					live: false,
+					appearance,
+					_resources);
 			}
 
 			var snapshot = await _media.GetSnapshotAsync(cancellationToken);
@@ -411,7 +462,9 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 				_media,
 				_snapshots,
 				_logger,
-				live: true);
+				live: true,
+				appearance,
+				_resources);
 		}
 
 		if (surface.Kind == UiSurfaceKinds.Config
@@ -423,6 +476,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 			var showProgress = new UiState<bool>(options.ShowProgress);
 			var showControls = new UiState<bool>(options.ShowControls);
 			var compactMode = new UiState<bool>(options.Compact);
+			var flows = new UiState<JsonElement>(ReadFlows(data));
 			var view = new UiView(surface, new UiWidgetConfiguration
 			{
 				Key = "config",
@@ -455,14 +509,35 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 							Label = Strings.Widget.Config.CompactMode(),
 							Binding = Bind.To(compactMode),
 						},
+						UiWidgetAppearance.Section(
+							data,
+							UiWidgetAppearanceFields.BackgroundColor | UiWidgetAppearanceFields.Label | UiWidgetAppearanceFields.LabelColor),
 					],
 				},
+				Editor = new UiWidgetEditor
+				{
+					Key = "editor",
+					Children = [new UiActionsListEditor { Key = "flows", Binding = Bind.To(flows), CanRun = true }],
+				},
 			});
-			return new NowPlayingSession(view);
-		}
+		return new NowPlayingSession(view);
+	}
 
 		return null;
 	}
+
+		private static JsonElement ReadFlows(JsonElement data)
+		{
+			if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("flows", out var flows))
+			{
+				return flows;
+			}
+
+			// The editor binding must always serialize, so an absent key becomes an
+			// empty array rather than an undefined element.
+			using var empty = JsonDocument.Parse("[]");
+			return empty.RootElement.Clone();
+		}
 
 	private static JsonElement ReadElement(MacroDeck.Ui.Model.Surfaces.UiSurface surface, string key) =>
 		surface.Attributes.TryGetValue(key, out var element) ? element : default;
@@ -484,9 +559,11 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 		private readonly UiState<WidgetContent>? _content;
 		private readonly IMediaControlService? _media;
 		private readonly Func<MediaSnapshot>? _snapshots;
+		private readonly Func<IUiResourceRegistry?>? _resources;
 		private readonly Serilog.ILogger? _logger;
 		private readonly CancellationTokenSource _cts = new();
 		private readonly Task? _loop;
+		private string? _coverArtworkId;
 		private bool _disposed;
 
 		public NowPlayingSession(
@@ -495,14 +572,17 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 			IMediaControlService media,
 			Func<MediaSnapshot>? snapshots,
 			Serilog.ILogger logger,
-			bool live)
+			bool live,
+			UiWidgetAppearanceValues? appearance = null,
+			Func<IUiResourceRegistry?>? resources = null)
 		{
 			_content = content;
 			_media = media;
 			_snapshots = snapshots;
 			_logger = logger;
+			_resources = resources;
 			Func<string, CancellationToken, Task>? command = live ? HandleCommandAsync : null;
-			_view = new UiView(surface, NowPlayingView.Build(content, command));
+			_view = new UiView(surface, NowPlayingView.Build(content, command, appearance));
 			_view.Changed += OnChanged;
 			_view.HandlerFaulted += OnHandlerFaulted;
 			if (live)
@@ -632,17 +712,70 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 			}
 
 			var cached = _media.TryGetCachedArtwork(snapshot.ArtworkId);
+			var cover = await RefreshCoverAsync(snapshot, cached, _content.Value.Cover, cancellationToken);
 			var next = WidgetContent.FromSnapshot(
-				snapshot, _content.Value.Options, cached?.Accent ?? string.Empty, cached?.AccentDark ?? string.Empty);
+				snapshot, _content.Value.Options, cached?.Accent ?? string.Empty, cached?.AccentDark ?? string.Empty) with
+			{
+				Cover = cover,
+			};
 			if (NeedsRefresh(_content.Value, next))
 			{
 				_content.Set(next);
 			}
 		}
 
+		private async Task<UiResource?> RefreshCoverAsync(
+			MediaSnapshot snapshot,
+			ArtworkData? cached,
+			UiResource? current,
+			CancellationToken cancellationToken)
+		{
+			var resources = _resources?.Invoke();
+			if (resources is null || string.IsNullOrEmpty(snapshot.ArtworkId))
+			{
+				return null;
+			}
+
+			if (current is not null && string.Equals(_coverArtworkId, snapshot.ArtworkId, StringComparison.Ordinal))
+			{
+				return current;
+			}
+
+			if (cached is null
+				|| cached.Data.Length == 0
+				|| cached.Data.Length > 2 * 1024 * 1024
+				|| !IsSupportedImageType(cached.MimeType))
+			{
+				return null;
+			}
+
+			try
+			{
+				var handle = await resources.RegisterAsync("cover", cached.Data, cached.MimeType, cancellationToken).ConfigureAwait(false);
+				_coverArtworkId = snapshot.ArtworkId;
+				return handle;
+			}
+			catch (Exception ex)
+			{
+				_logger?.Debug(ex, "Widget cover registration failed.");
+				return null;
+			}
+		}
+
+		private static bool IsSupportedImageType(string mimeType) =>
+			mimeType.Equals("image/png", StringComparison.OrdinalIgnoreCase)
+				|| mimeType.Equals("image/jpeg", StringComparison.OrdinalIgnoreCase)
+				|| mimeType.Equals("image/webp", StringComparison.OrdinalIgnoreCase)
+				|| mimeType.Equals("image/gif", StringComparison.OrdinalIgnoreCase);
+
 		// The bar and the times tick on the reader's own clock from the published reference, so
 		// pushing a new anchor every tick would only spend a patch to redraw the same second and
 		// make the bar stutter on every re-anchor. Re-anchor when the reader's prediction drifts.
+		private static bool CoverEquals(UiResource? left, UiResource? right) =>
+			left is null
+				? right is null
+				: right is not null && string.Equals(left.ContentHash, right.ContentHash, StringComparison.Ordinal);
+
 		private static bool NeedsRefresh(WidgetContent current, WidgetContent next)
 		{
 			if (current.Title != next.Title
@@ -652,6 +785,7 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 				|| current.HasMedia != next.HasMedia
 				|| current.Accent != next.Accent
 				|| current.AccentDark != next.AccentDark
+				|| !CoverEquals(current.Cover, next.Cover)
 				|| current.Progress.DurationMs != next.Progress.DurationMs
 				|| current.Progress.Rate != next.Progress.Rate)
 			{

@@ -8,6 +8,10 @@ internal sealed class FakeMediaControlService : IMediaControlService
 
 	public void RaiseMediaChanged() => MediaChanged?.Invoke(this, EventArgs.Empty);
 
+	public TaskCompletionSource<bool>? SnapshotGate { get; set; }
+
+	public int SnapshotCalls;
+
 	public MediaSnapshot Snapshot { get; set; } = new MediaSnapshot
 	{
 		HasSession = true,
@@ -47,8 +51,24 @@ internal sealed class FakeMediaControlService : IMediaControlService
 
 	public List<string> Calls { get; } = [];
 
-	public Task<MediaSnapshot> GetSnapshotAsync(CancellationToken cancellationToken) =>
-		Task.FromResult(Snapshot with { UpdatedAt = DateTimeOffset.UtcNow });
+	public Task<MediaSnapshot> GetSnapshotAsync(CancellationToken cancellationToken)
+	{
+		System.Threading.Interlocked.Increment(ref SnapshotCalls);
+		if (SnapshotGate is not null)
+		{
+			return WaitForGateAsync();
+		}
+
+		return Task.FromResult(Snapshot with { UpdatedAt = DateTimeOffset.UtcNow });
+	}
+
+	private async Task<MediaSnapshot> WaitForGateAsync()
+	{
+		// A driver call wedged below the cancellation token: completes only
+		// when the test releases the gate.
+		await SnapshotGate!.Task.ConfigureAwait(false);
+		return Snapshot with { UpdatedAt = DateTimeOffset.UtcNow };
+	}
 
 	public Task<bool> PlayAsync(CancellationToken cancellationToken, string? appId = null) =>
 		RecordBool(nameof(PlayAsync), appId, () => Snapshot = Snapshot with { Status = PlaybackStatus.Playing });
@@ -301,6 +321,7 @@ internal sealed class FakeMediaControlService : IMediaControlService
 	{
 		Calls.Add(nameof(MuteMicAsync));
 		IsMicMuted = true;
+		Snapshot = Snapshot with { IsMicMuted = true };
 		return Task.CompletedTask;
 	}
 
@@ -308,6 +329,7 @@ internal sealed class FakeMediaControlService : IMediaControlService
 	{
 		Calls.Add(nameof(UnmuteMicAsync));
 		IsMicMuted = false;
+		Snapshot = Snapshot with { IsMicMuted = false };
 		return Task.CompletedTask;
 	}
 
@@ -315,6 +337,7 @@ internal sealed class FakeMediaControlService : IMediaControlService
 	{
 		Calls.Add(nameof(ToggleMicMuteAsync));
 		IsMicMuted = !IsMicMuted;
+		Snapshot = Snapshot with { IsMicMuted = !Snapshot.IsMicMuted };
 		return Task.CompletedTask;
 	}
 

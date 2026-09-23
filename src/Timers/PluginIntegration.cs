@@ -1,12 +1,15 @@
+using System.Text.Json;
 using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using MacroDeck.Sdk.Events;
+using MacroDeck.Sdk.Messaging;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Widgets;
 using Serilog;
 using Timers.Actions;
+using Timers.Messaging;
 using Timers.Timing;
 using Timers.Widgets;
 
@@ -19,6 +22,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	private readonly ILogger _logger;
 	private readonly FocusTimerWidget _widget;
 	private IIntegrationContext? _context;
+	private IMessageChannel? _messages;
 	private bool _disposed;
 
 	public PluginIntegration(TimerService timers, PomodoroService pomodoro, ILogger logger)
@@ -94,14 +98,30 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 	public IReadOnlyList<EventDefinition> EventDefinitions { get; }
 
-	public Task InitializeAsync(IIntegrationContext context)
+	public async Task InitializeAsync(IIntegrationContext context)
 	{
 		_context = context;
+		_messages = context.Messages;
 		_timers.CountdownFinished -= OnCountdownFinished;
 		_timers.CountdownFinished += OnCountdownFinished;
 		_pomodoro.PhaseChanged -= OnPomodoroPhaseChanged;
 		_pomodoro.PhaseChanged += OnPomodoroPhaseChanged;
-		return Task.CompletedTask;
+		await RegisterMessagingAsync(context.Messages).ConfigureAwait(false);
+	}
+
+	private async Task RegisterMessagingAsync(IMessageChannel messages)
+	{
+		try
+		{
+			await messages.HandleRequestsAsync(
+				TimerMessageTopics.StateGet,
+				(_, _) => Task.FromResult<JsonElement?>(JsonSerializer.SerializeToElement(BuildStateSnapshot(), TimerMessageJson.Options)),
+				default).ConfigureAwait(false);
+		}
+		catch (MessageChannelException ex)
+		{
+			_logger.Debug(ex, "Message channel unavailable, skipping messaging registration.");
+		}
 	}
 
 	public Task ShutdownAsync()
@@ -147,6 +167,8 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		{
 			_logger.Debug(ex, "Countdown finished publish failed.");
 		}
+
+		_ = PublishMessageAsync(TimerMessageTopics.CountdownFinished, new CountdownFinishedMessage(finished.Label, finished.Seconds));
 	}
 
 	private void OnPomodoroPhaseChanged(object? sender, PomodoroPhaseChanged changed)
@@ -164,6 +186,56 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		{
 			_logger.Debug(ex, "Pomodoro phase publish failed.");
 		}
+
+		_ = PublishMessageAsync(
+			TimerMessageTopics.PomodoroPhaseChanged,
+			new PomodoroPhaseMessage(FocusTimerWidget.PhaseToken(changed.Phase), changed.Round, changed.Label));
+	}
+
+	private Task PublishMessageAsync(string topic, object payload)
+	{
+		var channel = _messages;
+		if (channel is null)
+		{
+			return Task.CompletedTask;
+		}
+
+		return PublishMessageCoreAsync(channel, topic, payload);
+	}
+
+	private async Task PublishMessageCoreAsync(IMessageChannel channel, string topic, object payload)
+	{
+		try
+		{
+			await channel.PublishAsync(topic, JsonSerializer.SerializeToElement(payload, TimerMessageJson.Options), CancellationToken.None).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Message publish on {Topic} failed.", topic);
+		}
+	}
+
+	private TimerStateMessage BuildStateSnapshot()
+	{
+		var remaining = _timers.CountdownRemaining;
+		var elapsed = _timers.StopwatchElapsed;
+		var pomo = _pomodoro.Snapshot();
+		return new TimerStateMessage(
+			remaining.TotalSeconds,
+			FormatDuration(remaining),
+			_timers.CountdownRunning,
+			string.IsNullOrWhiteSpace(_timers.CountdownLabel) ? null : _timers.CountdownLabel,
+			_timers.CountdownProgressPercent,
+			elapsed.TotalSeconds,
+			FormatDuration(elapsed),
+			_timers.StopwatchRunning,
+			FocusTimerWidget.PhaseToken(pomo.Phase),
+			pomo.Remaining.TotalSeconds,
+			FormatDuration(pomo.Remaining),
+			string.IsNullOrWhiteSpace(pomo.Label) ? null : pomo.Label,
+			pomo.Round,
+			pomo.Running,
+			PomodoroProgress(pomo));
 	}
 
 	public ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)

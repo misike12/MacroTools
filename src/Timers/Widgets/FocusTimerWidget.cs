@@ -149,11 +149,27 @@ internal static class FocusTimerView
 {
 	public static UiElement Build(
 		UiState<FocusTimerContent> content,
-		Func<string, CancellationToken, Task>? command)
+		Func<string, CancellationToken, Task>? command,
+		UiWidgetAppearanceValues? appearance = null)
 	{
 		var options = content.Peek().Options;
 		var mode = options.Mode;
 		var body = new List<UiElement>();
+
+		var appearanceLabel = appearance?.Label;
+		if (!string.IsNullOrWhiteSpace(appearanceLabel))
+		{
+			var appearanceLabelColor = appearance?.LabelColor;
+			body.Add(new UiTextRun
+			{
+				Key = "appearance-label",
+				Text = UiText.From(() => appearanceLabel),
+				Size = UiSize.Capped(0.09, 11),
+				Weight = UiComponentTextWeights.Medium,
+				Color = string.IsNullOrWhiteSpace(appearanceLabelColor) ? UiValue.None<string>() : UiValue.Of(appearanceLabelColor),
+				Align = UiComponentAlignments.Center,
+			});
+		}
 
 		if (options.ShowLabel)
 		{
@@ -247,12 +263,25 @@ internal static class FocusTimerView
 			body.Add(ControlRow(content, command));
 		}
 
-		return new UiStack
+		var root = new UiStack
 		{
 			Key = "focus-timer",
 			Padding = 0.07,
 			Gap = 0.045,
 			Children = body,
+		};
+
+		var background = appearance?.BackgroundColor;
+		if (string.IsNullOrWhiteSpace(background))
+		{
+			return root;
+		}
+
+		return new UiModifier
+		{
+			Key = "appearance",
+			Background = UiBackground.Solid(background),
+			Child = root,
 		};
 	}
 
@@ -411,10 +440,20 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 		"focus-timer",
 		Strings.Widget.FocusTimer.Name(),
 		Strings.Widget.FocusTimer.Description(),
-		"""{"mode":"pomodoro","countdownMinutes":5,"workMinutes":25,"shortBreakMinutes":5,"longBreakMinutes":15,"rounds":4,"autoAdvance":true,"showLabel":true,"showProgress":true,"showControls":true,"compactMode":false,"accentColor":""}""",
-		"""{"type":"object","properties":{"mode":{"type":"string"},"countdownMinutes":{"type":"number"},"workMinutes":{"type":"number"},"shortBreakMinutes":{"type":"number"},"longBreakMinutes":{"type":"number"},"rounds":{"type":"number"},"autoAdvance":{"type":"boolean"},"showLabel":{"type":"boolean"},"showProgress":{"type":"boolean"},"showControls":{"type":"boolean"},"compactMode":{"type":"boolean"},"accentColor":{"type":"string"}}}""",
+		"""{"mode":"pomodoro","countdownMinutes":5,"workMinutes":25,"shortBreakMinutes":5,"longBreakMinutes":15,"rounds":4,"autoAdvance":true,"showLabel":true,"showProgress":true,"showControls":true,"compactMode":false,"accentColor":"","backgroundColor":"","label":"","labelColor":"","flows":[]}""",
+		"""{"type":"object","properties":{"mode":{"type":"string"},"countdownMinutes":{"type":"number"},"workMinutes":{"type":"number"},"shortBreakMinutes":{"type":"number"},"longBreakMinutes":{"type":"number"},"rounds":{"type":"number"},"autoAdvance":{"type":"boolean"},"showLabel":{"type":"boolean"},"showProgress":{"type":"boolean"},"showControls":{"type":"boolean"},"compactMode":{"type":"boolean"},"accentColor":{"type":"string"},"backgroundColor":{"type":"string"},"label":{"type":"string"},"labelColor":{"type":"string"},"flows":{"type":"array"}}}""",
 		true,
-		new Dictionary<string, string>());
+		new Dictionary<string, string>())
+	{
+		SupportsFlows = true,
+		AppearanceProperties =
+		[
+			WidgetAppearanceProperty.BackgroundColor,
+			WidgetAppearanceProperty.Label,
+			WidgetAppearanceProperty.LabelColor,
+			WidgetAppearanceProperty.AccentColor,
+		],
+	};
 	private static string? s_widgetTypeId;
 	private static bool s_registered;
 
@@ -484,7 +523,9 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 				return null;
 			}
 
-			var options = FocusTimerOptions.FromData(ReadElement(surface, UiWidgetSurfaceAttributes.Data));
+			var data = ReadElement(surface, UiWidgetSurfaceAttributes.Data);
+			var options = FocusTimerOptions.FromData(data);
+			var appearance = UiWidgetAppearance.Read(data);
 			if (ReadBool(surface, UiWidgetSurfaceAttributes.Sample) == true)
 			{
 			return new FocusTimerSession(
@@ -497,7 +538,8 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 				_timers,
 				_pomodoro,
 				_logger,
-				live: false);
+				live: false,
+				appearance);
 			}
 
 			return new FocusTimerSession(
@@ -507,7 +549,8 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 				_timers,
 				_pomodoro,
 				_logger,
-				live: true);
+				live: true,
+				appearance);
 		}
 
 		if (surface.Kind == UiSurfaceKinds.Config
@@ -646,6 +689,8 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 		var showControls = new UiState<bool>(options.ShowControls);
 		var compactMode = new UiState<bool>(options.Compact);
 		var accentColor = new UiState<string>(options.AccentColor);
+		var data = ReadElement(surface, UiConfigSurfaceAttributes.WidgetData);
+		var flows = new UiState<JsonElement>(ReadFlows(data));
 		var view = new UiView(surface, new UiWidgetConfiguration
 		{
 			Key = "config",
@@ -764,10 +809,31 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 						Description = Strings.Widget.Config.AccentColorDescription(),
 						Binding = Bind.To(accentColor),
 					},
+					UiWidgetAppearance.Section(
+						data,
+						UiWidgetAppearanceFields.BackgroundColor | UiWidgetAppearanceFields.Label | UiWidgetAppearanceFields.LabelColor | UiWidgetAppearanceFields.AccentColor),
 				],
+			},
+			Editor = new UiWidgetEditor
+			{
+				Key = "editor",
+				Children = [new UiActionsListEditor { Key = "flows", Binding = Bind.To(flows), CanRun = true }],
 			},
 		});
 		return new FocusTimerSession(view);
+	}
+
+	private static JsonElement ReadFlows(JsonElement data)
+	{
+		if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("flows", out var flows))
+		{
+			return flows;
+		}
+
+		// The editor binding must always serialize, so an absent key becomes an
+		// empty array rather than an undefined element.
+		using var empty = JsonDocument.Parse("[]");
+		return empty.RootElement.Clone();
 	}
 
 	private static JsonElement ReadElement(MacroDeck.Ui.Model.Surfaces.UiSurface surface, string key) =>
@@ -804,7 +870,8 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 			TimerService timers,
 			PomodoroService pomodoro,
 			Serilog.ILogger logger,
-			bool live)
+			bool live,
+			UiWidgetAppearanceValues? appearance = null)
 		{
 			_content = content;
 			_owner = owner;
@@ -812,7 +879,7 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 			_pomodoro = pomodoro;
 			_logger = logger;
 			Func<string, CancellationToken, Task>? command = live ? HandleCommandAsync : null;
-			_view = new UiView(surface, FocusTimerView.Build(content, command));
+			_view = new UiView(surface, FocusTimerView.Build(content, command, appearance));
 			_view.Changed += OnChanged;
 			_view.HandlerFaulted += OnHandlerFaulted;
 			if (live)

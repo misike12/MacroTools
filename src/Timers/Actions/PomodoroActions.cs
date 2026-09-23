@@ -2,6 +2,7 @@ using MacroDeck.Localization;
 using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
 using Timers.Timing;
+using Timers.Widgets;
 
 namespace Timers.Actions;
 
@@ -153,14 +154,54 @@ public sealed class SkipPomodoroPhaseAction(PomodoroService pomodoro) : IActionD
 	}
 }
 
-public sealed class TogglePomodoroAction(PomodoroService pomodoro) : IActionDefinition
+public sealed class TogglePomodoroAction(PomodoroService pomodoro) : IActionDefinition, IStateProviderActionDefinition
 {
+	private static readonly IReadOnlyList<ActionStateDefinition> s_states =
+	[
+		new("focus", Strings.Widget.Phases.Focus())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#c53030" },
+		},
+		new("short-break", Strings.Widget.Phases.ShortBreak())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#2f855a" },
+		},
+		new("long-break", Strings.Widget.Phases.LongBreak())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#2b6cb0" },
+		},
+		new("idle", Strings.Widget.Phases.Idle())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#4a5568", LabelColor = "#cbd5e0" },
+		},
+	];
+
 	public string Id => "toggle-pomodoro";
 	public LocalizedText Name => Strings.Actions.TogglePomodoro.Name();
 	public LocalizedText Description => Strings.Actions.TogglePomodoro.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.All;
 	public IActionExecutor CreateExecutor() => new Executor(pomodoro);
+
+	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(1);
+
+	public Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		try
+		{
+			var snapshot = pomodoro.Snapshot();
+			return Task.FromResult<ActionStateSnapshot?>(new ActionStateSnapshot(
+				s_states,
+				snapshot.Running ? FocusTimerWidget.PhaseToken(snapshot.Phase) : "idle"));
+		}
+		catch (Exception)
+		{
+			return Task.FromResult<ActionStateSnapshot?>(null);
+		}
+	}
 
 	private sealed class Executor(PomodoroService pomodoro) : IActionExecutor
 	{
@@ -169,7 +210,9 @@ public sealed class TogglePomodoroAction(PomodoroService pomodoro) : IActionDefi
 			try
 			{
 				pomodoro.Toggle();
-				return ActionResult.SucceededTask;
+				var snapshot = pomodoro.Snapshot();
+				return Task.FromResult(ActionResult.Success(
+					snapshot.Running ? FocusTimerWidget.PhaseToken(snapshot.Phase) : "idle"));
 			}
 			catch (Exception)
 			{

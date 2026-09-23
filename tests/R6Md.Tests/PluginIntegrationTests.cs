@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MacroDeck.Plugin.Testing;
+using MacroDeck.Plugin.Testing.Fakes;
 using MacroDeck.Sdk.Variables;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Ui.Dsl;
@@ -7,6 +8,7 @@ using MacroDeck.Ui.Model.Surfaces;
 using MacroDeck.Ui.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using R6Md.Messaging;
 using R6Md.Replays;
 using R6Md.Widgets;
 using Serilog;
@@ -89,6 +91,139 @@ public sealed class PluginIntegrationTests
 		Assert.That(seen.Select(e => e.EventId), Does.Contain(R6EventIds.RoundWon));
 		var kill = seen.First(e => e.EventId == R6EventIds.Kill);
 		Assert.That(kill.Payload["player"], Is.EqualTo("You.Siege"));
+	}
+
+	[Test]
+	public async Task Simulate_action_reports_tracking_states()
+	{
+		using var replays = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("ranked-r1.json")));
+		await using var harness = CreateHarness(replays);
+		await harness.InitializeIntegrationsAsync();
+
+		var idle = (await harness.Actions.GetActionStateAsync(
+			"simulate-match", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(idle!.States.Select(s => s.Id), Is.EquivalentTo(["tracking", "idle"]));
+		Assert.That(idle.ActiveStateId, Is.EqualTo("idle"));
+
+		var simulate = await harness.Actions.ExecuteAsync("simulate-match", new Dictionary<string, object?>());
+		Assert.That(simulate.Succeeded, Is.True);
+
+		var tracking = (await harness.Actions.GetActionStateAsync(
+			"simulate-match", new Dictionary<string, object?>())).DataAs<MacroDeck.Sdk.Actions.ActionStateSnapshot>();
+		Assert.That(tracking!.ActiveStateId, Is.EqualTo("tracking"));
+	}
+
+	[Test]
+	public async Task Messaging_mirrors_match_events()
+	{
+		using var replays = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("ranked-r1.json")));
+		await using var harness = CreateHarness(replays);
+		await harness.InitializeIntegrationsAsync();
+		replays.InjectSample();
+
+		var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+		while (DateTimeOffset.UtcNow < deadline
+			&& !harness.Context.Messages.Published.Any(m => m.Topic == R6MessageTopics.ForEvent(R6EventIds.Kill)))
+		{
+			await Task.Delay(50, TestContext.CurrentContext.CancellationToken);
+		}
+
+		Assert.That(
+			harness.Context.Messages.Published.Select(m => m.Topic),
+			Does.Contain(R6MessageTopics.ForEvent(R6EventIds.Kill)));
+		Assert.That(
+			harness.Context.Messages.Published.Select(m => m.Topic),
+			Does.Contain(R6MessageTopics.ForEvent(R6EventIds.RoundWon)));
+	}
+
+	[Test]
+	public async Task Messaging_answers_state_requests()
+	{
+		using var replays = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("ranked-r1.json")));
+		await using var harness = CreateHarness(replays);
+		await harness.InitializeIntegrationsAsync();
+		replays.InjectSample();
+
+		var reply = await harness.Context.Messages.DeliverRequestAsync(R6MessageTopics.StateGet);
+
+		Assert.That(reply.HasValue, Is.True);
+		var snapshot = reply!.Value;
+		Assert.That(snapshot.GetProperty("hasMatch").GetBoolean(), Is.True);
+		Assert.That(snapshot.GetProperty("mapName").GetString(), Is.EqualTo("Chalet"));
+		Assert.That(snapshot.GetProperty("yourScore").GetDouble(), Is.EqualTo(2.0));
+	}
+
+	[Test]
+	public void Message_topics_are_valid()
+	{
+		foreach (var eventId in new[]
+		{
+			R6EventIds.Kill, R6EventIds.Headshot, R6EventIds.YourKill, R6EventIds.YourDeath,
+			R6EventIds.RoundWon, R6EventIds.RoundLost, R6EventIds.MatchWon, R6EventIds.MatchLost,
+			R6EventIds.Ace, R6EventIds.Clutch, R6EventIds.StreakMilestone,
+		})
+		{
+			Assert.That(
+				MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(R6MessageTopics.ForEvent(eventId)),
+				Is.True,
+				eventId);
+		}
+
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(R6MessageTopics.StateGet), Is.True);
+	}
+
+	[Test]
+	public void Widget_supports_flows_and_standard_appearance()
+	{
+		using var replays = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("ranked-r1.json")));
+		var integration = new PluginIntegration(
+			replays,
+			new R6Md.Config.R6SettingsProvider(),
+			new R6Md.Replays.OverwolfBridge(replays, TestLogger()),
+			TestLogger());
+		var descriptor = integration.GetWidgetTypes()[0];
+
+		Assert.That(descriptor.SupportsFlows, Is.True);
+		Assert.That(
+			descriptor.AppearanceProperties,
+			Does.Contain(MacroDeck.Sdk.Widgets.WidgetAppearanceProperty.BackgroundColor));
+		Assert.That(descriptor.DataSchema, Does.Contain("flows"));
+	}
+
+	[Test]
+	public async Task Issues_resolve_against_the_watched_folder()
+	{
+		var root = Directory.CreateTempSubdirectory("r6md-issue").FullName;
+		try
+		{
+			using var replays = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("ranked-r1.json")));
+			var context = new FakeIntegrationContext();
+			var entry = context.Config.AddEntry("r6md");
+			context.Config.SeedString(entry, R6Md.Config.R6Keys.ReplayRoot, root);
+			context.Config.SeedString(entry, R6Md.Config.R6Keys.WatchEnabled, "true");
+			var integration = new PluginIntegration(
+				replays,
+				new R6Md.Config.R6SettingsProvider(),
+				new R6Md.Replays.OverwolfBridge(replays, TestLogger()),
+				TestLogger());
+			await integration.InitializeAsync(context);
+
+			Assert.That(
+				await integration.GetIssuesAsync(TestContext.CurrentContext.CancellationToken),
+				Is.Empty);
+
+			var resolution = await integration.ResolveIssueAsync(
+				"no-replay-folder", TestContext.CurrentContext.CancellationToken);
+			Assert.That(resolution.Success, Is.True);
+
+			var unknown = await integration.ResolveIssueAsync("nope", TestContext.CurrentContext.CancellationToken);
+			Assert.That(unknown.Success, Is.False);
+			await integration.ShutdownAsync();
+		}
+		finally
+		{
+			Directory.Delete(root, true);
+		}
 	}
 
 	[Test]

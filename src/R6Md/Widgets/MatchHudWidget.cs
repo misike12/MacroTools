@@ -130,7 +130,7 @@ internal static class R6HudView
 	private const string GoodColor = "#4ADE80";
 	private const string BadColor = "#F87171";
 
-	public static UiElement Build(UiState<R6HudContent> content, R6HudActions? actions = null)
+	public static UiElement Build(UiState<R6HudContent> content, R6HudActions? actions = null, UiWidgetAppearanceValues? appearance = null)
 	{
 		var options = content.Peek().Options;
 		var body = new List<UiElement>
@@ -149,12 +149,40 @@ internal static class R6HudView
 			},
 		};
 
-		return new UiStack
+		var appearanceLabel = appearance?.Label;
+		if (!string.IsNullOrWhiteSpace(appearanceLabel))
+		{
+			var appearanceLabelColor = appearance?.LabelColor;
+			body.Insert(0, new UiTextRun
+			{
+				Key = "appearance-label",
+				Text = UiText.From(() => appearanceLabel),
+				Size = UiSize.Capped(0.09, 11),
+				Weight = UiComponentTextWeights.Medium,
+				Color = string.IsNullOrWhiteSpace(appearanceLabelColor) ? UiValue.None<string>() : UiValue.Of(appearanceLabelColor),
+				Align = UiComponentAlignments.Center,
+			});
+		}
+
+		var root = new UiStack
 		{
 			Key = "r6-hud-g" + TreeGeneration,
 			Padding = 0.04,
 			Gap = 0.015,
 			Children = body,
+		};
+
+		var background = appearance?.BackgroundColor;
+		if (string.IsNullOrWhiteSpace(background))
+		{
+			return root;
+		}
+
+		return new UiModifier
+		{
+			Key = "appearance",
+			Background = UiBackground.Solid(background),
+			Child = root,
 		};
 	}
 
@@ -515,10 +543,19 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		"match-hud",
 		Strings.Widget.MatchHud.Name(),
 		Strings.Widget.MatchHud.Description(),
-		"""{"showScore":true,"showRoster":true,"showFeed":true,"feedCount":4,"showSession":true}""",
-		"""{"type":"object","properties":{"showScore":{"type":"boolean"},"showRoster":{"type":"boolean"},"showFeed":{"type":"boolean"},"feedCount":{"type":"number"},"showSession":{"type":"boolean"}}}""",
+		"""{"showScore":true,"showRoster":true,"showFeed":true,"feedCount":4,"showSession":true,"backgroundColor":"","label":"","labelColor":"","flows":[]}""",
+		"""{"type":"object","properties":{"showScore":{"type":"boolean"},"showRoster":{"type":"boolean"},"showFeed":{"type":"boolean"},"feedCount":{"type":"number"},"showSession":{"type":"boolean"},"backgroundColor":{"type":"string"},"label":{"type":"string"},"labelColor":{"type":"string"},"flows":{"type":"array"}}}""",
 		true,
-		new Dictionary<string, string>());
+		new Dictionary<string, string>())
+	{
+		SupportsFlows = true,
+		AppearanceProperties =
+		[
+			WidgetAppearanceProperty.BackgroundColor,
+			WidgetAppearanceProperty.Label,
+			WidgetAppearanceProperty.LabelColor,
+		],
+	};
 	private static string? s_widgetTypeId;
 	private static bool s_registered;
 
@@ -587,15 +624,18 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 				return Task.FromResult<IUiSession?>(null);
 			}
 
-			var options = R6HudOptions.FromData(ReadElement(surface, UiWidgetSurfaceAttributes.Data));
+			var data = ReadElement(surface, UiWidgetSurfaceAttributes.Data);
+			var options = R6HudOptions.FromData(data);
+			var appearance = UiWidgetAppearance.Read(data);
 			if (ReadBool(surface, UiWidgetSurfaceAttributes.Sample) == true)
 			{
 				return Task.FromResult<IUiSession?>(new MatchHudSession(
 					surface,
-					new UiState<R6HudContent>(R6HudContent.Sample with { Options = options })));
+					new UiState<R6HudContent>(R6HudContent.Sample with { Options = options }),
+					appearance));
 			}
 
-			return Task.FromResult<IUiSession?>(new MatchHudSession(surface, new UiState<R6HudContent>(BuildContent(options)), this, _replays, _logger));
+			return Task.FromResult<IUiSession?>(new MatchHudSession(surface, new UiState<R6HudContent>(BuildContent(options)), this, _replays, _logger, appearance));
 		}
 
 		if (surface.Kind == UiSurfaceKinds.Config
@@ -700,6 +740,8 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		var showFeed = new UiState<bool>(options.ShowFeed);
 		var feedCount = new UiState<double>(options.FeedCount);
 		var showSession = new UiState<bool>(options.ShowSession);
+		var data = ReadElement(surface, UiConfigSurfaceAttributes.WidgetData);
+		var flows = new UiState<JsonElement>(ReadFlows(data));
 		var view = new UiView(surface, new UiWidgetConfiguration
 		{
 			Key = "config",
@@ -743,10 +785,31 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 						Label = Strings.Widget.Config.ShowSession(),
 						Binding = Bind.To(showSession),
 					},
+					UiWidgetAppearance.Section(
+						data,
+						UiWidgetAppearanceFields.BackgroundColor | UiWidgetAppearanceFields.Label | UiWidgetAppearanceFields.LabelColor),
 				],
+			},
+			Editor = new UiWidgetEditor
+			{
+				Key = "editor",
+				Children = [new UiActionsListEditor { Key = "flows", Binding = Bind.To(flows), CanRun = true }],
 			},
 		});
 		return new MatchHudSession(view);
+	}
+
+	private static JsonElement ReadFlows(JsonElement data)
+	{
+		if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("flows", out var flows))
+		{
+			return flows;
+		}
+
+		// The editor binding must always serialize, so an absent key becomes an
+		// empty array rather than an undefined element.
+		using var empty = JsonDocument.Parse("[]");
+		return empty.RootElement.Clone();
 	}
 
 	private sealed class MatchHudSession : IUiSession, IDisposable, IAsyncDisposable
@@ -765,14 +828,15 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			UiState<R6HudContent> content,
 			MatchHudWidget owner,
 			ReplayService replays,
-			Serilog.ILogger logger)
+			Serilog.ILogger logger,
+			UiWidgetAppearanceValues? appearance = null)
 		{
 			_content = content;
 			_owner = owner;
 			_replays = replays;
 			_logger = logger.ForContext<MatchHudSession>();
 			_replays.MatchEvent += OnMatchEvent;
-			_view = new UiView(surface, R6HudView.Build(content, SessionActions(content, owner, replays, logger)));
+			_view = new UiView(surface, R6HudView.Build(content, SessionActions(content, owner, replays, logger), appearance));
 			_view.Changed += OnChanged;
 			_view.HandlerFaulted += OnHandlerFaulted;
 			_loop = RefreshLoopAsync(_cts.Token);
@@ -780,10 +844,11 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 
 		public MatchHudSession(
 			MacroDeck.Ui.Model.Surfaces.UiSurface surface,
-			UiState<R6HudContent> content)
+			UiState<R6HudContent> content,
+			UiWidgetAppearanceValues? appearance = null)
 		{
 			_content = content;
-			_view = new UiView(surface, R6HudView.Build(content));
+			_view = new UiView(surface, R6HudView.Build(content, null, appearance));
 			_view.Changed += OnChanged;
 			_view.HandlerFaulted += OnHandlerFaulted;
 		}

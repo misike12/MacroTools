@@ -89,14 +89,45 @@ public sealed class ResetSessionStatsAction(GsiService gsi) : IActionDefinition
 	}
 }
 
-public sealed class SimulateMatchAction(GsiService gsi) : IActionDefinition
+public sealed class SimulateMatchAction(GsiService gsi) : IActionDefinition, IStateProviderActionDefinition
 {
+	private static readonly IReadOnlyList<ActionStateDefinition> s_states =
+	[
+		new("live", Strings.States.Live())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#2f855a" },
+		},
+		new("idle", Strings.States.Idle())
+		{
+			DefaultAppearance = new ActionStateAppearance { BackgroundColor = "#4a5568", LabelColor = "#cbd5e0" },
+		},
+	];
+
 	public string Id => "simulate-match";
 	public LocalizedText Name => Strings.Actions.SimulateMatch.Name();
 	public LocalizedText Description => Strings.Actions.SimulateMatch.Description();
 	public IReadOnlyList<ActionParameter> Parameters { get; } = [];
 	public MacroDeckPlatform Platforms => MacroDeckPlatform.All;
 	public IActionExecutor CreateExecutor() => new Executor(gsi);
+
+	public TimeSpan StatePollInterval => TimeSpan.FromSeconds(2);
+
+	public Task<ActionStateSnapshot?> GetActionStateAsync(
+		IReadOnlyDictionary<string, object?> parameters,
+		CancellationToken cancellationToken)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		try
+		{
+			return Task.FromResult<ActionStateSnapshot?>(new ActionStateSnapshot(
+				s_states,
+				gsi.Snapshot().Connected ? "live" : "idle"));
+		}
+		catch (Exception)
+		{
+			return Task.FromResult<ActionStateSnapshot?>(null);
+		}
+	}
 
 	private sealed class Executor(GsiService gsi) : IActionExecutor
 	{
@@ -105,7 +136,7 @@ public sealed class SimulateMatchAction(GsiService gsi) : IActionDefinition
 			try
 			{
 				gsi.InjectTestState();
-				return ActionResult.SucceededTask;
+				return Task.FromResult(ActionResult.Success("live"));
 			}
 			catch (Exception)
 			{

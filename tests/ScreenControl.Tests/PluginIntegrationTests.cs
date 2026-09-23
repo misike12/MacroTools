@@ -12,6 +12,7 @@ using MacroDeck.Ui.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using ScreenControl.Actions;
+using ScreenControl.Messaging;
 using ScreenControl.Monitors;
 using ScreenControl.Widgets;
 using ScreenControl.Windows;
@@ -624,6 +625,74 @@ public sealed class PluginIntegrationTests
 		await integration.ShutdownAsync();
 		await integration.InitializeAsync(new FakeIntegrationContext());
 		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Messaging_answers_state_requests()
+	{
+		var integration = new PluginIntegration(new FakeMonitorService(), new FakeWindowService(), TestLogger());
+		var context = new FakeIntegrationContext();
+		await integration.InitializeAsync(context);
+
+		var reply = await context.Messages.DeliverRequestAsync(ScreenMessageTopics.StateGet);
+
+		Assert.That(reply.HasValue, Is.True);
+		var snapshot = reply!.Value;
+		Assert.That(snapshot.GetProperty("monitorCount").GetDouble(), Is.EqualTo(2.0));
+		Assert.That(snapshot.GetProperty("primaryBrightness").GetDouble(), Is.EqualTo(80.0));
+		Assert.That(snapshot.GetProperty("primaryInput").GetString(), Is.EqualTo("hdmi1"));
+		Assert.That(snapshot.GetProperty("focusedTitle").GetString(), Is.EqualTo("Visual Studio Code"));
+		Assert.That(snapshot.GetProperty("focusedProcess").GetString(), Is.EqualTo("Code"));
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public async Task Missing_monitors_report_an_issue_until_rescan()
+	{
+		var monitors = new FakeMonitorService();
+		monitors.Levels.Clear();
+		var integration = new PluginIntegration(monitors, new FakeWindowService(), TestLogger());
+		await integration.InitializeAsync(new FakeIntegrationContext());
+
+		var issues = await integration.GetIssuesAsync(TestContext.CurrentContext.CancellationToken);
+		Assert.That(issues.Count, Is.EqualTo(1));
+		Assert.That(issues[0].Id, Is.EqualTo("no-monitors"));
+		Assert.That(issues[0].Severity, Is.EqualTo(MacroDeck.Sdk.Issues.IntegrationIssueSeverity.Warning));
+
+		var failed = await integration.ResolveIssueAsync("no-monitors", TestContext.CurrentContext.CancellationToken);
+		Assert.That(failed.Success, Is.False);
+
+		monitors.Levels.Add(80);
+		var resolution = await integration.ResolveIssueAsync("no-monitors", TestContext.CurrentContext.CancellationToken);
+		Assert.That(resolution.Success, Is.True);
+		Assert.That(
+			await integration.GetIssuesAsync(TestContext.CurrentContext.CancellationToken),
+			Is.Empty);
+
+		var unknown = await integration.ResolveIssueAsync("nope", TestContext.CurrentContext.CancellationToken);
+		Assert.That(unknown.Success, Is.False);
+		await integration.ShutdownAsync();
+	}
+
+	[Test]
+	public void Message_topics_are_valid()
+	{
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(ScreenMessageTopics.MonitorsChanged), Is.True);
+		Assert.That(MacroDeck.Sdk.Messaging.MessageTopic.IsValidTopic(ScreenMessageTopics.StateGet), Is.True);
+	}
+
+	[Test]
+	public void Widget_supports_flows_and_standard_appearance()
+	{
+		var integration = new PluginIntegration(new FakeMonitorService(), new FakeWindowService(), TestLogger());
+		var descriptor = integration.GetWidgetTypes()[0];
+
+		Assert.That(descriptor.Id, Is.EqualTo("monitor-brightness"));
+		Assert.That(descriptor.SupportsFlows, Is.True);
+		Assert.That(
+			descriptor.AppearanceProperties,
+			Does.Contain(MacroDeck.Sdk.Widgets.WidgetAppearanceProperty.BackgroundColor));
+		Assert.That(descriptor.DataSchema, Does.Contain("flows"));
 	}
 
 	[Test]

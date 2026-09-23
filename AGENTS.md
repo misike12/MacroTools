@@ -382,13 +382,24 @@ reconnect and resume, the reserved endpoints, logging limits. Exit `0` conforman
 wrong, `2` usage error, `3` input unreadable, `4` cancelled - `1` and `3` are deliberately distinct. Run
 it after any change to capability shape, cancellation handling or the manifest, and treat a Required
 check going from pass to fail as a blocking regression. Most checks `SKIP` until the plugin declares
-capabilities.
+capabilities. Known flake: `MDC0604` (SupervisorShutdown timing) intermittently fails green trees on
+CsMd and Windows Media Control; a clean re-run passing it means the tree, not the plugin, so re-run
+once before investigating, and only treat three consecutive failures as a real regression.
 
 The Macro Deck packages are pinned to the host line in use (`MacroDeckSdkVersion` in
-`Directory.Packages.props`, currently `3.0.0-beta.7`), so the commands above need no version
+`Directory.Packages.props`, currently `3.0.0-beta.12`), so the commands above need no version
 argument. Only to test against SDK surface that is not published yet, pack it into `local-feed/` and
 pass `-p:MacroDeckSdkVersion=<version>` - see "Building against a local SDK build" in
 [README.md](README.md).
+
+Beta.12 additions in use here, all additive: the plugin message bus (`IIntegrationContext.Messages`,
+topics under `<plugin>.*`, `host:messaging` permission, `FakeMessageChannel` in tests), plugin UI
+resources (`IIntegrationContext.UiResources`), widget `SupportsFlows` (tile press runs the user's
+flows from the top-level `flows` data key, edited through `UiActionsListEditor` with `CanRun`) and
+standard widget appearance (`AppearanceProperties` plus `UiWidgetAppearance.Read`/`Section`, border
+is drawn by the host). Messaging registrations belong to `InitializeAsync` and need no manual
+dispose; wrap them for `MessageChannelException` (`Unsupported` on older hosts) and never throw out
+of the fire-and-forget publish path.
 
 Working in the template repository itself rather than in a plugin generated from it? Changing its shape
 (files, names, `.template.config/template.json`, `packaging/`) also needs a generated-project check -

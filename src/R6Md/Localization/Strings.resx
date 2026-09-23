@@ -764,4 +764,23 @@
     <value>Minutes between the first and latest replay file.</value>
     <comment>Match duration description.</comment>
   </data>
+  <data name="Issues.NoReplayFolder.Title" xml:space="preserve">
+    <value>No MatchReplay folder found</value>
+  </data>
+  <data name="Issues.NoReplayFolder.Description" xml:space="preserve">
+    <value>No Rainbow Six Siege MatchReplay folder was found, so rounds are not tracked. Configure one in setup.</value>
+  </data>
+  <data name="Issues.NoReplayFolder.Action" xml:space="preserve">
+    <value>Rescan</value>
+  </data>
+  <data name="Issues.NoReplayFolder.RetryOk" xml:space="preserve">
+    <value>Watching {root}.</value>
+    <comment>Replay folder rescan success message.</comment>
+  </data>
+  <data name="Issues.NoReplayFolder.RetryFailed" xml:space="preserve">
+    <value>Still no MatchReplay folder. Point the integration at one in setup.</value>
+  </data>
+  <data name="Issues.Unknown.Text" xml:space="preserve">
+    <value>Unknown issue.</value>
+  </data>
 </root>
