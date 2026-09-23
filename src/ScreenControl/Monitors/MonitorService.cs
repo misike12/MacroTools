@@ -46,9 +46,46 @@ public sealed class MonitorService : IMonitorService, IDisposable
 	private readonly ConcurrentDictionary<string, bool> _gammaSupport = new(StringComparer.OrdinalIgnoreCase);
 	private readonly ConcurrentDictionary<string, int> _gammaLevel = new(StringComparer.OrdinalIgnoreCase);
 	private readonly DimmerOverlay _dimmer = new();
+	private readonly object _monitorCacheGate = new();
+	private IReadOnlyList<MonitorInfo>? _cachedMonitors;
+	private long _cachedMonitorsTicks;
 	private bool _disposed;
 
+	// A full enumeration costs a DDC round trip per monitor, and variable
+	// reads, widget refreshes and actions each enumerate on their own. Reads
+	// far outnumber real changes, so share one enumeration briefly.
+	private static readonly TimeSpan MonitorCacheTtl = TimeSpan.FromSeconds(2);
+
 	public IReadOnlyList<MonitorInfo> GetMonitors()
+	{
+		var now = DateTimeOffset.UtcNow.Ticks;
+		lock (_monitorCacheGate)
+		{
+			if (_cachedMonitors is not null && now - _cachedMonitorsTicks < MonitorCacheTtl.Ticks)
+			{
+				return _cachedMonitors;
+			}
+		}
+
+		var fresh = EnumerateMonitors();
+		lock (_monitorCacheGate)
+		{
+			_cachedMonitors = fresh;
+			_cachedMonitorsTicks = DateTimeOffset.UtcNow.Ticks;
+		}
+
+		return fresh;
+	}
+
+	private void InvalidateMonitorCache()
+	{
+		lock (_monitorCacheGate)
+		{
+			_cachedMonitors = null;
+		}
+	}
+
+	private List<MonitorInfo> EnumerateMonitors()
 	{
 		var found = new List<MonitorInfo>();
 		try
@@ -88,6 +125,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 				if (BrightnessRange(handle) is (int min, int max)
 					&& NativeMethods.SetMonitorBrightness(handle, ToNative(percent, min, max)))
 				{
+					InvalidateMonitorCache();
 					return true;
 				}
 			}
@@ -103,6 +141,7 @@ public sealed class MonitorService : IMonitorService, IDisposable
 				target.DeviceName, target.Left, target.Top, target.Right, target.Bottom,
 				DimmerMath.OverlayAlpha(clamped));
 			_gammaLevel[target.DeviceName] = clamped;
+			InvalidateMonitorCache();
 			return true;
 		}
 		catch (Exception)

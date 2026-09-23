@@ -312,11 +312,17 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			return;
 		}
 
+		List<Action> pending;
 		lock (_snapshotGate)
 		{
 			var previous = _last;
 			_last = snapshot;
-			PublishChanges(previous, snapshot);
+			pending = CollectChanges(previous, snapshot);
+		}
+
+		foreach (var publish in pending)
+		{
+			publish();
 		}
 	}
 
@@ -867,12 +873,20 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				continue;
 			}
 
-			lock (_snapshotGate)
-			{
-				var previous = _last;
-				_last = snapshot;
-				PublishChanges(previous, snapshot);
-			}
+		List<Action> pending;
+		lock (_snapshotGate)
+		{
+			var previous = _last;
+			_last = snapshot;
+			pending = CollectChanges(previous, snapshot);
+		}
+
+		// Host callbacks are network hops: run them outside the snapshot lock
+		// so variable reads never queue behind a slow host round trip.
+		foreach (var publish in pending)
+		{
+			publish();
+		}
 
 		// Device names barely change; the WinRT enumeration behind them is the
 		// most expensive call in this loop, so it runs every fifth tick.
@@ -952,38 +966,48 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 		}
 	}
 
-	private void PublishChanges(MediaSnapshot previous, MediaSnapshot current)
+	private List<Action> CollectChanges(MediaSnapshot previous, MediaSnapshot current)
 	{
 		var context = _context;
+		var pending = new List<Action>();
 		if (context is null)
 		{
-			return;
+			return pending;
 		}
 
 		if (TrackKey(previous) != TrackKey(current))
 		{
 			if (_settings.Current.TrackEvents)
 			{
-				context.Events.Publish("track-changed", new Dictionary<string, object?>
+				var title = current.Title;
+				var artist = current.Artist;
+				var album = current.Album;
+				var app = current.AppId;
+				pending.Add(() =>
 				{
-					["title"] = current.Title,
-					["artist"] = current.Artist,
-					["album"] = current.Album,
-					["app"] = current.AppId,
+					context.Events.Publish("track-changed", new Dictionary<string, object?>
+					{
+						["title"] = title,
+						["artist"] = artist,
+						["album"] = album,
+						["app"] = app,
+					});
+					_ = PublishMessageAsync(
+						MediaMessageTopics.TrackChanged,
+						new TrackChangedMessage(title, artist, album, app));
 				});
-				_ = PublishMessageAsync(
-					MediaMessageTopics.TrackChanged,
-					new TrackChangedMessage(current.Title, current.Artist, current.Album, current.AppId));
 			}
 
 			if (_settings.Current.TrackToast && !string.IsNullOrWhiteSpace(current.Title))
 			{
-				context.Notifications.Notify(new UserNotificationRequest
+				var title = current.Title;
+				var artist = current.Artist;
+				pending.Add(() => context.Notifications.Notify(new UserNotificationRequest
 				{
-					Title = current.Title,
-					Message = string.IsNullOrWhiteSpace(current.Artist) ? null : current.Artist,
+					Title = title,
+					Message = string.IsNullOrWhiteSpace(artist) ? null : artist,
 					Key = "now-playing",
-				});
+				}));
 			}
 
 			// No InvalidateIconAsync here on purpose. The toggle action also provides the
@@ -996,14 +1020,19 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 		{
 			if (_settings.Current.PlaybackEvents)
 			{
-				context.Events.Publish("playback-changed", new Dictionary<string, object?>
+				var status = StatusToken(current);
+				var isPlaying = current is { HasSession: true, Status: PlaybackStatus.Playing };
+				pending.Add(() =>
 				{
-					["status"] = StatusToken(current),
-					["isPlaying"] = current is { HasSession: true, Status: PlaybackStatus.Playing },
+					context.Events.Publish("playback-changed", new Dictionary<string, object?>
+					{
+						["status"] = status,
+						["isPlaying"] = isPlaying,
+					});
+					_ = PublishMessageAsync(
+						MediaMessageTopics.PlaybackChanged,
+						new PlaybackChangedMessage(status, isPlaying));
 				});
-				_ = PublishMessageAsync(
-					MediaMessageTopics.PlaybackChanged,
-					new PlaybackChangedMessage(StatusToken(current), current is { HasSession: true, Status: PlaybackStatus.Playing }));
 			}
 		}
 
@@ -1011,14 +1040,18 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 		{
 			if (_settings.Current.VolumeEvents)
 			{
-				context.Events.Publish("volume-changed", new Dictionary<string, object?>
+				var muted = current.IsMuted;
+				pending.Add(() =>
 				{
-					["volume"] = (double)volume,
-					["muted"] = current.IsMuted,
+					context.Events.Publish("volume-changed", new Dictionary<string, object?>
+					{
+						["volume"] = (double)volume,
+						["muted"] = muted,
+					});
+					_ = PublishMessageAsync(
+						MediaMessageTopics.VolumeChanged,
+						new VolumeChangedMessage(volume, muted));
 				});
-				_ = PublishMessageAsync(
-					MediaMessageTopics.VolumeChanged,
-					new VolumeChangedMessage(volume, current.IsMuted));
 			}
 		}
 
@@ -1026,13 +1059,19 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 		{
 			if (_settings.Current.MuteEvents)
 			{
-				context.Events.Publish("mute-changed", new Dictionary<string, object?>
+				var muted = current.IsMuted;
+				pending.Add(() =>
 				{
-					["muted"] = current.IsMuted,
+					context.Events.Publish("mute-changed", new Dictionary<string, object?>
+					{
+						["muted"] = muted,
+					});
+					_ = PublishMessageAsync(MediaMessageTopics.MuteChanged, new MuteChangedMessage(muted));
 				});
-				_ = PublishMessageAsync(MediaMessageTopics.MuteChanged, new MuteChangedMessage(current.IsMuted));
 			}
 		}
+
+		return pending;
 	}
 
 	private static string TrackKey(MediaSnapshot snapshot) =>

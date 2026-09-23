@@ -227,6 +227,52 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Rescan_does_not_reparse_unchanged_files()
+	{
+		var root = Directory.CreateTempSubdirectory("r6md-rescan").FullName;
+		try
+		{
+			await File.WriteAllTextAsync(
+				Path.Combine(root, "round-1.rec"), "pending", TestContext.CurrentContext.CancellationToken);
+			var parses = 0;
+			using var replays = new ReplayService(
+				TestLogger(),
+				new CountingParser(_ =>
+				{
+					System.Threading.Interlocked.Increment(ref parses);
+					return Fixture("ranked-r1.json");
+				}));
+			replays.Start(root);
+
+			var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+			while (System.Threading.Volatile.Read(ref parses) == 0 && DateTimeOffset.UtcNow < deadline)
+			{
+				await Task.Delay(250, TestContext.CurrentContext.CancellationToken);
+			}
+
+			Assert.That(System.Threading.Volatile.Read(ref parses), Is.EqualTo(1));
+
+			await replays.RescanNowAsync(TestContext.CurrentContext.CancellationToken);
+			await Task.Delay(TimeSpan.FromSeconds(7), TestContext.CurrentContext.CancellationToken);
+
+			Assert.That(System.Threading.Volatile.Read(ref parses), Is.EqualTo(1));
+			replays.Stop();
+		}
+		finally
+		{
+			Directory.Delete(root, true);
+		}
+	}
+
+	private sealed class CountingParser(Func<string, string?> read) : ReplayParser("r6-dissect.exe")
+	{
+		private readonly Func<string, string?> _read = read;
+
+		public override Task<ReplayMatch?> ParseAsync(string path, CancellationToken cancellationToken) =>
+			Task.FromResult(_read(path) is string json ? ReplayJson.ParseMatch(json) : null);
+	}
+
+	[Test]
 	public async Task Config_flow_collects_replay_settings()
 	{
 		var flow = new R6Md.Config.R6ConfigFlow();

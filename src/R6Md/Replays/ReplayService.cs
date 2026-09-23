@@ -129,6 +129,11 @@ public sealed class ReplayService : IDisposable
 	private Timer? _debounceTimer;
 	private Timer? _rescanTimer;
 	private readonly Dictionary<string, TrackedFile> _files = new(StringComparer.OrdinalIgnoreCase);
+	// Files already imported, by last write time. Rescans re-queue every file,
+	// so without this every .rec would be re-parsed (a process spawn each)
+	// every two minutes. Watcher touches evict entries, so growing files still
+	// re-import; only unchanged files skip.
+	private readonly Dictionary<string, DateTime> _imported = new(StringComparer.OrdinalIgnoreCase);
 	private readonly Dictionary<int, TrackedRound> _rounds = new();
 	private readonly HashSet<string> _seenKills = new();
 	private readonly List<R6FeedItem> _feed = [];
@@ -249,6 +254,13 @@ public sealed class ReplayService : IDisposable
 		string victim;
 		bool headshot;
 		LiveMatchFrame? live;
+		int sessionKills;
+		int sessionDeaths;
+		int sessionAssists;
+		int sessionHs;
+		int streak;
+		int bestStreak;
+		DateTimeOffset? lastParseAt;
 		lock (_gate)
 		{
 			rounds = _rounds.ToDictionary(p => p.Key, p => p.Value);
@@ -261,6 +273,13 @@ public sealed class ReplayService : IDisposable
 			victim = _lastVictim;
 			headshot = _lastHeadshot;
 			live = _live;
+			sessionKills = _sessionKills;
+			sessionDeaths = _sessionDeaths;
+			sessionAssists = _sessionAssists;
+			sessionHs = _sessionHs;
+			streak = _streak;
+			bestStreak = _bestStreak;
+			lastParseAt = _lastParseAt;
 		}
 
 		var connected = !string.IsNullOrEmpty(root) && Directory.Exists(root);
@@ -276,19 +295,19 @@ public sealed class ReplayService : IDisposable
 					Connected = connected,
 					FeedItems = feed,
 					HasFeed = feed.Count > 0,
-					SessionKills = _sessionKills,
-					SessionDeaths = _sessionDeaths,
-					SessionAssists = _sessionAssists,
-					SessionHs = _sessionHs,
-					Streak = _streak,
-					BestStreak = _bestStreak,
+					SessionKills = sessionKills,
+					SessionDeaths = sessionDeaths,
+					SessionAssists = sessionAssists,
+					SessionHs = sessionHs,
+					Streak = streak,
+					BestStreak = bestStreak,
 					MatchOutcome = outcome,
 					HasOutcome = !string.IsNullOrEmpty(outcome),
 					LastKiller = killer,
 					LastVictim = victim,
 					LastHeadshot = headshot,
 					HasLastKill = !string.IsNullOrEmpty(killer),
-					LastParseAt = _lastParseAt,
+					LastParseAt = lastParseAt,
 				};
 			}
 		}
@@ -957,6 +976,7 @@ public sealed class ReplayService : IDisposable
 			}
 
 			_files[path] = new TrackedFile(DateTimeOffset.UtcNow);
+			_imported.Remove(path);
 		}
 	}
 
@@ -991,7 +1011,25 @@ public sealed class ReplayService : IDisposable
 				}
 
 				var written = File.GetLastWriteTimeUtc(path);
+				lock (_gate)
+				{
+					if (_disposed || !_running)
+					{
+						return;
+					}
+
+					if (_imported.TryGetValue(path, out var seen) && seen == written)
+					{
+						continue;
+					}
+				}
+
 				var match = await _parser.ParseAsync(path, CancellationToken.None);
+				lock (_gate)
+				{
+					_imported[path] = written;
+				}
+
 				if (match is not null)
 				{
 					// Backfill is quiet: files older than a few minutes are

@@ -51,6 +51,9 @@ public sealed class ConsolePositionWatcher
 
 	private readonly object _gate = new();
 	private readonly Func<string?> _logPath;
+	private string? _cachedPath;
+	private bool _hasCachedPath;
+	private long _cachedPathTicks;
 	private (double X, double Y, double Z, double Yaw, DateTimeOffset At)? _fix;
 	private (string Player, string Scope, string Text, DateTimeOffset At)? _chat;
 	private bool _logPresent;
@@ -112,16 +115,7 @@ public sealed class ConsolePositionWatcher
 
 	public void Poll()
 	{
-		string? path;
-		try
-		{
-			path = _logPath();
-		}
-		catch (Exception)
-		{
-			path = null;
-		}
-
+		var path = ResolveLogPath();
 		if (string.IsNullOrWhiteSpace(path))
 		{
 			MarkMissing();
@@ -264,12 +258,49 @@ public sealed class ConsolePositionWatcher
 		return best is null ? null : (best.Value.Player, best.Value.Scope, best.Value.Text, best.Value.At);
 	}
 
+	// Steam discovery (registry plus libraryfolders.vdf parsing) costs file IO
+	// on every call, but the install path barely moves. Cache resolutions and
+	// re-resolve only when the log goes missing; an absent install re-resolves
+	// at most once a minute so a fresh install is still picked up.
+	private string? ResolveLogPath()
+	{
+		var now = DateTimeOffset.UtcNow.Ticks;
+		lock (_gate)
+		{
+			if (_hasCachedPath
+				&& (_cachedPath is not null || now - _cachedPathTicks < TimeSpan.FromMinutes(1).Ticks))
+			{
+				return _cachedPath;
+			}
+		}
+
+		string? path;
+		try
+		{
+			path = _logPath();
+		}
+		catch (Exception)
+		{
+			path = null;
+		}
+
+		lock (_gate)
+		{
+			_cachedPath = path;
+			_hasCachedPath = true;
+			_cachedPathTicks = now;
+		}
+
+		return path;
+	}
+
 	private void MarkMissing()
 	{
 		lock (_gate)
 		{
 			_logPresent = false;
 			_logModifiedUtc = null;
+			_hasCachedPath = false;
 		}
 	}
 
