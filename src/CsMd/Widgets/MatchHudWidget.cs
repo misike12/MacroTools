@@ -225,7 +225,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "19";
+	internal const string TreeGeneration = "20";
 
 	private const string CardBackground = "#262C38";
 	private const string BombCardBackground = "#33222B";
