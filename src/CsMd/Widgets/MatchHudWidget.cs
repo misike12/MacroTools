@@ -752,7 +752,8 @@ internal static class MatchHudView
 						new UiWhen
 						{
 							Key = "mp-when",
-							Condition = () => MatchHudWidget.MatchPoint(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName) is not null,
+							Condition = () => !string.Equals(content.Value.MapPhase, "GAMEOVER", StringComparison.OrdinalIgnoreCase)
+								&& MatchHudWidget.MatchPoint(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName) is not null,
 								Content = () => PillChrome("mp-pill", new UiButton
 								{
 									Key = "mp-pill",

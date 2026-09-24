@@ -882,6 +882,23 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Game_over_hides_the_match_point_pill()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(
+			MatchHudContent.SampleLive with { MapPhase = "GAMEOVER", CtScore = 16, TScore = 14 });
+		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+		Assert.That(tree, Does.Contain("final-pill"));
+		Assert.That(tree, Does.Not.Contain("mp-pill"));
+	}
+
+	[Test]
 	public void Low_hp_renders_low_pill_and_red_number()
 	{
 		var surface = new UiSurface
