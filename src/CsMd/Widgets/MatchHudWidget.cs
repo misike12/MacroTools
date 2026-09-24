@@ -143,6 +143,7 @@ public sealed record MatchHudContent(
 	string ElapsedLine,
 	string SessionMatchTimeLine,
 	string BombDetail,
+	string BombSite,
 	double? FacingYaw,
 	int Smokes,
 	int Fires,
@@ -159,7 +160,7 @@ public sealed record MatchHudContent(
 		string.Empty, false, string.Empty, false, string.Empty, string.Empty, false, new UiProgressReference { PositionMs = 0, Anchor = DateTimeOffset.UtcNow }, false,
 		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(0, 0, "0.00"),
 		[], false, [], string.Empty, false, [], false, [], false,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, string.Empty, string.Empty, string.Empty, null, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, string.Empty, string.Empty, string.Empty, string.Empty, null, 0, 0, 0,
 		MatchHudOptions.Default);
 
 	public static MatchHudContent SampleLive { get; } = new(
@@ -170,7 +171,7 @@ public sealed record MatchHudContent(
 		false, false, false, true, true, 4, true, Strings.Widget.Session.Line(18, 9, "2.00"),
 		[0.9, 0.85, 0.87, 0.6, 0.62, 0.87], true, [0.2, 0.5, 0.3], "250 / 400", true, [0.1, 0.2, 0.29], true,
 		[new FeedItem("f2", Strings.Widget.Feed.Kill("s1mple", "AWP", "Middle"), MatchHudColors.White), new FeedItem("f1", Strings.Widget.Feed.RoundWon(), MatchHudColors.Good)], true,
-		0, 18, 9, 4, 11, 2450, 2, 42, 5200, 2, 1, 250, 6, 1, 0, "38:12", "25:30", "s1mple", 135, 1, 0, 2,
+		0, 18, 9, 4, 11, 2450, 2, 42, 5200, 2, 1, 250, 6, 1, 0, "38:12", "25:30", "s1mple", string.Empty, 135, 1, 0, 2,
 		MatchHudOptions.Default);
 
 	public static MatchHudContent SampleBomb { get; } = new(
@@ -181,7 +182,7 @@ public sealed record MatchHudContent(
 		new UiProgressReference { PositionMs = 8000, Anchor = DateTimeOffset.UtcNow, DurationMs = 40000, Rate = 1 }, true,
 		false, false, false, false, false, 0, false, Strings.Widget.Session.Line(14, 12, "1.17"),
 		[], false, [], string.Empty, false, [], false, [new FeedItem("f1", Strings.Widget.Feed.BombPlanted("B"), MatchHudColors.Bad)], true,
-		0, 14, 12, 3, 9, 1980, 1, 35, 4700, 0, 0, 0, 3, 1, 1, "41:05", "12:45", "Bombsite A", null, 2, 1, 0,
+		0, 14, 12, 3, 9, 1980, 1, 35, 4700, 0, 0, 0, 3, 1, 1, "41:05", "12:45", "misuuu", "B", null, 2, 1, 0,
 		MatchHudOptions.Default);
 
 	public static string FormatClock(double seconds)
@@ -250,10 +251,13 @@ internal static class MatchHudView
 		Key = key + "-deco",
 		Background = UiGradient.Linear(135,
 		[
-			new UiGradientStop { Offset = 0, Color = "#28303F" },
-			new UiGradientStop { Offset = 1, Color = "#1C222D" },
+			new UiGradientStop { Offset = 0, Color = "#2C3547" },
+			new UiGradientStop { Offset = 0.55, Color = "#202839" },
+			new UiGradientStop { Offset = 1, Color = "#161B25" },
 		]),
 		Radius = 0.02,
+		BorderColor = UiValue.Of(ChromeEdge),
+		BorderWidth = 0.003,
 		Child = card,
 	};
 
@@ -363,7 +367,12 @@ internal static class MatchHudView
 		{
 			Key = "tabs",
 			Selected = UiValue.From(() => content.Value.Page),
-			LevelColor = UiValue.Of("#38BDF8"),
+			LevelColor = UiValue.From(() => content.Value.Page switch
+			{
+				MatchHudContent.PagePlayer => MatchHudColors.Good,
+				MatchHudContent.PageIntel => MatchHudColors.Warn,
+				_ => "#38BDF8",
+			}),
 			MainSize = UiSize.Capped(0.075, 20),
 			Events = actions is null
 				? []
@@ -506,24 +515,46 @@ internal static class MatchHudView
 				Align = UiComponentAlignments.Center,
 				Padding = 0.04,
 				Gap = 0.025,
-				Children =
-				[
-				new UiIcon
-				{
-					Key = "idle-icon",
-					Icon = UiIcons.Crosshair,
-					Size = UiSize.Capped(0.13, 34),
-					MainSize = UiSize.Capped(0.13, 34),
-					Color = UiValue.Of(MatchHudColors.Ct),
-				},
-			new UiTextRun
+			Children =
+			[
+			new UiIcon
 			{
-				Key = "idle-title",
-				Text = UiText.FromLocalized(() => Strings.Widget.Idle.Title()),
-				Size = UiSize.Capped(0.075, 18),
-				Weight = UiComponentTextWeights.Bold,
-				Align = UiComponentAlignments.Center,
+				Key = "idle-icon",
+				Icon = UiIcons.Crosshair,
+				Size = UiSize.Capped(0.14, 36),
+				MainSize = UiSize.Capped(0.14, 36),
+				Color = UiValue.Of(MatchHudColors.Ct),
 			},
+		new UiTextRun
+		{
+			Key = "idle-title",
+			Text = UiText.FromLocalized(() => Strings.Widget.Idle.Title()),
+			Size = UiSize.Capped(0.08, 20),
+			Weight = UiComponentTextWeights.Bold,
+			Align = UiComponentAlignments.Center,
+		},
+		PillChrome("idle-status", new UiButton
+		{
+			Key = "idle-status",
+			Justify = UiComponentJustify.Center,
+			Align = UiComponentAlignments.Center,
+			Background = UiValue.Of(PillNeutral),
+			BorderStyle = UiValue.Of(UiComponentBorderStyles.Breathing),
+			BorderColor = UiValue.Of(MatchHudColors.Slate),
+			Padding = 0.008,
+			Children =
+			[
+				new UiTextRun
+				{
+					Key = "idle-status-label",
+					Text = UiText.FromLocalized(() => Strings.Widget.Idle.Status()),
+					Size = UiSize.Capped(0.06, 10),
+					Weight = UiComponentTextWeights.Medium,
+					Color = UiValue.Of(MatchHudColors.Slate),
+					Align = UiComponentAlignments.Center,
+				},
+			],
+		}),
 			new UiShape
 			{
 				Key = "idle-rule",
@@ -610,29 +641,44 @@ internal static class MatchHudView
 						Key = "mid",
 						Fill = true,
 						Gap = 0.008,
-						Children =
-						[
-							new UiTextRun
-							{
-								Key = "round",
-								Text = UiText.From(() => content.Value.RoundText),
-								Size = UiSize.Capped(0.08, 10),
-								Weight = UiComponentTextWeights.Bold,
-								Align = UiComponentAlignments.Center,
-							},
-							new UiWhen
-							{
-								Key = "phase-when",
-								Condition = () => !string.IsNullOrWhiteSpace(content.Value.MapPhase) && content.Value.MapPhase != "LIVE",
-								Content = () => new UiTextRun
+					Children =
+					[
+						// Round and phase share one centered row ("R17 · FREEZETIME")
+						// instead of stacking: the mid column no longer breathes
+						// when the phase appears, and phase states gain a row.
+						new UiStack
+						{
+							Key = "roundline",
+							Direction = UiComponentDirections.Horizontal,
+							Justify = UiComponentJustify.Center,
+							Align = UiComponentAlignments.Center,
+							Gap = 0.012,
+							Children =
+							[
+								new UiTextRun
 								{
-									Key = "phase",
-									Text = UiText.From(() => content.Value.MapPhase),
+									Key = "round",
+									Text = UiText.From(() => content.Value.RoundText),
 									Size = UiSize.Capped(0.08, 10),
-									Role = UiComponentTextRoles.Muted,
+									Weight = UiComponentTextWeights.Bold,
 									Align = UiComponentAlignments.Center,
 								},
-							},
+								new UiWhen
+								{
+									Key = "phase-when",
+									Condition = () => !string.IsNullOrWhiteSpace(content.Value.MapPhase) && content.Value.MapPhase != "LIVE",
+									Content = () => new UiTextRun
+									{
+										Key = "phase",
+										Text = UiText.From(() => content.Value.MapPhase.ToUpperInvariant()),
+										Size = UiSize.Capped(0.08, 10),
+										MinSize = UiSize.Capped(0.05, 8),
+										Role = UiComponentTextRoles.Muted,
+										Align = UiComponentAlignments.Center,
+									},
+								},
+							],
+						},
 							new UiWhen
 							{
 								Key = "clock-when",
@@ -662,22 +708,51 @@ internal static class MatchHudView
 									Padding = 0.008,
 									Children =
 									[
-										new UiTextRun
-										{
-											Key = "live-pill-label",
-											Text = UiText.FromLocalized(() => Strings.Widget.State.Live()),
-											Size = UiSize.Capped(0.07, 10),
-											Weight = UiComponentTextWeights.Bold,
-											Color = UiValue.Of(MatchHudColors.Bad),
-											Align = UiComponentAlignments.Center,
-										},
+									new UiTextRun
+									{
+										Key = "live-pill-label",
+										Text = UiText.FromLocalized(() => Strings.Widget.State.Live()),
+										Size = UiSize.Capped(0.07, 10),
+										MinSize = UiSize.Capped(0.05, 8),
+										Weight = UiComponentTextWeights.Bold,
+										Color = UiValue.Of(MatchHudColors.Bad),
+										Align = UiComponentAlignments.Center,
+									},
 									],
 								}),
 							},
-							new UiWhen
+						new UiWhen
+						{
+							Key = "final-when",
+							Condition = () => string.Equals(content.Value.MapPhase, "GAMEOVER", StringComparison.OrdinalIgnoreCase),
+							Content = () => PillChrome("final-pill", new UiButton
 							{
-								Key = "mp-when",
-								Condition = () => MatchHudWidget.MatchPoint(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName) is not null,
+								Key = "final-pill",
+								Justify = UiComponentJustify.Center,
+								Align = UiComponentAlignments.Center,
+								Background = UiValue.Of(PillYellow),
+								BorderStyle = UiValue.Of(UiComponentBorderStyles.Breathing),
+								BorderColor = UiValue.Of(MatchHudColors.Warn),
+								Padding = 0.008,
+								Children =
+								[
+									new UiTextRun
+									{
+										Key = "final-label",
+										Text = UiText.FromLocalized(() => Strings.Widget.Match.Winner(MatchHudWidget.MatchWinner(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName))),
+										Size = UiSize.Capped(0.075, 10),
+										MinSize = UiSize.Capped(0.05, 8),
+										Weight = UiComponentTextWeights.Bold,
+										Color = UiValue.Of(MatchHudColors.Warn),
+										Align = UiComponentAlignments.Center,
+									},
+								],
+							}),
+						},
+						new UiWhen
+						{
+							Key = "mp-when",
+							Condition = () => MatchHudWidget.MatchPoint(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName) is not null,
 								Content = () => PillChrome("mp-pill", new UiButton
 								{
 									Key = "mp-pill",
@@ -689,15 +764,16 @@ internal static class MatchHudView
 									Padding = 0.008,
 									Children =
 									[
-										new UiTextRun
-										{
-											Key = "mp-label",
-											Text = UiText.FromLocalized(() => MatchHudWidget.MatchPointText(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName)),
-											Size = UiSize.Capped(0.075, 10),
-											Weight = UiComponentTextWeights.Bold,
-											Color = UiValue.Of(MatchHudColors.Warn),
-											Align = UiComponentAlignments.Center,
-										},
+									new UiTextRun
+									{
+										Key = "mp-label",
+										Text = UiText.FromLocalized(() => MatchHudWidget.MatchPointText(content.Value.CtScore, content.Value.TScore, content.Value.CtName, content.Value.TName)),
+										Size = UiSize.Capped(0.075, 10),
+										MinSize = UiSize.Capped(0.05, 8),
+										Weight = UiComponentTextWeights.Bold,
+										Color = UiValue.Of(MatchHudColors.Warn),
+										Align = UiComponentAlignments.Center,
+									},
 									],
 								}),
 							},
@@ -712,33 +788,86 @@ internal static class MatchHudView
 		{
 			Key = "history-when",
 			Condition = () => options.ShowHistory && content.Value.HasHistory,
-			Content = () => new UiStack
+			// Dots ride a hairline rail: the track draws the timeline the
+			// dots belong to, instead of floating on void. The rail is
+			// thinner than the dots, so the layer measures like the row.
+			Content = () => new UiLayer
 			{
 				Key = "history",
-				Direction = UiComponentDirections.Horizontal,
-				Justify = UiComponentJustify.Center,
-				Gap = 0.015,
+				MainSize = UiSize.Capped(0.09, 13),
 				Children =
 				[
-					new UiRepeat<RoundDot>
+					new UiRangeBar
 					{
-						Key = "dots",
-						Items = UiValue.From(() => content.Value.HistoryDots),
-						KeySelector = static dot => dot.Key,
-						Template = static (dot, key) => new UiTextRun
-						{
-							Key = key,
-							Text = UiText.From(() => dot.Glyph),
-							Size = dot.Latest ? UiSize.Capped(0.09, 13) : UiSize.Capped(0.075, 11),
-							Weight = UiComponentTextWeights.Bold,
-							Color = dot.Color is null ? UiValue.None<string>() : UiValue.Of(dot.Color),
-							Align = UiComponentAlignments.Center,
-						},
+						Key = "history-rail",
+						Start = UiValue.Of(0.0),
+						End = UiValue.Of(1.0),
+						StartColor = UiValue.Of(ChromeEdge),
+						EndColor = UiValue.Of(ChromeEdge),
+						Thickness = 0.008,
+					},
+					new UiStack
+					{
+						Key = "history-dots",
+						Direction = UiComponentDirections.Horizontal,
+						Justify = UiComponentJustify.Center,
+						Align = UiComponentAlignments.Center,
+						Gap = 0.015,
+						Children =
+						[
+							new UiRepeat<RoundDot>
+							{
+								Key = "dots",
+								Items = UiValue.From(() => content.Value.HistoryDots),
+								KeySelector = static dot => dot.Key,
+								Template = static (dot, key) => new UiTextRun
+								{
+									Key = key,
+									Text = UiText.From(() => dot.Glyph),
+									Size = dot.Latest ? UiSize.Capped(0.09, 13) : UiSize.Capped(0.075, 11),
+									Weight = UiComponentTextWeights.Bold,
+									Color = dot.Color is null ? UiValue.None<string>() : UiValue.Of(dot.Color),
+									Align = UiComponentAlignments.Center,
+								},
+							},
+						],
 					},
 				],
 			},
 		});
-		body.Add(MicroLine(content, "map", () => content.Value.MapLine));
+		body.Add(new UiWhen
+		{
+			Key = "map-when",
+			Condition = () => !string.IsNullOrWhiteSpace(content.Value.MapLine),
+			Content = () => new UiStack
+			{
+				Key = "map",
+				Direction = UiComponentDirections.Horizontal,
+				Justify = UiComponentJustify.Center,
+				Align = UiComponentAlignments.Center,
+				Gap = 0.012,
+				Children =
+				[
+					new UiIcon
+					{
+						Key = "map-pin",
+						Icon = UiIcons.Pin,
+						Size = UiSize.Capped(0.04, 8),
+						MainSize = UiSize.Capped(0.04, 8),
+						Role = UiComponentTextRoles.Muted,
+					},
+					new UiTextRun
+					{
+						Key = "map-line",
+						Text = UiText.From(() => content.Value.MapLine),
+						Size = UiSize.Capped(0.075, 9),
+						MinSize = UiSize.Capped(0.055, 7),
+						Role = UiComponentTextRoles.Muted,
+						Align = UiComponentAlignments.Center,
+					},
+				],
+			},
+		});
 
 		return new UiModifier
 		{
@@ -749,8 +878,20 @@ internal static class MatchHudView
 				new UiGradientStop { Offset = 1, Color = "#141A26" },
 			]),
 			Radius = 0.025,
-			BorderColor = UiValue.From(() => content.Value.HasBombBar ? MatchHudColors.Bad : ChromeEdge),
+			BorderColor = UiValue.From(() => content.Value.HasBombBar
+				? MatchHudColors.Bad
+				: content.Value.Flashed
+					? MatchHudColors.White
+					: content.Value.Alive && content.Value.HpFrac <= 0.25
+						? MatchHudColors.Bad
+						: ChromeEdge),
 			BorderWidth = 0.004,
+			AccessibilityLabel = UiText.FromLocalized(() => Strings.Widget.Scorebug.Accessibility(
+				content.Value.CtName,
+				content.Value.CtScore,
+				content.Value.TName,
+				content.Value.TScore,
+				content.Value.RoundText)),
 			Child = new UiButton
 			{
 				Key = "scorebug",
@@ -823,7 +964,8 @@ internal static class MatchHudView
 						Size = UiSize.Capped(0.055, 13),
 						Weight = UiComponentTextWeights.SemiBold,
 						Align = UiComponentAlignments.Start,
-					}),
+					},
+					UiIcons.Chart),
 					MetaStrip("meta-streak", Strings.Widget.Cards.Streak(), new UiTextRun
 					{
 						Key = "meta-streak-value",
@@ -831,7 +973,8 @@ internal static class MatchHudView
 						Size = UiSize.Capped(0.055, 13),
 						Weight = UiComponentTextWeights.SemiBold,
 						Align = UiComponentAlignments.Start,
-					}),
+					},
+					UiIcons.Zap),
 				],
 			},
 			new UiStack
@@ -848,7 +991,8 @@ internal static class MatchHudView
 						Size = UiSize.Capped(0.055, 13),
 						Weight = UiComponentTextWeights.SemiBold,
 						Align = UiComponentAlignments.Start,
-					}),
+					},
+					UiIcons.Pause),
 					MetaStrip("meta-time", Strings.Widget.Cards.MatchTime(), new UiTextRun
 					{
 						Key = "meta-time-value",
@@ -856,22 +1000,36 @@ internal static class MatchHudView
 						Size = UiSize.Capped(0.055, 13),
 						Weight = UiComponentTextWeights.SemiBold,
 						Align = UiComponentAlignments.Start,
-					}),
+					},
+					UiIcons.ClockType),
 				],
 			},
 		],
 	};
 
-	private static UiModifier MetaStrip(string key, MacroDeck.Localization.LocalizedString caption, UiTextRun value) => CardChrome(key, new UiButton
+	private static UiModifier MetaStrip(string key, MacroDeck.Localization.LocalizedString caption, UiTextRun value, string? icon = null) => CardChrome(key, new UiButton
 	{
 		Key = key,
 		Direction = UiComponentDirections.Horizontal,
-		Align = UiComponentAlignments.Baseline,
+		Align = UiComponentAlignments.Center,
 		Gap = 0.015,
 		Fill = true,
 		Padding = 0.012,
 		Children =
 		[
+			..(icon is null
+				? []
+				: new UiElement[]
+				{
+					new UiIcon
+					{
+						Key = key + "-icon",
+						Icon = icon,
+						Size = UiSize.Capped(0.045, 11),
+						MainSize = UiSize.Capped(0.045, 11),
+						Role = UiComponentTextRoles.Muted,
+					},
+				}),
 			new UiTextRun
 			{
 				Key = key + "-caption",
@@ -1003,52 +1161,67 @@ internal static class MatchHudView
 		],
 	};
 
-	private static UiStack SideScore(UiState<MatchHudContent> content, UiSize big, bool ct) => new UiStack
+	private static UiModifier SideScore(UiState<MatchHudContent> content, UiSize big, bool ct) => new UiModifier
 	{
-		Key = ct ? "ct-side" : "t-side",
-		// Fixed equal thirds: both sides always measure the same, so the middle
-		// column lands on the true tile center and both team bars span the same
-		// width no matter how long the team names are. Real scoreboard tags fit
-		// easily; longer names shrink into the slot instead of stretching it.
-		MainSize = 0.30,
-		Gap = 0.008,
-		Children =
+		Key = ct ? "ct-side-deco" : "t-side-deco",
+		// A faint team wash behind each column: broadcast scorebugs sit each
+		// side in its own color zone. Modifier-only, so the equal-thirds
+		// measure below is untouched and the middle column stays centered.
+		Background = UiGradient.Linear(ct ? 200 : 160,
 		[
-			new UiTextRun
-			{
-				Key = ct ? "ct-score" : "t-score",
-				Text = UiText.From(() => ct
-					? content.Value.CtScore.ToString(System.Globalization.CultureInfo.InvariantCulture)
-					: content.Value.TScore.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-				Size = big,
-				Weight = UiComponentTextWeights.Bold,
-				Color = UiValue.Of(ct ? MatchHudColors.Ct : MatchHudColors.T),
-				Digits = UiValue.Of(2.0),
-				Align = UiComponentAlignments.Center,
-			},
-			new UiWhen
-			{
-				Key = ct ? "ct-name-when" : "t-name-when",
-				Condition = () => !string.IsNullOrWhiteSpace(ct ? content.Value.CtName : content.Value.TName),
-				Content = () => new UiTextRun
+			new UiGradientStop { Offset = 0, Color = ct ? "#1B2C3E" : "#2E2A18" },
+			new UiGradientStop { Offset = 1, Color = "#1A2030" },
+		]),
+		Radius = 0.02,
+		Child = new UiButton
+		{
+			Key = ct ? "ct-side" : "t-side",
+			// Fixed equal thirds: both sides always measure the same, so the middle
+			// column lands on the true tile center and both team bars span the same
+			// width no matter how long the team names are. Real scoreboard tags fit
+			// easily; longer names shrink into the slot instead of stretching it.
+			Justify = UiComponentJustify.Center,
+			Align = UiComponentAlignments.Center,
+			MainSize = 0.30,
+			Gap = 0.008,
+			Children =
+			[
+				new UiTextRun
 				{
-						Key = ct ? "ct-name" : "t-name",
-						Text = UiText.From(() => ct ? content.Value.CtName : content.Value.TName),
-						Size = UiSize.Capped(0.07, 11),
-						MinSize = UiSize.Capped(0.05, 8),
-						Weight = UiComponentTextWeights.SemiBold,
-					Color = UiValue.Of(MatchHudColors.White),
+					Key = ct ? "ct-score" : "t-score",
+					Text = UiText.From(() => ct
+						? content.Value.CtScore.ToString(System.Globalization.CultureInfo.InvariantCulture)
+						: content.Value.TScore.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					Size = big,
+					Weight = UiComponentTextWeights.Bold,
+					Color = UiValue.Of(ct ? MatchHudColors.Ct : MatchHudColors.T),
+					Digits = UiValue.Of(2.0),
 					Align = UiComponentAlignments.Center,
 				},
-			},
-			new UiShape
-			{
-				Key = ct ? "ct-bar" : "t-bar",
-				Shape = UiComponentShapes.Capsule,
-				Color = UiValue.Of(ct ? MatchHudColors.Ct : MatchHudColors.T),
-				MainSize = 0.01,
-			},
-		],
+				new UiWhen
+				{
+					Key = ct ? "ct-name-when" : "t-name-when",
+					Condition = () => !string.IsNullOrWhiteSpace(ct ? content.Value.CtName : content.Value.TName),
+					Content = () => new UiTextRun
+					{
+							Key = ct ? "ct-name" : "t-name",
+							Text = UiText.From(() => ct ? content.Value.CtName : content.Value.TName),
+							Size = UiSize.Capped(0.07, 11),
+							MinSize = UiSize.Capped(0.05, 8),
+							Weight = UiComponentTextWeights.SemiBold,
+						Color = UiValue.Of(MatchHudColors.White),
+						Align = UiComponentAlignments.Center,
+					},
+				},
+				new UiShape
+				{
+					Key = ct ? "ct-bar" : "t-bar",
+					Shape = UiComponentShapes.Capsule,
+					Color = UiValue.Of(ct ? MatchHudColors.Ct : MatchHudColors.T),
+					MainSize = 0.01,
+				},
+			],
+		},
 	};
 
 	private static UiStack PlayerPage(UiState<MatchHudContent> content, MatchHudOptions options)
@@ -1089,10 +1262,14 @@ internal static class MatchHudView
 	{
 		var body = new List<UiElement>
 		{
-			new UiLayer
+			new UiModifier
 			{
-				Key = "hp",
-				MainSize = UiSize.Capped(0.27, 64),
+				Key = "hp-deco",
+				AccessibilityLabel = UiText.FromLocalized(() => Strings.Widget.Hero.HealthAccessibility(content.Value.HpText)),
+				Child = new UiLayer
+				{
+					Key = "hp",
+					MainSize = UiSize.Capped(0.27, 64),
 				Children =
 				[
 					new UiStack
@@ -1139,12 +1316,13 @@ internal static class MatchHudView
 								Size = options.Compact ? UiSize.Capped(0.09, 16) : UiSize.Capped(0.09, 22),
 								Weight = UiComponentTextWeights.Bold,
 								Color = UiValue.From(() => content.Value.HpFrac <= 0.25 ? MatchHudColors.Bad : MatchHudColors.White),
-								Digits = UiValue.Of(3.0),
+							Digits = UiValue.Of(3.0),
 								Align = UiComponentAlignments.Center,
 							},
 						],
 					},
 				],
+			},
 			},
 			new UiWhen
 			{
@@ -1198,7 +1376,39 @@ internal static class MatchHudView
 					Thickness = 0.022,
 				},
 			},
-			MicroLine(content, "gear", () => content.Value.GearLine),
+			new UiWhen
+			{
+				Key = "gear-when",
+				Condition = () => !string.IsNullOrWhiteSpace(content.Value.GearLine),
+				Content = () => new UiStack
+				{
+					Key = "gear",
+					Direction = UiComponentDirections.Horizontal,
+					Justify = UiComponentJustify.Center,
+					Align = UiComponentAlignments.Center,
+					Gap = 0.012,
+					Children =
+					[
+						new UiIcon
+						{
+							Key = "gear-icon",
+							Icon = UiIcons.Crosshair,
+							Size = UiSize.Capped(0.04, 8),
+							MainSize = UiSize.Capped(0.04, 8),
+							Role = UiComponentTextRoles.Muted,
+						},
+						new UiTextRun
+						{
+							Key = "gear-line",
+							Text = UiText.From(() => content.Value.GearLine),
+							Size = UiSize.Capped(0.075, 9),
+							MinSize = UiSize.Capped(0.055, 7),
+							Role = UiComponentTextRoles.Muted,
+							Align = UiComponentAlignments.Center,
+						},
+					],
+				},
+			},
 			new UiTextRun
 			{
 				Key = "round-line",
@@ -1376,6 +1586,8 @@ internal static class MatchHudView
 				Size = UiSize.Capped(0.075, 9),
 				Role = UiComponentTextRoles.Muted,
 				Align = UiComponentAlignments.Center,
+				Wrap = true,
+				MaxLines = 2,
 			});
 		}
 
@@ -1464,19 +1676,19 @@ internal static class MatchHudView
 									Align = UiComponentAlignments.Start,
 								},
 							},
-							new UiWhen
+						new UiWhen
+						{
+							Key = "compass-coords-when",
+							Condition = () => content.Value.HasCoords,
+							Content = () => new UiTextRun
 							{
-								Key = "compass-coords-when",
-								Condition = () => content.Value.HasCoords,
-								Content = () => new UiTextRun
-								{
-									Key = "compass-coords",
-									Text = UiText.From(() => content.Value.TrackingLine),
-									Size = UiSize.Capped(0.04, 10),
-									Role = UiComponentTextRoles.Muted,
-									Align = UiComponentAlignments.Start,
-								},
-						},
+								Key = "compass-coords",
+								Text = UiText.From(() => content.Value.TrackingLine),
+								Size = UiSize.Capped(0.04, 10),
+								Role = UiComponentTextRoles.Muted,
+								Align = UiComponentAlignments.Start,
+							},
+					},
 					],
 				},
 			],
@@ -1501,21 +1713,32 @@ internal static class MatchHudView
 		Gap = 0.008,
 		Children =
 		[
-			new UiIcon
+			new UiStack
 			{
-				Key = "battlefield-icon",
-				Icon = UiIcons.Chart,
-				Size = UiSize.Capped(0.06, 14),
-				MainSize = UiSize.Capped(0.06, 14),
-				Role = UiComponentTextRoles.Muted,
-			},
-			new UiTextRun
-			{
-				Key = "battlefield-caption",
-				Text = UiText.FromLocalized(() => Strings.Widget.Cards.Battlefield()),
-				Size = UiSize.Capped(0.032, 8),
-				Role = UiComponentTextRoles.Muted,
+				Key = "battlefield-head",
+				Direction = UiComponentDirections.Horizontal,
+				Justify = UiComponentJustify.Center,
 				Align = UiComponentAlignments.Center,
+				Gap = 0.012,
+				Children =
+				[
+					new UiIcon
+					{
+						Key = "battlefield-icon",
+						Icon = UiIcons.Chart,
+						Size = UiSize.Capped(0.045, 11),
+						MainSize = UiSize.Capped(0.045, 11),
+						Role = UiComponentTextRoles.Muted,
+					},
+					new UiTextRun
+					{
+						Key = "battlefield-caption",
+						Text = UiText.FromLocalized(() => Strings.Widget.Cards.Battlefield()),
+						Size = UiSize.Capped(0.032, 8),
+						Role = UiComponentTextRoles.Muted,
+						Align = UiComponentAlignments.Center,
+					},
+				],
 			},
 			new UiGrid
 			{
@@ -1556,21 +1779,32 @@ internal static class MatchHudView
 		Gap = 0.008,
 		Children =
 		[
-			new UiIcon
+			new UiStack
 			{
-				Key = "events-icon",
-				Icon = UiIcons.MessageSquare,
-				Size = UiSize.Capped(0.06, 14),
-				MainSize = UiSize.Capped(0.06, 14),
-				Role = UiComponentTextRoles.Muted,
-			},
-			new UiTextRun
-			{
-				Key = "events-caption",
-				Text = UiText.FromLocalized(() => Strings.Widget.Cards.Events()),
-				Size = UiSize.Capped(0.032, 8),
-				Role = UiComponentTextRoles.Muted,
+				Key = "events-head",
+				Direction = UiComponentDirections.Horizontal,
+				Justify = UiComponentJustify.Center,
 				Align = UiComponentAlignments.Center,
+				Gap = 0.012,
+				Children =
+				[
+					new UiIcon
+					{
+						Key = "events-icon",
+						Icon = UiIcons.MessageSquare,
+						Size = UiSize.Capped(0.045, 11),
+						MainSize = UiSize.Capped(0.045, 11),
+						Role = UiComponentTextRoles.Muted,
+					},
+					new UiTextRun
+					{
+						Key = "events-caption",
+						Text = UiText.FromLocalized(() => Strings.Widget.Cards.Events()),
+						Size = UiSize.Capped(0.032, 8),
+						Role = UiComponentTextRoles.Muted,
+						Align = UiComponentAlignments.Center,
+					},
+				],
 			},
 			new UiWhen
 			{
@@ -1605,26 +1839,55 @@ private static UiStack BombPanel(UiState<MatchHudContent> content) => new UiStac
 						Thickness = 0.05,
 					},
 				},
-// Timer text with animated urgency - color handled by progress bar fallback
-			new UiProgressText
+// Countdown ring around the clock: the gauge drains with the remaining
+// fraction while the reader-owned clock text keeps ticking inside it. The
+// layer measures exactly like the clock row it replaces, so the tile fit
+// budget is untouched.
+			new UiModifier
 			{
-				Key = "bomb-clock",
-				Value = UiValue.From(() => content.Value.BombProgress),
-				Format = UiValue.Of(UiProgressFormats.Remaining),
-				Size = UiSize.Capped(0.13, 22),
-				Weight = UiComponentTextWeights.Bold,
-				Align = UiComponentAlignments.Center,
+				Key = "bomb-dial-deco",
+				AccessibilityLabel = UiText.FromLocalized(() => Strings.Widget.Bomb.Accessibility(
+					(int)Math.Floor(BombSecondsRemaining(content.Value.BombProgress)))),
+				Child = new UiLayer
+				{
+					Key = "bomb-dial",
+					MainSize = UiSize.Capped(0.13, 22),
+					Children =
+					[
+						new UiGauge
+						{
+							Key = "bomb-ring",
+							Level = UiValue.From(() => 1.0 - BombFallbackFrac(content.Value.BombProgress)),
+							LevelColor = UiValue.Of(MatchHudColors.Bad),
+							StartAngle = 0,
+							EndAngle = 360,
+							Thickness = UiSize.Capped(0.015, 6),
+							MainSize = UiSize.Capped(0.13, 22),
+						},
+						new UiProgressText
+						{
+							Key = "bomb-clock",
+							Value = UiValue.From(() => content.Value.BombProgress),
+							Format = UiValue.Of(UiProgressFormats.Remaining),
+							Size = UiSize.Capped(0.11, 18),
+							Weight = UiComponentTextWeights.Bold,
+							Align = UiComponentAlignments.Center,
+						},
+					],
+				},
 			},
-				// Site label
+				// Plant site from the game feed (A/B); the detail line above
+				// already names the carrier, so this row no longer repeats it.
 				new UiWhen
 				{
 					Key = "bomb-site-when",
-					Condition = () => !string.IsNullOrWhiteSpace(content.Value.BombDetail),
+					Condition = () => !string.IsNullOrWhiteSpace(content.Value.BombSite),
 					Content = () => new UiTextRun
 					{
 						Key = "bomb-site",
-						Text = UiText.From(() => content.Value.BombDetail),
+						Text = UiText.From(() => content.Value.BombSite),
 						Size = UiSize.Capped(0.055, 12),
+						MinSize = UiSize.Capped(0.04, 9),
 						Weight = UiComponentTextWeights.SemiBold,
 						Role = UiComponentTextRoles.Muted,
 						Align = UiComponentAlignments.Center,
@@ -1654,14 +1917,38 @@ private static UiStack BombPanel(UiState<MatchHudContent> content) => new UiStac
 				Key = "feed-items",
 				Items = UiValue.From(() => content.Value.FeedItems),
 				KeySelector = static item => item.Key,
-				Template = static (item, key) => new UiTextRun
+				// A status dot leads each row so the feed reads as a timeline
+				// instead of plain centered lines; the dot box is smaller than
+				// the text, so row height is unchanged.
+				Template = static (item, key) => new UiStack
 				{
 					Key = key,
-					Text = UiText.FromLocalized(() => item.Text),
-					Size = UiSize.Capped(0.075, 10),
-					Role = UiComponentTextRoles.Secondary,
-					Color = item.Accent is null ? UiValue.None<string>() : UiValue.Of(item.Accent),
+					Direction = UiComponentDirections.Horizontal,
+					Justify = UiComponentJustify.Center,
 					Align = UiComponentAlignments.Center,
+					Gap = 0.015,
+					Children =
+					[
+						new UiShape
+						{
+							Key = key + "-dot",
+							Shape = UiComponentShapes.Circle,
+							Fill = true,
+							Color = UiValue.Of(item.Accent ?? MatchHudColors.Slate),
+							MainSize = UiSize.Capped(0.03, 8),
+						},
+						new UiTextRun
+						{
+							Key = key + "-text",
+							Text = UiText.FromLocalized(() => item.Text),
+							Size = UiSize.Capped(0.075, 10),
+							Role = UiComponentTextRoles.Secondary,
+							Color = item.Accent is null ? UiValue.None<string>() : UiValue.Of(item.Accent),
+							Align = UiComponentAlignments.Start,
+							Wrap = true,
+							MaxLines = 2,
+						},
+					],
 				},
 			},
 		],
@@ -1732,26 +2019,13 @@ private static UiStack BombPanel(UiState<MatchHudContent> content) => new UiStac
 			Key = key + "-label",
 			Text = UiText.From(() => text()),
 			Size = UiSize.Capped(0.085, 10),
+			MinSize = UiSize.Capped(0.05, 8),
 			Weight = UiComponentTextWeights.Medium,
 			Color = color is null ? UiValue.None<string>() : UiValue.From(color),
 			Align = UiComponentAlignments.Center,
 		}, background ?? (() => PillNeutral));
 	}
 
-	private static UiWhen MicroLine(UiState<MatchHudContent> content, string key, Func<string> text) => new UiWhen
-	{
-		Key = key + "-when",
-		Condition = () => !string.IsNullOrWhiteSpace(text()),
-		Content = () => new UiTextRun
-		{
-			Key = key,
-			Text = UiText.From(() => text()),
-			Size = UiSize.Capped(0.075, 9),
-			MinSize = UiSize.Capped(0.055, 7),
-			Role = UiComponentTextRoles.Muted,
-			Align = UiComponentAlignments.Center,
-		},
-	};
 }
 
 public static class MatchHudHistory
@@ -2153,6 +2427,7 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 			MatchHudContent.FormatClock(snapshot.MatchElapsed),
 			MatchHudContent.FormatClock(snapshot.SessionMatchTime),
 			SanitizeDisplay(snapshot.BombCarrier),
+			snapshot.BombSite ?? string.Empty,
 			snapshot.FacingYaw,
 			snapshot.SmokesActive,
 			snapshot.FireActive,
@@ -2223,6 +2498,16 @@ public sealed class MatchHudWidget : IWidgetTypeProvider, IUiProvider
 		}
 
 		return null;
+	}
+
+	public static string MatchWinner(int ctScore, int tScore, string? ctName, string? tName)
+	{
+		if (tScore > ctScore)
+		{
+			return string.IsNullOrWhiteSpace(tName) ? "T" : tName;
+		}
+
+		return string.IsNullOrWhiteSpace(ctName) ? "CT" : ctName;
 	}
 
 	public static MacroDeck.Localization.LocalizedString MatchPointText(int ctScore, int tScore, string? ctName, string? tName)

@@ -495,7 +495,8 @@ public sealed class MatchHudWidgetTests
 		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
 
 		Assert.That(tree, Does.Contain("\"linear\""));
-		Assert.That(tree, Does.Contain("#28303F"));
+		Assert.That(tree, Does.Contain("#2C3547"));
+		Assert.That(tree, Does.Contain("#161B25"));
 		Assert.That(tree, Does.Contain("scorebug"));
 	}
 
@@ -848,6 +849,39 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Bomb_site_shows_the_plant_site_not_the_carrier()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(MatchHudContent.SampleBomb);
+		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+		Assert.That(tree, Does.Contain("bomb-site"));
+		Assert.That(tree, Does.Contain("\"B\""));
+	}
+
+	[Test]
+	public void Game_over_renders_the_winner_pill()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var state = new UiState<MatchHudContent>(
+			MatchHudContent.SampleLive with { MapPhase = "GAMEOVER", CtScore = 13, TScore = 11 });
+		var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+		Assert.That(tree, Does.Contain("final-pill"));
+		Assert.That(tree, Does.Contain("final-label"));
+	}
+
+	[Test]
 	public void Low_hp_renders_low_pill_and_red_number()
 	{
 		var surface = new UiSurface
@@ -868,6 +902,73 @@ public sealed class MatchHudWidgetTests
 		var registry = new MacroDeck.Localization.LocalizationCatalogRegistry();
 		registry.Register(Strings.LocalizationCatalog);
 		return new MacroDeck.Localization.LocalizationResolver(registry).Resolve(text, "en");
+	}
+
+	[Test]
+	public void Compact_trees_build_without_throwing()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var options = MatchHudOptions.FromData(JsonDocument.Parse(
+			"""{"showScore":true,"showHistory":true,"showPlayer":true,"showCharts":true,"showStatus":true,"showSession":true,"showFeed":true,"feedCount":3,"compactMode":true}""").RootElement);
+		foreach (var page in new[] { MatchHudContent.PageMatch, MatchHudContent.PagePlayer, MatchHudContent.PageIntel })
+		{
+			var state = new UiState<MatchHudContent>(MatchHudContent.SampleLive with { Page = page, Options = options });
+			var tree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(state)).Tree);
+
+			Assert.That(tree, Does.Contain("match-hud-g"));
+		}
+
+		foreach (var page in new[] { MatchHudContent.PageMatch, MatchHudContent.PagePlayer, MatchHudContent.PageIntel })
+		{
+			var bomb = new UiState<MatchHudContent>(MatchHudContent.SampleBomb with { Page = page, Options = options });
+			var bombTree = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.FromState(bomb)).Tree);
+
+			Assert.That(bombTree, Does.Contain("match-hud-g"));
+			if (page == MatchHudContent.PageMatch)
+			{
+				Assert.That(bombTree, Does.Contain("bomb-ring"));
+			}
+		}
+	}
+
+	[Test]
+	public async Task Standard_appearance_wraps_the_tree()
+	{
+		using var gsi = new GsiService(TestLogger());
+		gsi.InjectTestState();
+		var widget = new MatchHudWidget(gsi, new CsSettingsProvider(), TestLogger());
+		var request = new UiSessionRequest
+		{
+			UiModelVersion = 4,
+			Surface = new UiSurface
+			{
+				Kind = UiSurfaceKinds.Widget,
+				SessionMode = UiSessionModes.Shared,
+				Attributes = new Dictionary<string, JsonElement>
+				{
+					[UiWidgetSurfaceAttributes.Data] = JsonDocument.Parse(
+						"""{"backgroundColor":"#123456","label":"ACS"}""").RootElement.Clone(),
+				},
+			},
+		};
+
+		var session = await widget.CreateSessionAsync(request, TestContext.CurrentContext.CancellationToken);
+
+		Assert.That(session, Is.Not.Null);
+		var tree = JsonSerializer.Serialize(session!.BuildTree());
+		Assert.That(tree, Does.Contain("appearance"));
+		Assert.That(tree, Does.Contain("ACS"));
+		if (session is IAsyncDisposable asyncDisposable)
+		{
+			await asyncDisposable.DisposeAsync();
+		}
+
+		gsi.Dispose();
 	}
 
 	[Test]

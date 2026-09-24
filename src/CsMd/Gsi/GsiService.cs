@@ -72,6 +72,7 @@ public sealed record GsiSnapshot(
 	string? PlaceName,
 	double? BombCountdown,
 	string? BombCarrier,
+	string? BombSite,
 	int RoundKills,
 	int RoundHeadshots,
 	int RoundDamage,
@@ -1542,7 +1543,7 @@ var focus = FocusedPlayer(current, previous);
 		connected, null, null, null, 0, 0, 0, null, null, null, null, null,
 		false, null, null, false, 0, 0, false, false, 0, null, -1, -1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0,
-		0, 0, 0, false, PositionSources.Off, null, null, null,
+		0, 0, 0, false, PositionSources.Off, null, null, null, null,
 		0, 0, 0, false, false, false, 0, null, null, string.Empty,
 		null, null, 0, 0, null, 0, 0, 0, null, 0, 0, 0, 0, 0.0, 0.0, null);
 
@@ -1595,7 +1596,7 @@ var focus = FocusedPlayer(current, previous);
 			session.Deaths > 0 ? (double)session.Kills / session.Deaths : session.Kills,
 			position?.X ?? 0, position?.Y ?? 0, position?.Z ?? 0, position is not null,
 			ResolvePositionSource(payload, focus, position),
-			placeName, payload.Bomb?.Countdown, bombCarrier,
+			placeName, payload.Bomb?.Countdown, bombCarrier, BombSiteOf(payload.Round?.Bomb),
 			state?.RoundKills ?? 0, state?.RoundHeadshots ?? 0, state?.RoundDamage ?? 0,
 			(state?.Smoked ?? 0) > 0, (state?.Burning ?? 0) > 0, state?.DefuseKit ?? false,
 			state?.EquipmentValue ?? 0, focus?.Activity, weaponType, RoundHistoryOf(payload),

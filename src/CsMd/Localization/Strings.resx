@@ -1033,6 +1033,26 @@
     <value>Install writes the game config, then launch CS2.</value>
     <comment>Idle install hint line.</comment>
   </data>
+  <data name="Widget.Idle.Status" xml:space="preserve">
+    <value>WAITING FOR GAME</value>
+    <comment>Idle status pill above the buttons.</comment>
+  </data>
+  <data name="Widget.Scorebug.Accessibility" xml:space="preserve">
+    <value>{ctName} {ctScore}, {tName} {tScore}, {round}</value>
+    <comment>[ctScore:int][tScore:int] Scorebug screen-reader label.</comment>
+  </data>
+  <data name="Widget.Bomb.Accessibility" xml:space="preserve">
+    <value>{seconds} seconds remaining</value>
+    <comment>[seconds:int] Bomb countdown screen-reader label.</comment>
+  </data>
+  <data name="Widget.Hero.HealthAccessibility" xml:space="preserve">
+    <value>Health {hp}</value>
+    <comment>Health ring screen-reader label.</comment>
+  </data>
+  <data name="Widget.Match.Winner" xml:space="preserve">
+    <value>{name} wins</value>
+    <comment>Final victory pill naming the winning side.</comment>
+  </data>
   <data name="Issues.GsiPort.Title" xml:space="preserve">
     <value>GSI listener port unavailable</value>
   </data>
