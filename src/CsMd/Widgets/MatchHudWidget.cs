@@ -2177,6 +2177,16 @@ public static class MatchHudPreviews
 	public static UiElement NoData() => MatchHudView.Build(
 		new UiState<MatchHudContent>(MatchHudContent.Empty));
 
+	[UiPreview("Final", View = "MatchHud", Profile = UiPreviewProfiles.Widget)]
+	public static UiElement FinalMatch() => MatchHudView.Build(
+		new UiState<MatchHudContent>(MatchHudContent.SampleLive with
+		{
+			MapPhase = "GAMEOVER",
+			CtScore = 13,
+			TScore = 11,
+			HasTimer = false,
+		}));
+
 	// Test and tooling support: builds the live tree against caller-owned
 	// state so patches can be observed without a running session.
 	public static UiElement FromState(UiState<MatchHudContent> state) => MatchHudView.Build(state);

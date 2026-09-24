@@ -214,7 +214,7 @@ public sealed class MatchHudWidgetTests
 	[Test]
 	public void Sample_trees_fit_a_three_by_three_tile_without_squeezing_text()
 	{
-		var names = new[] { "LiveMatch", "BombPlanted", "PlayerPage", "IntelPage", "NoData" };
+		var names = new[] { "LiveMatch", "BombPlanted", "PlayerPage", "IntelPage", "NoData", "FinalMatch" };
 		var previews = new Func<UiElement>[]
 		{
 			MatchHudPreviews.LiveMatch,
@@ -222,6 +222,7 @@ public sealed class MatchHudWidgetTests
 			MatchHudPreviews.PlayerPage,
 			MatchHudPreviews.IntelPage,
 			MatchHudPreviews.NoData,
+			MatchHudPreviews.FinalMatch,
 		};
 		for (var i = 0; i < previews.Length; i++)
 		{
