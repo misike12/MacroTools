@@ -791,6 +791,7 @@ public sealed class GsiService : IDisposable
 	private void ApplyPayload(GsiPayload payload, bool bypassAuth)
 	{
 		List<GsiMatchEvent> events = [];
+		(string? Map, double X, double Y, double Z)? pendingPlace = null;
 		lock (_gate)
 		{
 			if (_disposed)
@@ -826,7 +827,42 @@ public sealed class GsiService : IDisposable
 				ResetSessionLocked();
 			}
 
-			events.AddRange(DiffLocked(previous, payload));
+			events.AddRange(DiffLocked(previous, payload, out var placeLookup));
+			pendingPlace = placeLookup;
+		}
+
+		// Place lookup can extract map volumes from the game's VPKs on first use
+		// (seconds on slow disks): resolve it after the gate so variable reads and
+		// the next packet never queue behind the extraction.
+		if (pendingPlace is { } lookup)
+		{
+			var place = SafeFindPlace(lookup.Map, lookup.X, lookup.Y, lookup.Z);
+			if (place is not null)
+			{
+				lock (_gate)
+				{
+					if (!string.Equals(place, _lastPlace, StringComparison.Ordinal))
+					{
+						if (_lastPlace is not null)
+						{
+							events.Insert(0, new GsiMatchEvent(GsiEventIds.PlaceChanged, new Dictionary<string, object?>
+							{
+								["place"] = place,
+							}));
+						}
+
+						_lastPlace = place;
+					}
+				}
+
+				foreach (var matchEvent in events)
+				{
+					if (matchEvent.Payload is Dictionary<string, object?> mutable && mutable.ContainsKey("place"))
+					{
+						mutable["place"] = place;
+					}
+				}
+			}
 		}
 
 		EmitEvents(events);
@@ -854,8 +890,9 @@ public sealed class GsiService : IDisposable
 		});
 	}
 
-	private List<GsiMatchEvent> DiffLocked(GsiPayload? previous, GsiPayload current)
+	private List<GsiMatchEvent> DiffLocked(GsiPayload? previous, GsiPayload current, out (string? Map, double X, double Y, double Z)? pendingPlace)
 	{
+		pendingPlace = null;
 		var events = new List<GsiMatchEvent>();
 		var previousMapPhase = previous?.Map?.Phase;
 		var mapPhase = current.Map?.Phase;
@@ -953,20 +990,10 @@ var focus = FocusedPlayer(current, previous);
 			}
 
 			var position = ResolvePosition(current, focus, previous);
-			var place = position is not null
-				? SafeFindPlace(current.Map?.Name, position.X, position.Y, position.Z)
-				: null;
-			if (!string.IsNullOrEmpty(place) && !string.Equals(place, _lastPlace, StringComparison.Ordinal))
+			string? place = null;
+			if (position is not null)
 			{
-				if (_lastPlace is not null)
-				{
-					events.Add(new GsiMatchEvent(GsiEventIds.PlaceChanged, new Dictionary<string, object?>
-					{
-						["place"] = place,
-					}));
-				}
-
-				_lastPlace = place;
+				pendingPlace = (current.Map?.Name, position.X, position.Y, position.Z);
 			}
 			var deaths = focus.MatchStats?.Deaths ?? 0;
 			var previousDeaths = previousFocus?.MatchStats?.Deaths ?? 0;
@@ -1111,7 +1138,7 @@ var focus = FocusedPlayer(current, previous);
 				return;
 			}
 
-			_console.Poll();
+			_console.Poll(parsePositions: options.Enabled);
 			EmitChatIfNew();
 
 			if (!options.Enabled)
@@ -1363,9 +1390,12 @@ var focus = FocusedPlayer(current, previous);
 		}
 
 		return string.Concat(wins
-			.Where(entry => int.TryParse(entry.Key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
-			.OrderBy(entry => int.Parse(entry.Key, System.Globalization.CultureInfo.InvariantCulture))
-			.Select(entry => RoundWinnerToken(entry.Value)));
+			.Select(entry => int.TryParse(entry.Key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var round)
+				? (round, token: RoundWinnerToken(entry.Value))
+				: (round: -1, token: '?'))
+			.Where(pair => pair.round >= 0)
+			.OrderBy(pair => pair.round)
+			.Select(pair => pair.token));
 	}
 
 	private static char RoundWinnerToken(string? value)

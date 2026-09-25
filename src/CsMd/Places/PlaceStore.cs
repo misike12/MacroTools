@@ -31,6 +31,12 @@ public class PlaceStore
 	private readonly ILogger _logger;
 	private readonly Func<string?> _csgoDirectory;
 	private readonly ConcurrentDictionary<string, CachedMap> _cache = new(StringComparer.OrdinalIgnoreCase);
+	// Map file discovery opens and header-parses VPKs: cache positive
+	// resolutions so every snapshot does not pay file IO. Deletions still
+	// surface through the File.Exists check below, updates through the
+	// write-time check, and newly downloaded workshop maps resolve on first
+	// miss because only positive results are cached.
+	private readonly ConcurrentDictionary<string, ResolvedMap> _resolved = new(StringComparer.OrdinalIgnoreCase);
 
 	public PlaceStore(ILogger logger)
 		: this(logger, GsiConfig.FindCsDirectory)
@@ -90,6 +96,8 @@ public class PlaceStore
 
 		var point = new Vector3((float)x, (float)y, (float)z);
 		PlaceVolume? best = null;
+		// Sorted per call on purpose: GetPlaces is virtual and overrides may
+		// return any order, so smallest-first cannot be assumed from the cache.
 		foreach (var place in places.OrderBy(p => p.VolumeSize))
 		{
 			if (Contains(place, point, 8))
@@ -154,10 +162,17 @@ public class PlaceStore
 	private ResolvedMap? ResolveMap(string mapName)
 	{
 		var shortName = mapName.Contains('/') ? mapName[(mapName.LastIndexOf('/') + 1)..] : mapName;
+		if (_resolved.TryGetValue(shortName, out var cached))
+		{
+			return cached;
+		}
+
 		var official = OfficialVpkPath(shortName);
 		if (official is not null)
 		{
-			return new ResolvedMap(official, null);
+			var resolved = new ResolvedMap(official, null);
+			_resolved[shortName] = resolved;
+			return resolved;
 		}
 
 		return ResolveWorkshopMap(shortName);
@@ -266,7 +281,9 @@ public class PlaceStore
 					var nested = FindNestedMap(package.Package, mapName);
 					if (nested is not null)
 					{
-						return new ResolvedMap(vpk, nested);
+						var resolved = new ResolvedMap(vpk, nested);
+						_resolved[mapName] = resolved;
+						return resolved;
 					}
 				}
 				catch (Exception ex)

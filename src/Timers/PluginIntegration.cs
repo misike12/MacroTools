@@ -240,27 +240,51 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 
 	public ValueTask<VariableReading> ReadAsync(string localId, CancellationToken cancellationToken = default)
 	{
-		var remaining = _timers.CountdownRemaining;
-		var elapsed = _timers.StopwatchElapsed;
-		var pomo = _pomodoro.Snapshot();
-		return ValueTask.FromResult(localId switch
+		// Snapshot only the engine the variable belongs to: a full triple
+		// snapshot per read triples locking and clock calls for no benefit.
+		if (localId.StartsWith("pomodoro-", StringComparison.Ordinal))
 		{
-			"countdown-remaining-seconds" => VariableReading.Of(remaining.TotalSeconds),
-			"countdown-text" => VariableReading.Of(FormatDuration(remaining)),
-			"countdown-running" => VariableReading.Of(_timers.CountdownRunning),
-			"countdown-label" => TextOrUnavailable(_timers.CountdownLabel),
-			"countdown-progress-percent" => VariableReading.Of(_timers.CountdownProgressPercent, 0, 100, 1),
-			"stopwatch-elapsed-seconds" => VariableReading.Of(elapsed.TotalSeconds),
-			"stopwatch-text" => VariableReading.Of(FormatDuration(elapsed)),
-			"stopwatch-running" => VariableReading.Of(_timers.StopwatchRunning),
-			"pomodoro-phase" => VariableReading.Of(FocusTimerWidget.PhaseToken(pomo.Phase)),
-			"pomodoro-remaining-seconds" => VariableReading.Of(pomo.Remaining.TotalSeconds),			"pomodoro-phase-text" => VariableReading.Of(FormatDuration(pomo.Remaining)),
-			"pomodoro-label" => TextOrUnavailable(pomo.Label),
-			"pomodoro-round" => VariableReading.Of((double)pomo.Round),
-			"pomodoro-running" => VariableReading.Of(pomo.Running),
-			"pomodoro-progress-percent" => VariableReading.Of(PomodoroProgress(pomo), 0, 100, 1),
-			_ => VariableReading.Unavailable,
-		});
+			var pomo = _pomodoro.Snapshot();
+			return ValueTask.FromResult(localId switch
+			{
+				"pomodoro-phase" => VariableReading.Of(FocusTimerWidget.PhaseToken(pomo.Phase)),
+				"pomodoro-remaining-seconds" => VariableReading.Of(pomo.Remaining.TotalSeconds),
+				"pomodoro-phase-text" => VariableReading.Of(FormatDuration(pomo.Remaining)),
+				"pomodoro-label" => TextOrUnavailable(pomo.Label),
+				"pomodoro-round" => VariableReading.Of((double)pomo.Round),
+				"pomodoro-running" => VariableReading.Of(pomo.Running),
+				"pomodoro-progress-percent" => VariableReading.Of(PomodoroProgress(pomo), 0, 100, 1),
+				_ => VariableReading.Unavailable,
+			});
+		}
+
+		if (localId.StartsWith("stopwatch-", StringComparison.Ordinal))
+		{
+			var elapsed = _timers.StopwatchElapsed;
+			return ValueTask.FromResult(localId switch
+			{
+				"stopwatch-elapsed-seconds" => VariableReading.Of(elapsed.TotalSeconds),
+				"stopwatch-text" => VariableReading.Of(FormatDuration(elapsed)),
+				"stopwatch-running" => VariableReading.Of(_timers.StopwatchRunning),
+				_ => VariableReading.Unavailable,
+			});
+		}
+
+		if (localId.StartsWith("countdown-", StringComparison.Ordinal))
+		{
+			var remaining = _timers.CountdownRemaining;
+			return ValueTask.FromResult(localId switch
+			{
+				"countdown-remaining-seconds" => VariableReading.Of(remaining.TotalSeconds),
+				"countdown-text" => VariableReading.Of(FormatDuration(remaining)),
+				"countdown-running" => VariableReading.Of(_timers.CountdownRunning),
+				"countdown-label" => TextOrUnavailable(_timers.CountdownLabel),
+				"countdown-progress-percent" => VariableReading.Of(_timers.CountdownProgressPercent, 0, 100, 1),
+				_ => VariableReading.Unavailable,
+			});
+		}
+
+		return ValueTask.FromResult(VariableReading.Unavailable);
 	}
 
 	private static double PomodoroProgress(PomodoroSnapshot pomo)

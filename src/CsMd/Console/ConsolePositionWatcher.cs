@@ -113,7 +113,7 @@ public sealed class ConsolePositionWatcher
 		}
 	}
 
-	public void Poll()
+	public void Poll(bool parsePositions = true)
 	{
 		var path = ResolveLogPath();
 		if (string.IsNullOrWhiteSpace(path))
@@ -169,6 +169,10 @@ public sealed class ConsolePositionWatcher
 		}
 
 		var observedAt = DateTimeOffset.UtcNow;
+		// Position fixes are only consumed when tracking is enabled; chat lines
+		// are always parsed so events keep flowing for tracking-off users.
+		if (parsePositions)
+		{
 		(DateTimeOffset At, double X, double Y, double Z, double Yaw)? best = null;
 		foreach (var line in text.Split('\n'))
 		{
@@ -198,6 +202,7 @@ public sealed class ConsolePositionWatcher
 					_fix = (best.Value.X, best.Value.Y, best.Value.Z, best.Value.Yaw, best.Value.At);
 				}
 			}
+		}
 		}
 
 		var chat = ParseChat(text, observedAt);

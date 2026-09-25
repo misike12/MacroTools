@@ -587,7 +587,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				}
 
 				await _media.SetVolumeAsync((int)Math.Round(percent.Value), cancellationToken);
-				_last = await _media.GetSnapshotAsync(cancellationToken);
+				await RefreshAfterWriteAsync(cancellationToken);
 				return VariableWriteResult.Applied();
 			}
 
@@ -608,7 +608,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 					await _media.UnmuteAsync(cancellationToken);
 				}
 
-				_last = await _media.GetSnapshotAsync(cancellationToken);
+				await RefreshAfterWriteAsync(cancellationToken);
 				return VariableWriteResult.Applied();
 			}
 
@@ -621,7 +621,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				}
 
 				await _media.SetMicVolumeAsync((int)Math.Round(percent.Value), cancellationToken);
-				_last = await _media.GetSnapshotAsync(cancellationToken);
+				await RefreshAfterWriteAsync(cancellationToken);
 				return VariableWriteResult.Applied();
 			}
 
@@ -642,7 +642,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 					await _media.UnmuteMicAsync(cancellationToken);
 				}
 
-				_last = await _media.GetSnapshotAsync(cancellationToken);
+				await RefreshAfterWriteAsync(cancellationToken);
 				return VariableWriteResult.Applied();
 			}
 
@@ -659,7 +659,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 					return VariableWriteResult.Unavailable(Strings.Errors.MediaCommandFailed());
 				}
 
-				_last = await _media.GetSnapshotAsync(cancellationToken);
+				await RefreshAfterWriteAsync(cancellationToken);
 				return VariableWriteResult.Applied();
 			}
 
@@ -682,7 +682,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 					return VariableWriteResult.Unavailable(Strings.Errors.MediaCommandFailed());
 				}
 
-				_last = await _media.GetSnapshotAsync(cancellationToken);
+				await RefreshAfterWriteAsync(cancellationToken);
 				return VariableWriteResult.Applied();
 			}
 
@@ -888,11 +888,18 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			publish();
 		}
 
-		// Device names barely change; the WinRT enumeration behind them is the
-		// most expensive call in this loop, so it runs every fifth tick.
-		if (ticks++ % 5 == 0)
+		// Device names barely change and the WinRT enumeration behind them is the
+		// most expensive call in this loop, so it runs every fifth tick. The app
+		// set is cheaper to read and drives the visible catalog, so it runs
+		// every second tick instead of waiting on the device cadence.
+		var tick = ticks++;
+		if (tick % 5 == 0)
 		{
 			await RefreshDefaultDeviceAsync(cancellationToken);
+		}
+
+		if (tick % 2 == 0)
+		{
 			await RefreshAudioAppsAsync(cancellationToken);
 		}
 	}
@@ -936,8 +943,12 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 	{
 		try
 		{
-			var devices = await _media.GetAudioDevicesAsync(cancellationToken);
-			foreach (var device in devices)
+			// The two enumerations are independent: overlap them instead of
+			// paying both WinRT round trips back to back.
+			var devicesTask = _media.GetAudioDevicesAsync(cancellationToken);
+			var inputsTask = _media.GetAudioInputDevicesAsync(cancellationToken);
+			await Task.WhenAll(devicesTask, inputsTask);
+			foreach (var device in await devicesTask)
 			{
 				if (device.IsDefault)
 				{
@@ -946,8 +957,7 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 				}
 			}
 
-			var inputs = await _media.GetAudioInputDevicesAsync(cancellationToken);
-			foreach (var device in inputs)
+			foreach (var device in await inputsTask)
 			{
 				if (device.IsDefault)
 				{
@@ -966,6 +976,40 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 		}
 	}
 
+	// A write already changed the world: re-read under the same swap + change
+	// detection as the poll loop so dependents learn at once, and never report
+	// a successful control call as failed just because the confirm snapshot hit
+	// a wedged driver.
+	private async Task RefreshAfterWriteAsync(CancellationToken cancellationToken)
+	{
+		MediaSnapshot snapshot;
+		try
+		{
+			snapshot = await _media.GetSnapshotAsync(cancellationToken);
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Post-write snapshot failed.");
+			return;
+		}
+		List<Action> pending;
+		lock (_snapshotGate)
+		{
+			var previous = _last;
+			_last = snapshot;
+			pending = CollectChanges(previous, snapshot);
+		}
+
+		foreach (var publish in pending)
+		{
+			publish();
+		}
+	}
+
 	private List<Action> CollectChanges(MediaSnapshot previous, MediaSnapshot current)
 	{
 		var context = _context;
@@ -975,7 +1019,7 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 			return pending;
 		}
 
-		if (TrackKey(previous) != TrackKey(current))
+		if (!SameTrack(previous, current))
 		{
 			if (_settings.Current.TrackEvents)
 			{
@@ -1074,10 +1118,14 @@ private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 		return pending;
 	}
 
-	private static string TrackKey(MediaSnapshot snapshot) =>
-		snapshot.HasSession
-			? $"{snapshot.AppId}\n{snapshot.Title}\n{snapshot.Artist}\n{snapshot.Album}"
-			: string.Empty;
+	// Field comparison instead of an interpolated key: two fewer ~200-char
+	// strings per tick, off the snapshot lock.
+	private static bool SameTrack(MediaSnapshot previous, MediaSnapshot current) =>
+		previous.HasSession == current.HasSession
+		&& string.Equals(previous.AppId, current.AppId, StringComparison.Ordinal)
+		&& string.Equals(previous.Title, current.Title, StringComparison.Ordinal)
+		&& string.Equals(previous.Artist, current.Artist, StringComparison.Ordinal)
+		&& string.Equals(previous.Album, current.Album, StringComparison.Ordinal);
 
 	private static string StatusToken(MediaSnapshot snapshot)
 	{

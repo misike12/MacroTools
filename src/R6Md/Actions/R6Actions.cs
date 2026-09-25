@@ -43,7 +43,7 @@ public sealed class SimulateMatchAction(ReplayService replays) : IActionDefiniti
 		{
 			return Task.FromResult<ActionStateSnapshot?>(new ActionStateSnapshot(
 				s_states,
-				replays.Snapshot().HasMatch ? "tracking" : "idle"));
+				replays.HasMatch() ? "tracking" : "idle"));
 		}
 		catch (Exception)
 		{

@@ -483,8 +483,14 @@ public sealed class NowPlayingWidget : IWidgetTypeProvider, IUiProvider
 					_resources);
 			}
 
-			var snapshot = await _media.GetSnapshotAsync(cancellationToken);
-			var cached = _media.TryGetCachedArtwork(snapshot.ArtworkId);
+		// Seed from the integration's warm snapshot when it is fresh: the loop
+		// repaints within one tick anyway, so a full SMTC round trip here only
+		// delays the first tree.
+		var warm = _snapshots?.Invoke();
+		var snapshot = warm is not null && DateTimeOffset.UtcNow - warm.UpdatedAt <= TimeSpan.FromSeconds(5)
+			? warm
+			: await _media.GetSnapshotAsync(cancellationToken);
+		var cached = _media.TryGetCachedArtwork(snapshot.ArtworkId);
 			return new NowPlayingSession(
 				surface,
 				new UiState<WidgetContent>(WidgetContent.FromSnapshot(snapshot, options, cached?.Accent ?? string.Empty, cached?.AccentDark ?? string.Empty)),

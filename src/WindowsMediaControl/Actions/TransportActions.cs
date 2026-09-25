@@ -17,21 +17,28 @@ internal static class MediaActionResults
 	public static async Task<ActionResult> FromControlResult(
 		IMediaControlService media,
 		bool succeeded,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken,
+		MediaSnapshot? known = null)
 	{
 		if (succeeded)
 		{
 			return ActionResult.Success();
 		}
 
-		MediaSnapshot snapshot;
-		try
+		// Classify from the pre-action snapshot when the caller has one: the
+		// session cannot have appeared because our own control call failed, so
+		// a second SMTC round trip only stalls the failure path.
+		var snapshot = known;
+		if (snapshot is null)
 		{
-			snapshot = await media.GetSnapshotAsync(cancellationToken);
-		}
-		catch (Exception)
-		{
-			return ProviderError();
+			try
+			{
+				snapshot = await media.GetSnapshotAsync(cancellationToken);
+			}
+			catch (Exception)
+			{
+				return ProviderError();
+			}
 		}
 
 		return snapshot.HasSession
@@ -55,17 +62,16 @@ public sealed class PlayAction(IMediaControlService media, MediaSettingsProvider
 		{
 			try
 			{
-				var app = MediaParameters.ReadApp(context.Parameters, settings);
-				if (app is null)
-				{
-					var snapshot = await media.GetSnapshotAsync(context.CancellationToken);
-					if (snapshot is { HasSession: true, Status: Media.PlaybackStatus.Playing })
-					{
-						return ActionResult.Success();
-					}
-				}
+			var app = MediaParameters.ReadApp(context.Parameters, settings);
+			MediaSnapshot? before = app is null
+				? await media.GetSnapshotAsync(context.CancellationToken)
+				: null;
+			if (before is { HasSession: true, Status: Media.PlaybackStatus.Playing })
+			{
+				return ActionResult.Success();
+			}
 
-				return await MediaActionResults.FromControlResult(media, await media.PlayAsync(context.CancellationToken, app), context.CancellationToken);
+			return await MediaActionResults.FromControlResult(media, await media.PlayAsync(context.CancellationToken, app), context.CancellationToken, before);
 			}
 			catch (Exception)
 			{
@@ -90,17 +96,16 @@ public sealed class PauseAction(IMediaControlService media, MediaSettingsProvide
 		{
 			try
 			{
-				var app = MediaParameters.ReadApp(context.Parameters, settings);
-				if (app is null)
-				{
-					var snapshot = await media.GetSnapshotAsync(context.CancellationToken);
-					if (snapshot is { HasSession: true, Status: not Media.PlaybackStatus.Playing })
-					{
-						return ActionResult.Success();
-					}
-				}
+			var app = MediaParameters.ReadApp(context.Parameters, settings);
+			MediaSnapshot? before = app is null
+				? await media.GetSnapshotAsync(context.CancellationToken)
+				: null;
+			if (before is { HasSession: true, Status: not Media.PlaybackStatus.Playing })
+			{
+				return ActionResult.Success();
+			}
 
-				return await MediaActionResults.FromControlResult(media, await media.PauseAsync(context.CancellationToken, app), context.CancellationToken);
+			return await MediaActionResults.FromControlResult(media, await media.PauseAsync(context.CancellationToken, app), context.CancellationToken, before);
 			}
 			catch (Exception)
 			{
@@ -209,7 +214,7 @@ public sealed class TogglePlayPauseAction(IMediaControlService media, MediaSetti
 					: null;
 				if (!await media.TogglePlayPauseAsync(context.CancellationToken, app))
 				{
-					return await MediaActionResults.FromControlResult(media, false, context.CancellationToken);
+					return await MediaActionResults.FromControlResult(media, false, context.CancellationToken, before);
 				}
 
 				var expected = before?.Status switch
@@ -246,17 +251,16 @@ public sealed class StopAction(IMediaControlService media, MediaSettingsProvider
 		{
 			try
 			{
-				var app = MediaParameters.ReadApp(context.Parameters, settings);
-				if (app is null)
-				{
-					var snapshot = await media.GetSnapshotAsync(context.CancellationToken);
-					if (!snapshot.HasSession || snapshot.Status is Media.PlaybackStatus.Stopped or Media.PlaybackStatus.NoMedia)
-					{
-						return ActionResult.Success();
-					}
-				}
+			var app = MediaParameters.ReadApp(context.Parameters, settings);
+			MediaSnapshot? before = app is null
+				? await media.GetSnapshotAsync(context.CancellationToken)
+				: null;
+			if (before is not null && (!before.HasSession || before.Status is Media.PlaybackStatus.Stopped or Media.PlaybackStatus.NoMedia))
+			{
+				return ActionResult.Success();
+			}
 
-				return await MediaActionResults.FromControlResult(media, await media.StopAsync(context.CancellationToken, app), context.CancellationToken);
+			return await MediaActionResults.FromControlResult(media, await media.StopAsync(context.CancellationToken, app), context.CancellationToken, before);
 			}
 			catch (Exception)
 			{

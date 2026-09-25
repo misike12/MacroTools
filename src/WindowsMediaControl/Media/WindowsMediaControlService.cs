@@ -79,7 +79,7 @@ public sealed class WindowsMediaControlService : IMediaControlService
 			var duration = timeline?.EndTime ?? TimeSpan.Zero;
 
 			var artworkId = hasSession
-				? ArtworkIdFor(session.SourceAppUserModelId, props?.Title, props?.Artist, props?.AlbumTitle)
+				? ArtworkIdMemoized(session.SourceAppUserModelId, props?.Title, props?.Artist, props?.AlbumTitle)
 				: string.Empty;
 			var (accent, accentDark) = ArtworkAccentFor(artworkId);
 
@@ -781,6 +781,29 @@ public sealed class WindowsMediaControlService : IMediaControlService
 	{
 		var input = $"{appId ?? string.Empty}\0{title ?? string.Empty}\0{artist ?? string.Empty}\0{album ?? string.Empty}";
 		return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input)))[..32];
+	}
+
+	private readonly object _artworkIdGate = new();
+	private string? _lastArtworkKey;
+	private string? _lastArtworkId;
+
+	// The snapshot path calls this every tick with an unchanged track: skip the
+	// UTF-8 + SHA256 + hex work when the tuple matches the previous call.
+	private string ArtworkIdMemoized(string? appId, string? title, string? artist, string? album)
+	{
+		var key = $"{appId ?? string.Empty}\0{title ?? string.Empty}\0{artist ?? string.Empty}\0{album ?? string.Empty}";
+		lock (_artworkIdGate)
+		{
+			if (_lastArtworkId is not null && string.Equals(key, _lastArtworkKey, StringComparison.Ordinal))
+			{
+				return _lastArtworkId;
+			}
+
+			var id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..32];
+			_lastArtworkKey = key;
+			_lastArtworkId = id;
+			return id;
+		}
 	}
 
 	private Task<bool> TryControlAsync(

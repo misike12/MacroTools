@@ -23,7 +23,7 @@ internal static class R6Variables
 		Eager("opp-score", VariableType.Numeric, Strings.Variables.OppScore.DisplayName(), Strings.Variables.OppScore.Description(), refresh: Refresh),
 		Eager("your-role", VariableType.Text, Strings.Variables.YourRole.DisplayName(), Strings.Variables.YourRole.Description(), refresh: Refresh),
 		Eager("opp-role", VariableType.Text, Strings.Variables.OppRole.DisplayName(), Strings.Variables.OppRole.Description(), refresh: Refresh),
-		Eager("round-history", VariableType.Text, Strings.Variables.RoundHistory.DisplayName(), Strings.Variables.RoundHistory.Description(), refresh: Refresh),
+		Eager("round-history", VariableType.Text, Strings.Variables.RoundHistory.DisplayName(), Strings.Variables.RoundHistory.Description(), refresh: Refresh, name: "r6md_round_history"),
 		Eager("players-count", VariableType.Numeric, Strings.Variables.PlayersCount.DisplayName(), Strings.Variables.PlayersCount.Description(), refresh: Refresh),
 		Eager("top-fragger", VariableType.Text, Strings.Variables.TopFragger.DisplayName(), Strings.Variables.TopFragger.Description(), refresh: Refresh),
 		Eager("top-frags", VariableType.Numeric, Strings.Variables.TopFrags.DisplayName(), Strings.Variables.TopFrags.Description(), refresh: Refresh),
@@ -36,12 +36,12 @@ internal static class R6Variables
 		Eager("your-deaths", VariableType.Numeric, Strings.Variables.YourDeaths.DisplayName(), Strings.Variables.YourDeaths.Description(), refresh: Refresh),
 		Eager("your-assists", VariableType.Numeric, Strings.Variables.YourAssists.DisplayName(), Strings.Variables.YourAssists.Description(), refresh: Refresh),
 		Eager("your-headshots", VariableType.Numeric, Strings.Variables.YourHeadshots.DisplayName(), Strings.Variables.YourHeadshots.Description(), refresh: Refresh),
-		Eager("session-kills", VariableType.Numeric, Strings.Variables.SessionKills.DisplayName(), Strings.Variables.SessionKills.Description(), refresh: Refresh),
-		Eager("session-deaths", VariableType.Numeric, Strings.Variables.SessionDeaths.DisplayName(), Strings.Variables.SessionDeaths.Description(), refresh: Refresh),
+		Eager("session-kills", VariableType.Numeric, Strings.Variables.SessionKills.DisplayName(), Strings.Variables.SessionKills.Description(), refresh: Refresh, name: "r6md_session_kills"),
+		Eager("session-deaths", VariableType.Numeric, Strings.Variables.SessionDeaths.DisplayName(), Strings.Variables.SessionDeaths.Description(), refresh: Refresh, name: "r6md_session_deaths"),
 		Eager("session-assists", VariableType.Numeric, Strings.Variables.SessionAssists.DisplayName(), Strings.Variables.SessionAssists.Description(), refresh: Refresh),
-		Eager("session-hs", VariableType.Numeric, Strings.Variables.SessionHs.DisplayName(), Strings.Variables.SessionHs.Description(), refresh: Refresh),
+		Eager("session-hs", VariableType.Numeric, Strings.Variables.SessionHs.DisplayName(), Strings.Variables.SessionHs.Description(), refresh: Refresh, name: "r6md_session_hs"),
 		Eager("streak", VariableType.Numeric, Strings.Variables.Streak.DisplayName(), Strings.Variables.Streak.Description(), refresh: Refresh),
-		Eager("best-streak", VariableType.Numeric, Strings.Variables.BestStreak.DisplayName(), Strings.Variables.BestStreak.Description(), refresh: Refresh),
+		Eager("best-streak", VariableType.Numeric, Strings.Variables.BestStreak.DisplayName(), Strings.Variables.BestStreak.Description(), refresh: Refresh, name: "r6md_best_streak"),
 		Eager("match-outcome", VariableType.Text, Strings.Variables.MatchOutcome.DisplayName(), Strings.Variables.MatchOutcome.Description(), refresh: Refresh),
 		Eager("rounds-tracked", VariableType.Numeric, Strings.Variables.RoundsTracked.DisplayName(), Strings.Variables.RoundsTracked.Description(), refresh: Refresh),
 		Eager("ow-connected", VariableType.Boolean, Strings.Variables.OwConnected.DisplayName(), Strings.Variables.OwConnected.Description(), refresh: Refresh),
@@ -61,10 +61,13 @@ internal static class R6Variables
 		MacroDeck.Localization.LocalizedString description,
 		string? unit = null,
 		string? semanticKind = null,
-		TimeSpan? refresh = null) =>
+		TimeSpan? refresh = null,
+		string? name = null) =>
 		VariableDefinition.Eager(id, type) with
 		{
-			Name = id.Replace("-", "_"),
+			// Names share one global namespace per host: prefix the session family
+			// because CS:MD already owns the unprefixed session names.
+			Name = name ?? id.Replace("-", "_"),
 			DisplayName = displayName,
 			Description = description,
 			Unit = unit ?? string.Empty,

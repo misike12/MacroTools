@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.r6md",
   "name": "R6MD",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Rainbow Six Siege match tracking over replay files: scores, operators, rounds, kill feed and session stats.",
   "icon": "Assets/icon.svg",
   "entrypoints": {

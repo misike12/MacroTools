@@ -1,9 +1,9 @@
 # Macro Deck plugin conformance report
 
 Suite version: `1.2.0`  
-Plugin: `com.misu.r6md` `1.2.1`  
+Plugin: `com.misu.r6md` `1.4.2`  
 Conformant: **yes**  
-Passed: 31 - Failed: 0 - Skipped: 18
+Passed: 33 - Failed: 0 - Skipped: 16
 
 | Id | Title | Category | Requirement | Outcome | Detail |
 |---|---|---|---|---|---|
@@ -28,8 +28,8 @@ Passed: 31 - Failed: 0 - Skipped: 18
 | MDC0306 | ui/describe reports a surface list whose every entry names a kind | CapabilitySerialization | Required | PASS |  |
 | MDC0307 | Every surface ui/describe declares names a non-empty session mode | CapabilitySerialization | Required | PASS |  |
 | MDC0308 | ui/describe's reply stays within MaxMessageBytes and deserializes without loss | CapabilitySerialization | Required | PASS |  |
-| MDC0309 | Every state-provider action's state operation returns a well-formed snapshot | CapabilitySerialization | Required | SKIP | No declared action reports ProvidesState. |
-| MDC0310 | Every state a state-provider action returns has an id that is a valid declared-kind identifier | CapabilitySerialization | Required | SKIP | No declared action reports ProvidesState. |
+| MDC0309 | Every state-provider action's state operation returns a well-formed snapshot | CapabilitySerialization | Required | PASS |  |
+| MDC0310 | Every state a state-provider action returns has an id that is a valid declared-kind identifier | CapabilitySerialization | Required | PASS |  |
 | MDC0311 | A variable provider reporting a catalog answers discover with a bounded, well-formed page | CapabilitySerialization | Required | SKIP | This subject's variable provider reports no catalog. |
 | MDC0312 | Every icon-provider action's icon snapshot is internally consistent | CapabilitySerialization | Required | SKIP | No declared action reports ProvidesIcon. |
 | MDC0313 | A snapshot naming no reference is answerable by icon.content, with AssetTooLarge the only allowed failure | CapabilitySerialization | Required | SKIP | No declared action reports ProvidesIcon. |

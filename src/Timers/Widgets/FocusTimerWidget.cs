@@ -624,6 +624,31 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 			false, running, hasSession, options, accent);
 	}
 
+	private static readonly Dictionary<(int Round, int Total), string> s_dotsCache = [];
+	private static readonly object s_dotsGate = new();
+
+	// Round dots change only when the round advances: memoize the few distinct
+	// strings instead of rebuilding enumerator + strings every widget tick.
+	private static string RoundDots(int round, int total)
+	{
+		lock (s_dotsGate)
+		{
+			if (s_dotsCache.TryGetValue((round, total), out var cached))
+			{
+				return cached;
+			}
+
+			var dots = string.Join(" ", Enumerable.Range(1, total).Select(current => current < round ? "●" : current == round ? "◉" : "○"));
+			if (s_dotsCache.Count >= 64)
+			{
+				s_dotsCache.Clear();
+			}
+
+			s_dotsCache[(round, total)] = dots;
+			return dots;
+		}
+	}
+
 	private FocusTimerContent PomodoroContent(FocusTimerOptions options, string accent)
 	{
 		var snapshot = _pomodoro.Snapshot();
@@ -637,7 +662,7 @@ public sealed class FocusTimerWidget : IWidgetTypeProvider, IUiProvider
 		var totalRounds = Math.Max(1, snapshot.TotalRounds > 0 ? snapshot.TotalRounds : (int)options.Rounds);
 		var dots = options.Compact || !hasSession
 			? string.Empty
-			: string.Join(" ", Enumerable.Range(1, totalRounds).Select(round => round < snapshot.Round ? "●" : round == snapshot.Round ? "◉" : "○"));
+			: RoundDots(snapshot.Round, totalRounds);
 		return new FocusTimerContent(
 			"pomodoro",
 			PhaseToken(snapshot.Phase),

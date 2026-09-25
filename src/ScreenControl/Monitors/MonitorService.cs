@@ -51,6 +51,15 @@ public sealed class MonitorService : IMonitorService, IDisposable
 	private long _cachedMonitorsTicks;
 	private bool _disposed;
 
+	// DDC reads (input/power/caps) cost a driver round trip each while OSD-side
+	// changes are rare: cache them briefly, keyed by device so unplug shifts
+	// cannot misattribute a value. Successful sets clear the cache, so acting
+	// paths always observe their own write on the next read.
+	private readonly Dictionary<string, (int? Input, int? Power, long Ticks)> _ddcCache = new(StringComparer.OrdinalIgnoreCase);
+	private readonly Dictionary<string, (IReadOnlyList<int> Values, long Ticks)> _capsCache = new(StringComparer.OrdinalIgnoreCase);
+	private static readonly TimeSpan DdcCacheTtl = TimeSpan.FromSeconds(15);
+	private static readonly TimeSpan CapsCacheTtl = TimeSpan.FromMinutes(5);
+
 	// A full enumeration costs a DDC round trip per monitor, and variable
 	// reads, widget refreshes and actions each enumerate on their own. Reads
 	// far outnumber real changes, so share one enumeration briefly.
@@ -82,6 +91,14 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		lock (_monitorCacheGate)
 		{
 			_cachedMonitors = null;
+		}
+	}
+
+	private void ClearDdcCache()
+	{
+		lock (_monitorCacheGate)
+		{
+			_ddcCache.Clear();
 		}
 	}
 
@@ -158,8 +175,14 @@ public sealed class MonitorService : IMonitorService, IDisposable
 	{
 		try
 		{
-			return WithPhysicalMonitor(index, handle =>
+			var ok = WithPhysicalMonitor(index, handle =>
 				NativeMethods.SetVCPFeature(handle, VcpInputSelect, (uint)vcpValue));
+			if (ok)
+			{
+				ClearDdcCache();
+			}
+
+			return ok;
 		}
 		catch (Exception)
 		{
@@ -168,6 +191,35 @@ public sealed class MonitorService : IMonitorService, IDisposable
 	}
 
 	public int? TryGetInput(int index)
+	{
+		var device = DeviceNameFor(index);
+		if (device is null)
+		{
+			return null;
+		}
+
+		var now = DateTimeOffset.UtcNow.Ticks;
+		lock (_monitorCacheGate)
+		{
+			if (_ddcCache.TryGetValue(device, out var cached) && now - cached.Ticks < DdcCacheTtl.Ticks)
+			{
+				return cached.Input;
+			}
+		}
+
+		var live = TryGetInputLive(index);
+		lock (_monitorCacheGate)
+		{
+			var ticks = DateTimeOffset.UtcNow.Ticks;
+			_ddcCache[device] = _ddcCache.TryGetValue(device, out var existing)
+				? (live, existing.Power, ticks)
+				: (live, null, ticks);
+		}
+
+		return live;
+	}
+
+	private static int? TryGetInputLive(int index)
 	{
 		try
 		{
@@ -191,8 +243,14 @@ public sealed class MonitorService : IMonitorService, IDisposable
 	{
 		try
 		{
-			return WithPhysicalMonitor(index, handle =>
+			var ok = WithPhysicalMonitor(index, handle =>
 				NativeMethods.SetVCPFeature(handle, VcpPowerMode, (uint)dpmValue));
+			if (ok)
+			{
+				ClearDdcCache();
+			}
+
+			return ok;
 		}
 		catch (Exception)
 		{
@@ -201,6 +259,35 @@ public sealed class MonitorService : IMonitorService, IDisposable
 	}
 
 	public int? TryGetPower(int index)
+	{
+		var device = DeviceNameFor(index);
+		if (device is null)
+		{
+			return null;
+		}
+
+		var now = DateTimeOffset.UtcNow.Ticks;
+		lock (_monitorCacheGate)
+		{
+			if (_ddcCache.TryGetValue(device, out var cached) && now - cached.Ticks < DdcCacheTtl.Ticks)
+			{
+				return cached.Power;
+			}
+		}
+
+		var live = TryGetPowerLive(index);
+		lock (_monitorCacheGate)
+		{
+			var ticks = DateTimeOffset.UtcNow.Ticks;
+			_ddcCache[device] = _ddcCache.TryGetValue(device, out var existing)
+				? (existing.Input, live, ticks)
+				: (null, live, ticks);
+		}
+
+		return live;
+	}
+
+	private static int? TryGetPowerLive(int index)
 	{
 		try
 		{
@@ -220,11 +307,41 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		}
 	}
 
+	private string? DeviceNameFor(int index)
+	{
+		try
+		{
+			foreach (var monitor in GetMonitors())
+			{
+				if (monitor.Index == index)
+				{
+					return monitor.Name;
+				}
+			}
+		}
+		catch (Exception)
+		{
+		}
+
+		return null;
+	}
+
 	public IReadOnlyList<int> GetSupportedInputs(int index)	{
 		var target = TargetFor(index);
 		if (target is null)
 		{
 			return [];
+		}
+
+		// Capability strings never change without a firmware swap: cache them
+		// per device instead of paying a DDC read on every cycle press.
+		var now = DateTimeOffset.UtcNow.Ticks;
+		lock (_monitorCacheGate)
+		{
+			if (_capsCache.TryGetValue(target.DeviceName, out var cached) && now - cached.Ticks < CapsCacheTtl.Ticks)
+			{
+				return cached.Values;
+			}
 		}
 
 		try
@@ -234,6 +351,16 @@ public sealed class MonitorService : IMonitorService, IDisposable
 				if (TryReadCapabilities(handle) is string caps
 					&& ParseInputValues(caps) is { Count: > 0 } values)
 				{
+					lock (_monitorCacheGate)
+					{
+						if (_capsCache.Count >= 16)
+						{
+							_capsCache.Clear();
+						}
+
+						_capsCache[target.DeviceName] = (values, DateTimeOffset.UtcNow.Ticks);
+					}
+
 					return values;
 				}
 			}

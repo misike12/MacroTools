@@ -158,6 +158,9 @@ public sealed class ReplayService : IDisposable
 	private string? _root;
 	private bool _running;
 	private bool _disposed;
+	private string? _connectedRoot;
+	private bool _connectedValue;
+	private long _connectedTicks;
 
 	public ReplayService(Serilog.ILogger logger)
 		: this(logger, new ReplayParser())
@@ -242,9 +245,48 @@ public sealed class ReplayService : IDisposable
 		await RescanAsync();
 	}
 
-	public R6Snapshot Snapshot()
+	// The replay root barely moves while the folder exists: cache the existence
+	// probe (a syscall per snapshot otherwise) with a short TTL.
+	private static readonly TimeSpan ConnectedTtl = TimeSpan.FromSeconds(10);
+
+	private bool ConnectedCached(string root)
 	{
-		Dictionary<int, TrackedRound> rounds;
+		if (string.IsNullOrEmpty(root))
+		{
+			return false;
+		}
+
+		var now = DateTimeOffset.UtcNow.Ticks;
+		lock (_gate)
+		{
+			if (string.Equals(root, _connectedRoot, StringComparison.OrdinalIgnoreCase)
+				&& now - _connectedTicks < ConnectedTtl.Ticks)
+			{
+				return _connectedValue;
+			}
+		}
+
+		var exists = Directory.Exists(root);
+		lock (_gate)
+		{
+			_connectedRoot = root;
+			_connectedValue = exists;
+			_connectedTicks = DateTimeOffset.UtcNow.Ticks;
+		}
+
+		return exists;
+	}
+
+	public bool HasMatch()
+	{
+		lock (_gate)
+		{
+			return _matchKey is not null && _rounds.Count > 0;
+		}
+	}
+
+	public R6Snapshot Snapshot()
+	{		Dictionary<int, TrackedRound> rounds;
 		List<R6FeedItem> feed;
 		string? matchKey;
 		string? you;
@@ -282,7 +324,7 @@ public sealed class ReplayService : IDisposable
 			lastParseAt = _lastParseAt;
 		}
 
-		var connected = !string.IsNullOrEmpty(root) && Directory.Exists(root);
+		var connected = ConnectedCached(root);
 		if (matchKey is null || rounds.Count == 0)
 		{
 			var fresh = live is not null && DateTimeOffset.UtcNow - live.At < LiveFreshness;
@@ -995,7 +1037,17 @@ public sealed class ReplayService : IDisposable
 				.Where(p => now - p.Value.TouchedAt >= debounceDelay)
 				.Select(p => p.Key)
 				.ToList();
-			foreach (var path in due)
+		// Newest first: during backfill the live round integrates before history,
+		// so the HUD shows the current match instead of waiting behind it.
+		due.Sort(static (a, b) =>
+		{
+			DateTime ta, tb;
+			try { ta = File.GetLastWriteTimeUtc(a); } catch (Exception) { ta = DateTime.MinValue; }
+			try { tb = File.GetLastWriteTimeUtc(b); } catch (Exception) { tb = DateTime.MinValue; }
+			return tb.CompareTo(ta);
+		});
+
+		foreach (var path in due)
 			{
 				_files.Remove(path);
 			}
