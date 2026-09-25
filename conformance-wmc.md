@@ -1,9 +1,9 @@
 # Macro Deck plugin conformance report
 
 Suite version: `1.2.0`  
-Plugin: `com.misu.r6md` `1.4.3`  
+Plugin: `com.misu.windows-media` `1.14.3`  
 Conformant: **yes**  
-Passed: 33 - Failed: 0 - Skipped: 16
+Passed: 38 - Failed: 0 - Skipped: 11
 
 | Id | Title | Category | Requirement | Outcome | Detail |
 |---|---|---|---|---|---|
@@ -30,10 +30,10 @@ Passed: 33 - Failed: 0 - Skipped: 16
 | MDC0308 | ui/describe's reply stays within MaxMessageBytes and deserializes without loss | CapabilitySerialization | Required | PASS |  |
 | MDC0309 | Every state-provider action's state operation returns a well-formed snapshot | CapabilitySerialization | Required | PASS |  |
 | MDC0310 | Every state a state-provider action returns has an id that is a valid declared-kind identifier | CapabilitySerialization | Required | PASS |  |
-| MDC0311 | A variable provider reporting a catalog answers discover with a bounded, well-formed page | CapabilitySerialization | Required | SKIP | This subject's variable provider reports no catalog. |
-| MDC0312 | Every icon-provider action's icon snapshot is internally consistent | CapabilitySerialization | Required | SKIP | No declared action reports ProvidesIcon. |
-| MDC0313 | A snapshot naming no reference is answerable by icon.content, with AssetTooLarge the only allowed failure | CapabilitySerialization | Required | SKIP | No declared action reports ProvidesIcon. |
-| MDC0314 | A variable that declares a write capability answers set with something other than NotWritable or NotFound | CapabilitySerialization | Required | SKIP | This subject declares no writable variable. |
+| MDC0311 | A variable provider reporting a catalog answers discover with a bounded, well-formed page | CapabilitySerialization | Required | PASS |  |
+| MDC0312 | Every icon-provider action's icon snapshot is internally consistent | CapabilitySerialization | Required | PASS |  |
+| MDC0313 | A snapshot naming no reference is answerable by icon.content, with AssetTooLarge the only allowed failure | CapabilitySerialization | Required | PASS |  |
+| MDC0314 | A variable that declares a write capability answers set with something other than NotWritable or NotFound | CapabilitySerialization | Required | PASS |  |
 | MDC0315 | The eager variable list stays within VariableLimits.MaxEagerVariablesPerProvider | CapabilitySerialization | Required | PASS |  |
 | MDC0401 | No two declared capabilities share the same (kind, localId) pair | DuplicateIds | Required | PASS |  |
 | MDC0402 | No two weather station instances share an instance id | DuplicateIds | Required | SKIP | This subject does not declare the weather capability. |
@@ -41,7 +41,7 @@ Passed: 33 - Failed: 0 - Skipped: 16
 | MDC0501 | An invocation receives exactly one reply, never more | TimeoutAndCancellation | Required | PASS |  |
 | MDC0502 | A deadline that elapses produces TIMEOUT, and nothing arrives afterward | TimeoutAndCancellation | Recommended | SKIP | No declared action ran long enough, under a 300 ms deadline, to observe deadline enforcement. |
 | MDC0503 | Cancelling an unknown or already-answered correlation produces no message at all | TimeoutAndCancellation | Required | PASS |  |
-| MDC0504 | Cancelling an in-flight invocation produces exactly one cancelled reply | TimeoutAndCancellation | Recommended | SKIP | No declared action stayed in flight long enough to be cancelled before it completed on its own. |
+| MDC0504 | Cancelling an in-flight invocation produces exactly one cancelled reply | TimeoutAndCancellation | Recommended | PASS |  |
 | MDC0505 | A burst beyond MaxConcurrentInvocations never exceeds the reported in-flight bound, and every invocation completes | TimeoutAndCancellation | Recommended | PASS |  |
 | MDC0601 | After a non-fatal disconnect, the subject reconnects and becomes ready again | DisconnectAndReconnect | Required | PASS |  |
 | MDC0602 | Reconnecting inside the resume window presents resumeSessionId and resumes with the same session id | DisconnectAndReconnect | Required | PASS |  |
@@ -52,7 +52,7 @@ Passed: 33 - Failed: 0 - Skipped: 16
 | MDC0703 | An unmapped route under /_macrodeck/ answers 404 | HealthEndpoint | Required | PASS |  |
 | MDC0704 | The subject serves its endpoints at the base address its launcher was told to expect | HealthEndpoint | Required | PASS |  |
 | MDC0801 | Logging while draining is paused does not block, and queued traffic is not silently lost after resuming | BoundedQueues | Recommended | SKIP | No declared action produced any observable log output. |
-| MDC0802 | Under a logging flood while paused, a trailing Error still survives and Dropped is reported honestly | BoundedQueues | Recommended | SKIP | No declared action produced a batch's worth of log traffic while draining was paused, so there was no flood for a trailing Error to have to survive. |
+| MDC0802 | Under a logging flood while paused, a trailing Error still survives and Dropped is reported honestly | BoundedQueues | Recommended | INCONCLUSIVE | The check did not return within its 00:01:00 per-check timeout and was abandoned after 00:01:00.0042068 of real time. |
 | MDC0803 | Every collected log event respects the protocol's structural field limits | BoundedQueues | Required | PASS |  |
 | MDC0804 | Reconnecting does not replay a burst of previously published events | BoundedQueues | Required | PASS |  |
 | MDC0805 | A burst of variables/get invocations beyond MaxConcurrentInvocations never exceeds the reported in-flight bound | BoundedQueues | Recommended | PASS |  |

@@ -1,7 +1,7 @@
 # Macro Deck plugin conformance report
 
 Suite version: `1.2.0`  
-Plugin: `com.misu.r6md` `1.4.3`  
+Plugin: `com.misu.timers` `1.3.1`  
 Conformant: **yes**  
 Passed: 33 - Failed: 0 - Skipped: 16
 
@@ -52,7 +52,7 @@ Passed: 33 - Failed: 0 - Skipped: 16
 | MDC0703 | An unmapped route under /_macrodeck/ answers 404 | HealthEndpoint | Required | PASS |  |
 | MDC0704 | The subject serves its endpoints at the base address its launcher was told to expect | HealthEndpoint | Required | PASS |  |
 | MDC0801 | Logging while draining is paused does not block, and queued traffic is not silently lost after resuming | BoundedQueues | Recommended | SKIP | No declared action produced any observable log output. |
-| MDC0802 | Under a logging flood while paused, a trailing Error still survives and Dropped is reported honestly | BoundedQueues | Recommended | SKIP | No declared action produced a batch's worth of log traffic while draining was paused, so there was no flood for a trailing Error to have to survive. |
+| MDC0802 | Under a logging flood while paused, a trailing Error still survives and Dropped is reported honestly | BoundedQueues | Recommended | INCONCLUSIVE | The check did not return within its 00:01:00 per-check timeout and was abandoned after 00:01:00.0118522 of real time. |
 | MDC0803 | Every collected log event respects the protocol's structural field limits | BoundedQueues | Required | PASS |  |
 | MDC0804 | Reconnecting does not replay a burst of previously published events | BoundedQueues | Required | PASS |  |
 | MDC0805 | A burst of variables/get invocations beyond MaxConcurrentInvocations never exceeds the reported in-flight bound | BoundedQueues | Recommended | PASS |  |

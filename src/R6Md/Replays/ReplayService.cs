@@ -1037,6 +1037,12 @@ public sealed class ReplayService : IDisposable
 				.Where(p => now - p.Value.TouchedAt >= debounceDelay)
 				.Select(p => p.Key)
 				.ToList();
+			foreach (var path in due)
+			{
+				_files.Remove(path);
+			}
+		}
+
 		// Newest first: during backfill the live round integrates before history,
 		// so the HUD shows the current match instead of waiting behind it.
 		due.Sort(static (a, b) =>
@@ -1047,12 +1053,11 @@ public sealed class ReplayService : IDisposable
 			return tb.CompareTo(ta);
 		});
 
-		foreach (var path in due)
-			{
-				_files.Remove(path);
-			}
-		}
-
+		// Collect first (cheap stats under the gate), then parse the files
+		// concurrently: each parse is a process spawn, the dominant cost of a
+		// backfill. Integration stays serial and in newest-first order below, so
+		// round and session state build exactly as before.
+		var pending = new List<(string Path, DateTime Written)>();
 		foreach (var path in due)
 		{
 			try
@@ -1076,9 +1081,51 @@ public sealed class ReplayService : IDisposable
 					}
 				}
 
-				var match = await _parser.ParseAsync(path, CancellationToken.None);
+				pending.Add((path, written));
+			}
+			catch (Exception ex)
+			{
+				_logger.Debug(ex, "Replay import failed.");
+			}
+		}
+
+		var parsed = new (bool Ok, ReplayMatch? Match)[pending.Count];
+		await Parallel.ForEachAsync(
+			Enumerable.Range(0, pending.Count),
+			new ParallelOptions { MaxDegreeOfParallelism = 2 },
+			async (i, _) =>
+			{
+				try
+				{
+					parsed[i] = (true, await _parser.ParseAsync(pending[i].Path, CancellationToken.None));
+				}
+				catch (Exception ex)
+				{
+					// A throwing parse leaves no import record, so the next
+					// pass retries it, exactly like the serial loop did.
+					_logger.Debug(ex, "Replay import failed.");
+					parsed[i] = (false, null);
+				}
+			});
+
+		for (var i = 0; i < pending.Count; i++)
+		{
+			var (path, written) = pending[i];
+			var (ok, match) = parsed[i];
+			try
+			{
+				if (!ok)
+				{
+					continue;
+				}
+
 				lock (_gate)
 				{
+					if (_disposed || !_running)
+					{
+						return;
+					}
+
 					_imported[path] = written;
 				}
 

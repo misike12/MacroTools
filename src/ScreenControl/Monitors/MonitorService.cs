@@ -104,17 +104,12 @@ public sealed class MonitorService : IMonitorService, IDisposable
 
 	private List<MonitorInfo> EnumerateMonitors()
 	{
-		var found = new List<MonitorInfo>();
+		var handles = new List<IntPtr>();
 		try
 		{
 			MonitorEnumProc callback = (IntPtr hMonitor, IntPtr _, ref NativeMethods.Rect __, IntPtr ___) =>
 			{
-				var info = Describe(hMonitor, found.Count + 1);
-				if (info is not null)
-				{
-					found.Add(info);
-				}
-
+				handles.Add(hMonitor);
 				return true;
 			};
 			NativeMethods.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, callback, IntPtr.Zero);
@@ -122,6 +117,23 @@ public sealed class MonitorService : IMonitorService, IDisposable
 		}
 		catch (Exception)
 		{
+		}
+
+		// Each description is an independent DDC round trip (tens to hundreds
+		// of milliseconds on real drivers): describe monitors concurrently so
+		// two or three displays cost one round trip instead of the sum. Index
+		// assignment stays sequential over the described set, exactly as before
+		// (only the "Display N" fallback name of a nameless monitor can number
+		// differently, and such monitors are untargetable anyway).
+		var described = new MonitorInfo?[handles.Count];
+		Parallel.For(0, handles.Count, i => described[i] = Describe(handles[i], i + 1));
+		var found = new List<MonitorInfo>(described.Length);
+		foreach (var info in described)
+		{
+			if (info is not null)
+			{
+				found.Add(info with { Index = found.Count + 1 });
+			}
 		}
 
 		return found;

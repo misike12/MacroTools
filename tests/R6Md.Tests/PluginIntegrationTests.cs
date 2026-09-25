@@ -273,6 +273,45 @@ public sealed class PluginIntegrationTests
 	}
 
 	[Test]
+	public async Task Backfill_parses_concurrent_files_without_dropping_any()
+	{
+		var root = Directory.CreateTempSubdirectory("r6md-backfill").FullName;
+		try
+		{
+			for (var i = 1; i <= 5; i++)
+			{
+				var path = Path.Combine(root, $"round-{i}.rec");
+				await File.WriteAllTextAsync(path, "pending", TestContext.CurrentContext.CancellationToken);
+				File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-i));
+			}
+
+			var parses = 0;
+			using var replays = new ReplayService(
+				TestLogger(),
+				new CountingParser(_ =>
+				{
+					System.Threading.Interlocked.Increment(ref parses);
+					return Fixture("ranked-r1.json");
+				}));
+			replays.Start(root);
+
+			var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+			while (System.Threading.Volatile.Read(ref parses) < 5 && DateTimeOffset.UtcNow < deadline)
+			{
+				await Task.Delay(250, TestContext.CurrentContext.CancellationToken);
+			}
+
+			Assert.That(System.Threading.Volatile.Read(ref parses), Is.EqualTo(5));
+			Assert.DoesNotThrow(() => replays.Snapshot());
+			replays.Stop();
+		}
+		finally
+		{
+			Directory.Delete(root, true);
+		}
+	}
+
+	[Test]
 	public async Task Picker_card_serves_a_sample_without_stored_data()
 	{
 		using var replays = new ReplayService(TestLogger(), new ScriptParser(_ => Fixture("ranked-r1.json")));

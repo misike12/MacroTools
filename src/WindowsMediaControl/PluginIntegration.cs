@@ -858,20 +858,34 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 				break;
 			}
 
-			MediaSnapshot snapshot;
-			try
-			{
-				snapshot = await _media.GetSnapshotAsync(cancellationToken);
-			}
-			catch (OperationCanceledException)
-			{
-				break;
-			}
-			catch (Exception ex)
-			{
-				_logger.Debug(ex, "Media poll failed.");
-				continue;
-			}
+		// The three reads are independent backends (SMTC, CoreAudio sessions,
+		// WinRT devices): fan them out and merge in a fixed order, so a tick
+		// costs the slowest fetch instead of the sum. Change detection and all
+		// host callbacks still run sequentially below.
+		var tick = ticks++;
+		var snapshotTask = GetPollSnapshotAsync(cancellationToken);
+		var appsTask = tick % 2 == 0
+			? RefreshAudioAppsAsync(cancellationToken)
+			: Task.CompletedTask;
+		var devicesTask = tick % 5 == 0
+			? RefreshDefaultDeviceAsync(cancellationToken)
+			: Task.CompletedTask;
+
+		MediaSnapshot? snapshot;
+		try
+		{
+			await Task.WhenAll(snapshotTask, appsTask, devicesTask);
+			snapshot = await snapshotTask;
+		}
+		catch (OperationCanceledException)
+		{
+			break;
+		}
+
+		if (snapshot is null)
+		{
+			continue;
+		}
 
 		List<Action> pending;
 		lock (_snapshotGate)
@@ -887,23 +901,25 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		{
 			publish();
 		}
-
-		// Device names barely change and the WinRT enumeration behind them is the
-		// most expensive call in this loop, so it runs every fifth tick. The app
-		// set is cheaper to read and drives the visible catalog, so it runs
-		// every second tick instead of waiting on the device cadence.
-		var tick = ticks++;
-		if (tick % 5 == 0)
-		{
-			await RefreshDefaultDeviceAsync(cancellationToken);
-		}
-
-		if (tick % 2 == 0)
-		{
-			await RefreshAudioAppsAsync(cancellationToken);
-		}
 	}
 }
+
+	private async Task<MediaSnapshot?> GetPollSnapshotAsync(CancellationToken cancellationToken)
+	{
+		try
+		{
+			return await _media.GetSnapshotAsync(cancellationToken);
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Media poll failed.");
+			return null;
+		}
+	}
 
 private async Task RefreshAudioAppsAsync(CancellationToken cancellationToken)
 {
