@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.windows-media",
   "name": "Windows Media Control",
-  "version": "1.14.1",
+  "version": "1.14.2",
   "description": "Control Windows media playback (SMTC): play, pause, next, previous, volume, seek, shuffle, repeat and live variables.",
   "repository": "https://github.com/misike12/MacroTools",
   "icon": "Assets/icon.svg",
@@ -17,9 +17,15 @@
     "name": "Misu"
   },
   "license": "MIT",
+  "ai": {
+    "interaction": false,
+    "generatedContent": false,
+    "generatedAssets": true,
+    "services": ["Muse Spark via OpenCode"]
+  },
   "permissions": ["host:messaging"],
   "compatibility": {
-    "macroDeck": ">=3.0.0-beta.12"
+    "macroDeck": ">=3.0.0-beta.13"
   },
   "additionalLinks": [
     { "type": "issues", "url": "https://github.com/misike12/MacroTools/issues" }

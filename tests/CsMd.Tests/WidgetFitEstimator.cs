@@ -26,6 +26,18 @@ internal static class WidgetFitEstimator
 	{
 		using var document = JsonDocument.Parse(treeJson);
 		var root = document.RootElement.GetProperty("Root");
+		if (root.GetProperty("Type").GetString() == "ui.responsive")
+		{
+			// The guardrail measures a 3x3 tile: descend into the layout the
+			// reader would draw so the layout's own padding sets the width,
+			// exactly as a plain root stack would.
+			var children = root.GetProperty("Children").EnumerateArray().ToArray();
+			var variants = root.GetProperty("Properties").GetProperty("variants");
+			var index = MacroDeck.Ui.Components.UiResponsiveSelection.SelectChild(
+				variants, children.Length, BasisUnits / CellUnits, BasisUnits / CellUnits);
+			root = children[index];
+		}
+
 		var width = BasisUnits - 2 * Resolve(root.GetProperty("Properties"), "padding");
 
 		return MeasureChildrenHeight(root, vertical: true, width);
@@ -56,6 +68,11 @@ internal static class WidgetFitEstimator
 		return node.GetProperty("Type").GetString() switch
 		{
 			"ui.text" => ResolveRequired(properties, "size"),
+		// A responsive node draws one layout: the first variant whose condition
+		// holds for the box, else the default. The guardrail measures a 3x3
+		// tile, so the box is the tile itself and the rule is the SDK's own
+		// selection over the wire form.
+		"ui.responsive" => MeasureResponsiveHeight(node, properties, width),
 			"ui.stack" => MeasureChildrenHeight(node, vertical: IsVertical(properties), width),
 			"ui.grid" => MeasureGridHeight(node, properties, width),
 			// A layer draws every child across the same box, so it is as tall
@@ -79,6 +96,15 @@ internal static class WidgetFitEstimator
 			"ui.shape" => ResolveRequired(properties, "mainSize"),
 			var unknown => throw new InvalidOperationException($"Fit estimator does not know node type '{unknown}'."),
 		};
+	}
+
+	private static double MeasureResponsiveHeight(JsonElement node, JsonElement properties, double width)
+	{
+		var children = node.GetProperty("Children").EnumerateArray().ToArray();
+		var variants = properties.GetProperty("variants");
+		var index = MacroDeck.Ui.Components.UiResponsiveSelection.SelectChild(
+			variants, children.Length, width / CellUnits, BasisUnits / CellUnits);
+		return MeasureNodeHeight(children[index], width);
 	}
 
 	private static double MeasureGridHeight(JsonElement node, JsonElement properties, double width)

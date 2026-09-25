@@ -85,11 +85,10 @@ the templated variants replace them during generation. **Change one, change the 
 template with default parameters must reproduce the `src/` files byte for byte, which CI checks.
 
 Authoritative upstream documentation, in the
-[Macro Deck 3 repository](https://github.com/Macro-Deck-App/Macro-Deck-3/tree/main/docs/plugin-development):
-`sdk-reference.md` (every contract type), `plugin-hosting.md` (builder, registration modes, manifest,
-artifact, environment variables), `capability-parity.md` (what behaves differently out of process),
-`analyzers.md`, `conformance.md`, `testing-plugins.md`, `cli.md`. When a question is about SDK behaviour
-rather than this template's own code, look there rather than guessing.
+[Macro Deck repository](https://github.com/Macro-Deck-App/Macro-Deck/tree/main/docs/src/content/docs):
+`reference/` (contract types, manifest, capability parity, conformance, CLI), `ui/` (components,
+views, sizing), `features/` (variables, messaging), `policies/compatibility.md`. When a question is
+about SDK behaviour rather than this template's own code, look there rather than guessing.
 
 ## Before you start on a fresh plugin
 
@@ -387,7 +386,7 @@ CsMd and Windows Media Control; a clean re-run passing it means the tree, not th
 once before investigating, and only treat three consecutive failures as a real regression.
 
 The Macro Deck packages are pinned to the host line in use (`MacroDeckSdkVersion` in
-`Directory.Packages.props`, currently `3.0.0-beta.12`), so the commands above need no version
+`Directory.Packages.props`, currently `3.0.0-beta.13`), so the commands above need no version
 argument. Only to test against SDK surface that is not published yet, pack it into `local-feed/` and
 pass `-p:MacroDeckSdkVersion=<version>` - see "Building against a local SDK build" in
 [README.md](README.md).
@@ -400,6 +399,20 @@ standard widget appearance (`AppearanceProperties` plus `UiWidgetAppearance.Read
 is drawn by the host). Messaging registrations belong to `InitializeAsync` and need no manual
 dispose; wrap them for `MessageChannelException` (`Unsupported` on older hosts) and never throw out
 of the fire-and-forget publish path.
+
+Beta.13 additions in use here, all additive: responsive widget layouts (`UiResponsive` with a
+`Default` layout plus `UiResponsiveVariant` entries keyed on `MaxWidth`/`MinWidth`/`MaxHeight`/
+`MinHeight`/`MaxAspect`/`MinAspect` in cells; the reader picks without a round-trip and older
+readers draw the fallback, so set an explicit `Fallback` when the automatic `Default` copy would
+push deep node ids past the 128-character limit, as the CS:MD Match HUD does), the recommended
+manifest `ai` self-declaration (this repository is AI-built: `interaction`/`generatedContent`
+false since nothing runs AI at runtime, `generatedAssets` true with `services` naming the
+authoring assistant, since every line of code and every icon is AI-generated; omitted
+means "not declared"), and file-backed user variables (host-side only, no SDK change: a read-only
+file-backed variable answers `NotEditable` to writes, which the existing write-status handling
+already covers; this repository never writes user variables). Upstream reference moved to the
+`Macro-Deck-App/Macro-Deck` repository (`docs/src/content/docs/`, e.g. `ui/components/responsive.md`);
+the old `Macro-Deck-3` `docs/plugin-development/` paths no longer exist.
 
 Working in the template repository itself rather than in a plugin generated from it? Changing its shape
 (files, names, `.template.config/template.json`, `packaging/`) also needs a generated-project check -

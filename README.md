@@ -151,7 +151,7 @@ One Valve rule shapes the position variables: the game only sends coordinates an
 
 ### Widget (1)
 
-Match HUD: a broadcast-style scorebug (team color zones, big tabular scores, merged round/phase line, live clock, heartbeat live, blinking match-point and breathing winner pills, reactive frame, round-history dots on a timeline rail, map line with pin), a player plate (team-colored name, health ring gauge with state-colored number and armor bar, loadout with crosshair caption, money, KDA grid with semantic colors, round and top-weapon lines), health-trend, per-round-damage and economy graphs, a bomb panel with a countdown ring around the live-ticking clock plus a gradient countdown bar, icon-led info strips (round, streak, timeouts, match time), status pills (alive state, streak, place, bomb, smoke, fire, flash, helmet, kit), a compass with smooth needle, a tracking line (place, coordinates, facing) and a configurable event feed with accent leader dots. Key regions carry screen-reader labels. Swipe the scorebug or the tab bar to flip between the Match, Player and Intel pages (tapping the scorebug advances one page, for readers without touch). Sections, graphs, feed length and compact mode are configurable per widget; sized for a 2 by 2 tile. Pressing the tile can run your own flows, and the standard background/label appearance applies.
+Match HUD: a broadcast-style scorebug (team color zones, big tabular scores, merged round/phase line, live clock, heartbeat live, blinking match-point and breathing winner pills, reactive frame, round-history dots on a timeline rail, map line with pin), a player plate (team-colored name, health ring gauge with state-colored number and armor bar, loadout with crosshair caption, money, KDA grid with semantic colors, round and top-weapon lines), health-trend, per-round-damage and economy graphs, a bomb panel with a countdown ring around the live-ticking clock plus a gradient countdown bar, icon-led info strips (round, streak, timeouts, match time), status pills (alive state, streak, place, bomb, smoke, fire, flash, helmet, kit), a compass with smooth needle, a tracking line (place, coordinates, facing) and a configurable event feed with accent leader dots. Key regions carry screen-reader labels. Swipe the scorebug or the tab bar to flip between the Match, Player and Intel pages (tapping the scorebug advances one page, for readers without touch). Sections, graphs, feed length and compact mode are configurable per widget; the full HUD shows on tiles two cells wide or more, narrower tiles get a compact scorebug automatically. Pressing the tile can run your own flows, and the standard background/label appearance applies.
 
 Deliberately out of scope: Steam Web API history (needs an API key and offers no live data; GSI is the live API) and sending commands into the game (CS2 exposes no such channel).
 
@@ -185,7 +185,7 @@ Every plugin also publishes on Macro Deck's message bus (`host:messaging` permis
 ## Requirements
 
 - Windows x64.
-- Macro Deck `>=3.0.0-beta.12` (host).
+- Macro Deck `>=3.0.0-beta.13` (host).
 - .NET 10 SDK (to build).
 
 ## Install
@@ -248,7 +248,7 @@ would drive real monitor brightness, input switches and window focus with defaul
 parameters, so it is verified through unit tests plus `macrodeck-plugin build`,
 `validate --artifact` and `inspect` instead.
 
-`dotnet tool install --global MacroDeck.Plugin.Cli --prerelease` provides `macrodeck-plugin`.
+`dotnet tool install --global MacroDeck.Plugin.Cli --version 3.0.0-beta.13` provides `macrodeck-plugin` (pinned: `--prerelease` resolves an older line that cannot pack current manifests).
 
 ## Releasing
 

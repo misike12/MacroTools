@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.timers",
   "name": "Timers",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Countdowns, stopwatches and timer events for automations.",
   "icon": "Assets/icon.svg",
   "entrypoints": {
@@ -16,9 +16,15 @@
     "name": "Misu"
   },
   "license": "MIT",
+  "ai": {
+    "interaction": false,
+    "generatedContent": false,
+    "generatedAssets": true,
+    "services": ["Muse Spark via OpenCode"]
+  },
   "permissions": ["host:messaging"],
   "compatibility": {
-    "macroDeck": ">=3.0.0-beta.12"
+    "macroDeck": ">=3.0.0-beta.13"
   },
   "repository": "https://github.com/misike12/MacroTools",
   "additionalLinks": [

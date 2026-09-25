@@ -198,6 +198,15 @@ internal static class NowPlayingView
 							Value = UiValue.From(() => content.Value.Progress),
 							Size = UiSize.Capped(0.08, 10),
 							Role = UiComponentTextRoles.Muted,
+							// A reader without macrodeck.progress-text draws the
+							// anchor second instead of a ticking clock.
+							Fallback = new UiTextRun
+							{
+								Key = "elapsed-fallback",
+								Text = UiText.From(() => FormatAnchorMs(content.Value.Progress.PositionMs)),
+								Size = UiSize.Capped(0.08, 10),
+								Role = UiComponentTextRoles.Muted,
+							},
 						},
 						new UiProgressText
 						{
@@ -206,6 +215,13 @@ internal static class NowPlayingView
 							Value = UiValue.From(() => content.Value.Progress),
 							Size = UiSize.Capped(0.08, 10),
 							Role = UiComponentTextRoles.Muted,
+							Fallback = new UiTextRun
+							{
+								Key = "duration-fallback",
+								Text = UiText.From(() => FormatAnchorMs(content.Value.Progress.DurationMs)),
+								Size = UiSize.Capped(0.08, 10),
+								Role = UiComponentTextRoles.Muted,
+							},
 						},
 					],
 				});
@@ -308,6 +324,19 @@ internal static class NowPlayingView
 		WidgetContent content,
 		MacroDeck.Localization.LocalizedString fallback) =>
 		key == "play" && content.IsPlaying ? Strings.Widget.Symbols.Pause() : fallback;
+
+	// Anchor rendering for readers without macrodeck.progress-text: the right
+	// picture at the anchor second, refreshed on every re-anchor.
+	private static string FormatAnchorMs(long? ms)
+	{
+		if (ms is not { } value || value < 0)
+		{
+			return string.Empty;
+		}
+
+		var total = (int)(value / 1000);
+		return $"{total / 60}:{total % 60:D2}";
+	}
 
 		private static double FallbackFrac(UiProgressReference progress)
 	{

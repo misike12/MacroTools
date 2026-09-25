@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.csmd",
   "name": "CS:MD",
-  "version": "1.16.3",
+  "version": "1.16.4",
   "description": "Counter-Strike 2 live match state over GSI: scores, players, rounds, bomb, grenades and match events.",
   "icon": "Assets/icon.svg",
   "entrypoints": {
@@ -16,9 +16,15 @@
     "name": "Misu"
   },
   "license": "MIT",
+  "ai": {
+    "interaction": false,
+    "generatedContent": false,
+    "generatedAssets": true,
+    "services": ["Muse Spark via OpenCode"]
+  },
   "permissions": ["host:messaging"],
   "compatibility": {
-    "macroDeck": ">=3.0.0-beta.12"
+    "macroDeck": ">=3.0.0-beta.13"
   },
   "additionalLinks": [
     { "type": "issues", "url": "https://github.com/misike12/MacroTools/issues" }

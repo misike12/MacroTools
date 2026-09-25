@@ -250,6 +250,30 @@ public sealed class MatchHudWidgetTests
 	}
 
 	[Test]
+	public void Responsive_root_serves_compact_scorebug_below_two_cells()
+	{
+		var surface = new UiSurface
+		{
+			Kind = UiSurfaceKinds.Widget,
+			SessionMode = UiSessionModes.Shared,
+			Attributes = new Dictionary<string, JsonElement>(),
+		};
+		var json = JsonSerializer.Serialize(new UiView(surface, MatchHudPreviews.LiveMatch()).Tree);
+		using var document = JsonDocument.Parse(json);
+		var root = document.RootElement.GetProperty("Root");
+
+		Assert.That(root.GetProperty("Type").GetString(), Is.EqualTo("ui.responsive"));
+		var children = root.GetProperty("Children").EnumerateArray().ToArray();
+		Assert.That(children, Has.Length.EqualTo(2));
+		var variants = root.GetProperty("Properties").GetProperty("variants");
+		Assert.That(UiResponsiveSelection.SelectChild(variants, children.Length, 1, 1), Is.EqualTo(1));
+		Assert.That(UiResponsiveSelection.SelectChild(variants, children.Length, 2, 2), Is.EqualTo(0));
+		Assert.That(UiResponsiveSelection.SelectChild(variants, children.Length, 3, 3), Is.EqualTo(0));
+		Assert.That(json, Does.Contain("match-hud-r"));
+		Assert.That(json, Does.Contain("narrow"));
+	}
+
+	[Test]
 	public async Task Tab_change_switches_pages_and_rejects_unknown_ones()
 	{
 		using var gsi = new GsiService(TestLogger());

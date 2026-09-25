@@ -225,7 +225,7 @@ internal static class MatchHudView
 	// Bump when the layout changes. Node ids compose from the root key, so a new
 	// generation makes old patches unmatchable and forces the host to resync a
 	// clean tree instead of patching new values into a stale structure.
-	internal const string TreeGeneration = "20";
+	internal const string TreeGeneration = "21";
 
 	private const string CardBackground = "#262C38";
 	private const string BombCardBackground = "#33222B";
@@ -310,19 +310,69 @@ internal static class MatchHudView
 			Children = body,
 		};
 
+		// One tile, two layouts: the full HUD on two cells or more, a compact
+		// scorebug below that. The reader picks without a round-trip and older
+		// readers draw the default, so this degrades gracefully.
+		UiElement tree = new UiResponsive
+		{
+			Key = "match-hud-r" + TreeGeneration,
+			Default = root,
+			// The automatic fallback copy would push deep node ids past the
+			// 128-character limit, so the default doubles as the fallback: an
+			// older reader draws the full HUD under shorter ids.
+			Fallback = root,
+			Variants =
+			[
+				new UiResponsiveVariant
+				{
+					MaxWidth = 2,
+					Content = NarrowBody(content, options, actions),
+				},
+			],
+		};
+
 		var background = appearance?.BackgroundColor;
 		if (string.IsNullOrWhiteSpace(background))
 		{
-			return root;
+			return tree;
 		}
 
 		return new UiModifier
 		{
 			Key = "appearance",
 			Background = UiBackground.Solid(background),
-			Child = root,
+			Child = tree,
 		};
 	}
+
+	private static UiStack NarrowBody(UiState<MatchHudContent> content, MatchHudOptions options, MatchHudActions? actions) => new()
+	{
+		Key = "narrow",
+		Padding = 0.03,
+		Gap = 0.012,
+		Children =
+		[
+			new UiWhen
+			{
+				Key = "narrow-live",
+				Condition = () => content.Value.Connected,
+				Content = () => Scorebug(content, options, actions),
+			},
+			new UiWhen
+			{
+				Key = "narrow-idle",
+				Condition = () => !content.Value.Connected,
+				Content = () => new UiTextRun
+				{
+					Key = "narrow-idle-text",
+					Text = UiText.FromLocalized(() => Strings.Widget.NoData.Caption()),
+					Size = UiSize.Capped(0.05, 11),
+					Role = UiComponentTextRoles.Muted,
+					Align = UiComponentAlignments.Center,
+				},
+			},
+		],
+	};
 
 	private static UiStack LiveBody(UiState<MatchHudContent> content, MatchHudOptions options, MatchHudActions? actions)
 	{
@@ -1873,6 +1923,16 @@ private static UiStack BombPanel(UiState<MatchHudContent> content) => new UiStac
 							Size = UiSize.Capped(0.11, 18),
 							Weight = UiComponentTextWeights.Bold,
 							Align = UiComponentAlignments.Center,
+							// A reader without macrodeck.progress-text draws the
+							// anchor second instead of a ticking clock.
+							Fallback = new UiTextRun
+							{
+								Key = "bomb-clock-fallback",
+								Text = UiText.From(() => MatchHudContent.FormatClock(BombSecondsRemaining(content.Value.BombProgress))),
+								Size = UiSize.Capped(0.11, 18),
+								Weight = UiComponentTextWeights.Bold,
+								Align = UiComponentAlignments.Center,
+							},
 						},
 					],
 				},
