@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.timers",
   "name": "Timers",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Countdowns, stopwatches and timer events for automations.",
   "icon": "Assets/icon.svg",
   "entrypoints": {
@@ -24,7 +24,7 @@
   },
   "permissions": ["host:messaging"],
   "compatibility": {
-    "macroDeck": ">=3.0.0-beta.13"
+    "macroDeck": ">=3.0.0-beta.14"
   },
   "repository": "https://github.com/misike12/MacroTools",
   "additionalLinks": [

@@ -120,18 +120,50 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_messages = context.Messages;
 		_replays.MatchEvent -= OnMatchEvent;
 		_replays.MatchEvent += OnMatchEvent;
-		await ApplySettingsAsync();
-		await RegisterMessagingAsync(context.Messages).ConfigureAwait(false);
+		// Settings and messaging registration are independent: run them together
+		// under one connect budget. A dying session must never hold this pass
+		// (and with it, process shutdown past SupervisorShutdown) longer than
+		// the budget; the next connect re-runs everything.
+		s_connectUnhealthy = false;
+		using var budget = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+		try
+		{
+			await Task.WhenAll(
+				ApplySettingsAsync(),
+				RegisterMessagingAsync(context.Messages, budget.Token)).ConfigureAwait(false);
+		}
+		catch (OperationCanceledException) when (budget.IsCancellationRequested)
+		{
+			s_connectUnhealthy = true;
+			_logger.Debug("InitializeAsync hit the connect budget; the next connect re-runs it.");
+		}
 	}
 
-	private async Task RegisterMessagingAsync(IMessageChannel messages)
+	// Set when this connect pass sees the session die (transport failure or
+	// budget abort). Later phases of the same pass skip waiting and retry on
+	// the next connect instead of stacking budgets past the shutdown window.
+	internal static bool ConnectUnhealthy => s_connectUnhealthy;
+	private static bool s_connectUnhealthy;
+
+	private async Task RegisterMessagingAsync(IMessageChannel messages, CancellationToken cancellationToken)
 	{
 		try
 		{
 			await messages.HandleRequestsAsync(
 				R6MessageTopics.StateGet,
 				(_, _) => Task.FromResult<JsonElement?>(JsonSerializer.SerializeToElement(BuildStateSnapshot(), R6MessageJson.Options)),
-				default).ConfigureAwait(false);
+				cancellationToken).ConfigureAwait(false);
+			s_connectUnhealthy = false;
+		}
+		catch (OperationCanceledException)
+		{
+			s_connectUnhealthy = true;
+			_logger.Debug("Messaging registration aborted; retrying on next connect.");
+		}
+		catch (MessageChannelException ex) when (ex.ErrorCode is MessageChannelErrorCode.NotConnected or MessageChannelErrorCode.Timeout or MessageChannelErrorCode.Unknown)
+		{
+			s_connectUnhealthy = true;
+			_logger.Debug(ex, "Message channel lost during registration; retrying on next connect.");
 		}
 		catch (MessageChannelException ex)
 		{

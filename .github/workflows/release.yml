@@ -78,7 +78,7 @@ jobs:
       - name: Install macrodeck-plugin CLI
         # Pinned, not --prerelease: --prerelease resolves an older -preview line
         # that cannot pack beta manifests, so releases would ship stale artifacts.
-        run: dotnet tool install --global MacroDeck.Plugin.Cli --version 3.0.0-beta.13
+        run: dotnet tool install --global MacroDeck.Plugin.Cli --version 3.0.0-beta.14
 
       - name: Resolve version
         id: version

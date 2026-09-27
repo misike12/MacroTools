@@ -1,9 +1,18 @@
+using System.Diagnostics;
 using System.Text.Json;
 using MacroDeck.Plugin.Testing;
 using MacroDeck.Plugin.Testing.Fakes;
+using MacroDeck.Sdk;
 using MacroDeck.Sdk.Actions;
+using MacroDeck.Sdk.Decks;
+using MacroDeck.Sdk.Events;
+using MacroDeck.Sdk.Messaging;
+using MacroDeck.Sdk.Notifications;
+using MacroDeck.Sdk.Scripts;
 using MacroDeck.Sdk.Ui;
 using MacroDeck.Sdk.Variables;
+using MacroDeck.Sdk.Widgets;
+using MacroDeck.Sdk.ConfigFlow;
 using MacroDeck.Ui.Model.Surfaces;
 using Timers.Widgets;
 using Microsoft.Extensions.DependencyInjection;
@@ -502,6 +511,61 @@ public sealed class PluginIntegrationTests
 			Assert.That(Strings.LocalizationCatalog.TryGetTemplate("en", key, out var text), Is.True, key);
 			Assert.That(text, Is.Not.Empty, key);
 		}
+	}
+
+	[Test]
+	public async Task InitializeAsync_survives_a_hanging_message_channel()
+	{
+		// A session that dies mid-handshake never answers the registration round
+		// trip: init must outlive it via the connect budget instead of hanging
+		// the lifecycle gate (which stalls process shutdown past MDC0604).
+		var timers = new TimerService();
+		var integration = new PluginIntegration(timers, new PomodoroService(), TestLogger());
+		var context = new HangingChannelContext(new FakeIntegrationContext());
+		var sw = Stopwatch.StartNew();
+		var init = integration.InitializeAsync(context);
+		var finished = await Task.WhenAny(init, Task.Delay(TimeSpan.FromSeconds(45), TestContext.CurrentContext.CancellationToken));
+		sw.Stop();
+		Assert.That(finished, Is.SameAs((Task)init), "InitializeAsync hung past 45s on a dead channel.");
+		await init;
+		Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(20)));
+		await integration.ShutdownAsync();
+		timers.Dispose();
+	}
+
+	// A channel that hangs on request-handler registration until cancelled,
+	// simulating a session that dies mid-handshake.
+	private sealed class HangingMessageChannel(IMessageChannel inner) : IMessageChannel
+	{
+		public Task PublishAsync(string topic, JsonElement? payload = null, CancellationToken cancellationToken = default) =>
+			inner.PublishAsync(topic, payload, cancellationToken);
+		public Task SendAsync(string topic, JsonElement? payload = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default) =>
+			inner.SendAsync(topic, payload, timeout, cancellationToken);
+		public Task<JsonElement?> RequestAsync(string topic, JsonElement? payload = null, TimeSpan? timeout = null, CancellationToken cancellationToken = default) =>
+			inner.RequestAsync(topic, payload, timeout, cancellationToken);
+		public Task<IAsyncDisposable> SubscribeAsync(string topicPattern, Func<ChannelMessage, CancellationToken, Task> handler, CancellationToken cancellationToken = default) =>
+			inner.SubscribeAsync(topicPattern, handler, cancellationToken);
+		public Task<IAsyncDisposable> HandleCommandsAsync(string topic, Func<ChannelMessage, CancellationToken, Task> handler, CancellationToken cancellationToken = default) =>
+			inner.HandleCommandsAsync(topic, handler, cancellationToken);
+		public async Task<IAsyncDisposable> HandleRequestsAsync(string topic, Func<ChannelMessage, CancellationToken, Task<JsonElement?>> handler, CancellationToken cancellationToken = default)
+		{
+			await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+			return await inner.HandleRequestsAsync(topic, handler, cancellationToken).ConfigureAwait(false);
+		}
+	}
+
+	private sealed class HangingChannelContext(FakeIntegrationContext inner) : IIntegrationContext
+	{
+		private readonly IMessageChannel _messages = new HangingMessageChannel(inner.Messages);
+		public IVariableApi Variables => inner.Variables;
+		public IUserVariableApi UserVariables => inner.UserVariables;
+		public IIntegrationConfig Config => inner.Config;
+		public IDeckNavigator Deck => inner.Deck;
+		public IScriptApi Scripts => inner.Scripts;
+		public IWidgetApi Widgets => inner.Widgets;
+		public IEventPublisher Events => inner.Events;
+		public IUserNotifier Notifications => inner.Notifications;
+		public IMessageChannel Messages => _messages;
 	}
 }
 

@@ -33,7 +33,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	// A poll tick wedged in driver calls must not hold shutdown past the
 	// supervisor's grace period, or a SupervisorShutdown close (MDC0604) sees
 	// a live process. The cancelled loop ends on its own; shutdown moves on.
-	private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
+	private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(2);
 	private IIntegrationContext? _context;
 	private IMessageChannel? _messages;
 	private CancellationTokenSource? _loopCts;
@@ -176,15 +176,22 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		_messages = context.Messages;
 		_media.MediaChanged -= OnMediaChanged;
 		_media.MediaChanged += OnMediaChanged;
-		await RegisterMessagingAsync(context.Messages).ConfigureAwait(false);
+		// Settings and messaging registration are independent: run them together
+		// under one connect budget. A dying session must never hold this pass
+		// (and with it, process shutdown past SupervisorShutdown) longer than
+		// the budget; the next connect re-runs everything.
+		s_connectUnhealthy = false;
+		using var budget = new CancellationTokenSource(TimeSpan.FromSeconds(8));
 		try
 		{
-			_settings.Update(await MediaSettingsReader.ReadAsync(context.Config));
-			_last = await _media.GetSnapshotAsync(CancellationToken.None);
+			await Task.WhenAll(
+				ApplySettingsAsync(context),
+				RegisterMessagingAsync(context.Messages, budget.Token)).ConfigureAwait(false);
 		}
-		catch (Exception ex)
+		catch (OperationCanceledException) when (budget.IsCancellationRequested)
 		{
-			_logger.Debug(ex, "Initial media snapshot failed.");
+			s_connectUnhealthy = true;
+			_logger.Debug("InitializeAsync hit the connect budget; the next connect re-runs it.");
 		}
 
 		lock (_loopGate)
@@ -201,20 +208,50 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		}
 	}
 
-	private async Task RegisterMessagingAsync(IMessageChannel messages)
+	private async Task ApplySettingsAsync(IIntegrationContext context)
+	{
+		try
+		{
+			_settings.Update(await MediaSettingsReader.ReadAsync(context.Config));
+			_last = await _media.GetSnapshotAsync(CancellationToken.None);
+		}
+		catch (Exception ex)
+		{
+			_logger.Debug(ex, "Initial media snapshot failed.");
+		}
+	}
+
+	private async Task RegisterMessagingAsync(IMessageChannel messages, CancellationToken cancellationToken)
 	{
 		try
 		{
 			await messages.HandleRequestsAsync(
 				MediaMessageTopics.StateGet,
 				(_, _) => Task.FromResult<JsonElement?>(JsonSerializer.SerializeToElement(BuildStateSnapshot(), MediaMessageJson.Options)),
-				default).ConfigureAwait(false);
+				cancellationToken).ConfigureAwait(false);
+			s_connectUnhealthy = false;
+		}
+		catch (OperationCanceledException)
+		{
+			s_connectUnhealthy = true;
+			_logger.Debug("Messaging registration aborted; retrying on next connect.");
+		}
+		catch (MessageChannelException ex) when (ex.ErrorCode is MessageChannelErrorCode.NotConnected or MessageChannelErrorCode.Timeout or MessageChannelErrorCode.Unknown)
+		{
+			s_connectUnhealthy = true;
+			_logger.Debug(ex, "Message channel lost during registration; retrying on next connect.");
 		}
 		catch (MessageChannelException ex)
 		{
 			_logger.Debug(ex, "Message channel unavailable, skipping messaging registration.");
 		}
 	}
+
+	// Set when this connect pass sees the session die (transport failure or
+	// budget abort). Later phases of the same pass skip waiting and retry on
+	// the next connect instead of stacking budgets past the shutdown window.
+	internal static bool ConnectUnhealthy => s_connectUnhealthy;
+	private static bool s_connectUnhealthy;
 
 	private Task PublishMessageAsync(string topic, object payload)
 	{
@@ -296,15 +333,25 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 		}
 
 		Interlocked.Exchange(ref _lastEventRefreshTicks, now);
-		_ = RefreshFromEventAsync();
+		CancellationToken eventToken;
+		lock (_loopGate)
+		{
+			eventToken = _loopCts?.Token ?? CancellationToken.None;
+		}
+
+		_ = RefreshFromEventAsync(eventToken);
 	}
 
-	private async Task RefreshFromEventAsync()
+	private async Task RefreshFromEventAsync(CancellationToken cancellationToken)
 	{
 		MediaSnapshot snapshot;
 		try
 		{
-			snapshot = await _media.GetSnapshotAsync(CancellationToken.None);
+			snapshot = await _media.GetSnapshotAsync(cancellationToken);
+		}
+		catch (OperationCanceledException)
+		{
+			return;
 		}
 		catch (Exception ex)
 		{

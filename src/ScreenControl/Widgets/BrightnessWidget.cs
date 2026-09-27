@@ -334,18 +334,36 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 			}
 		}
 
+		// The integration pass already saw this session die: skip waiting and
+		// retry on the next connect instead of stacking another budget.
+		if (ScreenControl.PluginIntegration.ConnectUnhealthy)
+		{
+			return;
+		}
+
 		const int maxAttempts = 5;
+		// Bound the whole registration pass: a dying session must never hold
+		// the lifecycle gate (and with it, shutdown past SupervisorShutdown).
+		// Skipped registrations retry on the next connect.
+		using var budget = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+		using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, budget.Token);
+		var registrationToken = linked.Token;
 		for (var attempt = 1; ; attempt++)
 		{
 			try
 			{
-				WidgetTypeRegistration registration = await context.RegisterWidgetTypeAsync(s_descriptor, cancellationToken);
+				WidgetTypeRegistration registration = await context.RegisterWidgetTypeAsync(s_descriptor, registrationToken);
 				lock (s_registrationGate)
 				{
 					s_widgetTypeId = registration.WidgetTypeId;
 					s_registered = true;
 				}
 
+				return;
+			}
+			catch (OperationCanceledException) when (budget.IsCancellationRequested)
+			{
+				_logger.Debug("Widget registration hit the connect budget; retrying on next connect.");
 				return;
 			}
 			catch (OperationCanceledException)
@@ -355,7 +373,7 @@ public sealed class BrightnessWidget : IWidgetTypeProvider, IUiProvider
 			catch (Exception ex) when (attempt < maxAttempts)
 			{
 				_logger.Debug(ex, "Widget registration attempt {Attempt} failed, retrying.", attempt);
-				await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), cancellationToken);
+				await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), registrationToken);
 			}
 		}
 	}

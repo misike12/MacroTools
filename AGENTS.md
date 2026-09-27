@@ -381,12 +381,21 @@ reconnect and resume, the reserved endpoints, logging limits. Exit `0` conforman
 wrong, `2` usage error, `3` input unreadable, `4` cancelled - `1` and `3` are deliberately distinct. Run
 it after any change to capability shape, cancellation handling or the manifest, and treat a Required
 check going from pass to fail as a blocking regression. Most checks `SKIP` until the plugin declares
-capabilities. Known flake: `MDC0604` (SupervisorShutdown timing) intermittently fails green trees on
-CsMd and Windows Media Control; a clean re-run passing it means the tree, not the plugin, so re-run
-once before investigating, and only treat three consecutive failures as a real regression.
+capabilities. Known flake with a known mechanism: `MDC0604` (SupervisorShutdown timing) fails when
+the 4004 close lands while the subject is mid-handshake or has outbound traffic (e.g. the icon
+asset upload) in flight: the socket aborts without delivering the close frame, the subject sees a
+`WebSocketException` instead of the code, classifies it as retryable, reconnects with resume and
+stays live past the 15 s window (proven by message-level repro: second `hello` with
+`resumeSessionId` ~500 ms after the 4004). Mitigations in place: every integration init and every
+widget registration runs under an 8 s connect budget, a `ConnectUnhealthy` flag skips later phases
+of a dead pass instead of stacking budgets, shutdown drains are 2 s, the WMC event refresh honors
+cancellation, and each suite has an `InitializeAsync_survives_a_hanging_message_channel` regression
+test. What remains is SDK-side (close-vs-abort outcome mapping) and needs an upstream fix; a clean
+re-run passing still means the tree, not the plugin, so re-run once before investigating, and only
+treat three consecutive failures as a real regression.
 
 The Macro Deck packages are pinned to the host line in use (`MacroDeckSdkVersion` in
-`Directory.Packages.props`, currently `3.0.0-beta.13`), so the commands above need no version
+`Directory.Packages.props`, currently `3.0.0-beta.14`), so the commands above need no version
 argument. Only to test against SDK surface that is not published yet, pack it into `local-feed/` and
 pass `-p:MacroDeckSdkVersion=<version>` - see "Building against a local SDK build" in
 [README.md](README.md).
@@ -413,6 +422,18 @@ file-backed variable answers `NotEditable` to writes, which the existing write-s
 already covers; this repository never writes user variables). Upstream reference moved to the
 `Macro-Deck-App/Macro-Deck` repository (`docs/src/content/docs/`, e.g. `ui/components/responsive.md`);
 the old `Macro-Deck-3` `docs/plugin-development/` paths no longer exist.
+
+Beta.14 additions, all additive: bundled icon packs (`icon-pack add/list/remove`, manifest
+`bundledIconPacks`, `ActionIconReference.PluginIcon`/`UiIconReference.PluginIcon` plus
+`IUiResourceRegistry.GetPluginIconAsync`; not used here since every button/widget draws its
+own art or uses live covers), pointer/touch UI events (`pointer-down/move/up`, `tap` with
+finger count; not used here since the Slider component already covers all drag needs and
+nothing here is a drawing pad or joystick), Hot Reload view reloading (already compliant:
+config flows are fresh instances per session, widget sessions build from request data, views
+dispose per session), and the loopback per-launch secret (`X-MacroDeck-Loopback-Secret` header
+required for raw REST like `scripts/install-plugin.ps1`, which reads it from
+`%APPDATA%/MacroDeck/config/loopback-secret` or `-LoopbackSecret`; without it install by
+hand via double-click). Pin the CLI with `--version` (never `--prerelease`) in CI and docs.
 
 Working in the template repository itself rather than in a plugin generated from it? Changing its shape
 (files, names, `.template.config/template.json`, `packaging/`) also needs a generated-project check -

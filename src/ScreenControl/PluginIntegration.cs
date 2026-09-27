@@ -23,7 +23,7 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 	// A watch tick wedged in driver calls must not hold shutdown past the
 	// supervisor's grace period, or a SupervisorShutdown close (MDC0604) sees
 	// a live process. The cancelled loop ends on its own; shutdown moves on.
-	private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(5);
+	private static readonly TimeSpan ShutdownDrainTimeout = TimeSpan.FromSeconds(2);
 
 	private readonly IMonitorService _monitors;
 	private readonly IWindowService _windows;
@@ -100,17 +100,47 @@ public sealed class PluginIntegration : IPluginIntegration, IVariableProvider, I
 			_loopTask = RunCatalogWatchAsync(_loopCts.Token);
 		}
 
-		await RegisterMessagingAsync(context.Messages).ConfigureAwait(false);
+		// Messaging registration is a host round trip: bound it so a dying
+		// session can never hold this pass (and with it, process shutdown past
+		// SupervisorShutdown) longer than the budget; the next connect re-runs it.
+		s_connectUnhealthy = false;
+		using var budget = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+		try
+		{
+			await RegisterMessagingAsync(context.Messages, budget.Token).ConfigureAwait(false);
+		}
+		catch (OperationCanceledException) when (budget.IsCancellationRequested)
+		{
+			s_connectUnhealthy = true;
+			_logger.Debug("InitializeAsync hit the connect budget; the next connect re-runs it.");
+		}
 	}
 
-	private async Task RegisterMessagingAsync(IMessageChannel messages)
+	// Set when this connect pass sees the session die (transport failure or
+	// budget abort). Later phases of the same pass skip waiting and retry on
+	// the next connect instead of stacking budgets past the shutdown window.
+	internal static bool ConnectUnhealthy => s_connectUnhealthy;
+	private static bool s_connectUnhealthy;
+
+	private async Task RegisterMessagingAsync(IMessageChannel messages, CancellationToken cancellationToken)
 	{
 		try
 		{
 			await messages.HandleRequestsAsync(
 				ScreenMessageTopics.StateGet,
 				(_, _) => Task.FromResult<JsonElement?>(JsonSerializer.SerializeToElement(BuildStateSnapshot(), ScreenMessageJson.Options)),
-				default).ConfigureAwait(false);
+				cancellationToken).ConfigureAwait(false);
+			s_connectUnhealthy = false;
+		}
+		catch (OperationCanceledException)
+		{
+			s_connectUnhealthy = true;
+			_logger.Debug("Messaging registration aborted; retrying on next connect.");
+		}
+		catch (MessageChannelException ex) when (ex.ErrorCode is MessageChannelErrorCode.NotConnected or MessageChannelErrorCode.Timeout or MessageChannelErrorCode.Unknown)
+		{
+			s_connectUnhealthy = true;
+			_logger.Debug(ex, "Message channel lost during registration; retrying on next connect.");
 		}
 		catch (MessageChannelException ex)
 		{

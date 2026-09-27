@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "com.misu.screen-control",
   "name": "Screen Control",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "Control monitors (DDC brightness/input) and windows (focus, minimize, virtual desktops).",
   "icon": "Assets/icon.svg",
   "entrypoints": {
@@ -24,7 +24,7 @@
   },
   "permissions": ["host:messaging"],
   "compatibility": {
-    "macroDeck": ">=3.0.0-beta.13"
+    "macroDeck": ">=3.0.0-beta.14"
   },
   "repository": "https://github.com/misike12/MacroTools",
   "additionalLinks": [

@@ -185,7 +185,7 @@ Every plugin also publishes on Macro Deck's message bus (`host:messaging` permis
 ## Requirements
 
 - Windows x64.
-- Macro Deck `>=3.0.0-beta.13` (host).
+- Macro Deck `>=3.0.0-beta.14` (host).
 - .NET 10 SDK (to build).
 
 ## Install
@@ -248,7 +248,7 @@ would drive real monitor brightness, input switches and window focus with defaul
 parameters, so it is verified through unit tests plus `macrodeck-plugin build`,
 `validate --artifact` and `inspect` instead.
 
-`dotnet tool install --global MacroDeck.Plugin.Cli --version 3.0.0-beta.13` provides `macrodeck-plugin` (pinned: `--prerelease` resolves an older line that cannot pack current manifests).
+`dotnet tool install --global MacroDeck.Plugin.Cli --version 3.0.0-beta.14` provides `macrodeck-plugin` (pinned: `--prerelease` resolves an older line that cannot pack current manifests).
 
 ## Releasing
 
